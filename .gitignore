@@ -1,0 +1,16 @@
+.vscode/
+__pycache__/
+venv/
+*.egg-info/
+*.py[cod]
+*$py.class
+*.db
+*.log
+Lib/
+Scripts/
+pyvenv.cfg
+myapp/Logs/Logs/
+bin/
+.DS_Store
+*.ini
+*.lock
