@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Boolean
 
 
 class attributes(db.Model):
+    __bind_key__ = 'main'
     __tablename__ = 'attributes'
     id = Column(Integer, primary_key=True)
     type_id = Column(Integer)

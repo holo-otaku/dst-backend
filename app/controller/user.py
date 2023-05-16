@@ -1,5 +1,6 @@
-from flask import render_template, current_app
+from flask import current_app, jsonify, make_response
 from models.user import User
+from models.mssql import *
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -10,12 +11,15 @@ def create():
         db.session.add(new_user)
         db.session.commit()
 
-        return {"Code": 200, "Msg": "Success"}
     except SQLAlchemyError as e:
         db.session.rollback()
         print("Failed to insert data: ", e)
+        return make_response(jsonify({"Code": 500, "Msg": "Failed to insert data"}), 500)
+
     finally:
         db.session.close()
+
+    return make_response(jsonify({"Code": 200, "Msg": "Success"}), 200)
 
 
 def read(id):
@@ -26,8 +30,11 @@ def read(id):
         if user:
             result = {"name": user.name, "age": user.age}
 
-        return {"Code": 200, "Msg": "Success", "Data": result}
     except SQLAlchemyError as e:
         print("Failed to read data: ", e)
+        return make_response(jsonify({"Code": 500, "Msg": "No User"}), 500)
+
     finally:
         db.session.close()
+
+    return make_response(jsonify({"Code": 200, "Msg": "Success", "Data": result}), 200)

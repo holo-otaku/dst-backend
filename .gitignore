@@ -6,6 +6,7 @@ venv/
 *$py.class
 *.db
 *.log
+app.log.*
 Lib/
 Scripts/
 pyvenv.cfg
