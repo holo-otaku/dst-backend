@@ -1,4 +1,4 @@
-# Project Name
+# DST backend
 
 This is a project that uses the Python Flask framework and includes functionality for performing database migration.
 
@@ -76,3 +76,29 @@ flask db migrate
 flask db upgrade
 ```
 This will automatically detect the model classes in the project and generate a new database migration file.
+
+## Docker
+
+1. Build the Docker images:
+
+```
+docker-compose build
+```
+
+2. Start the Docker containers:
+
+```
+docker-compose up -d
+```
+
+3. Attach to the shell of the application container:
+
+```
+docker-compose exec <service_name> sh
+```
+
+4. Inside the container, run the database migrations:
+
+```
+flask db upgrade
+```

@@ -18,7 +18,6 @@ def create(data):
         return make_response(jsonify({"code": 200, "msg": "Role created"}), 201)
 
     except SQLAlchemyError as e:
-        print("Failed to create role: ", e)
         current_app.logger.error(e)
         db.session.rollback()
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
@@ -43,7 +42,6 @@ def update(role_id, data):
         return make_response(jsonify({"code": 200, "msg": "Role updated"}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed to update role: ", e)
         current_app.logger.error(e)
         db.session.rollback()
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
@@ -80,7 +78,6 @@ def delete(role_id):
         return make_response(jsonify({"code": 200, "msg": "Role deleted"}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed to delete role: ", e)
         current_app.logger.error(e)
         db.session.rollback()
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
@@ -102,7 +99,6 @@ def read(role_id):
         return make_response(jsonify({"code": 200, "msg": "Role found", "data": result}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed to get role: ", e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
     finally:
         db.session.close()
@@ -118,7 +114,6 @@ def read_multi():
         return make_response(jsonify({"code": 200, "msg": "Roles found", "data": result}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed to get roles: ", e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
     finally:
         db.session.close()

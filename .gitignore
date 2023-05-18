@@ -12,6 +12,8 @@ Scripts/
 pyvenv.cfg
 myapp/Logs/Logs/
 bin/
+mssql/
 .DS_Store
 *.ini
 *.lock
+sqlite/

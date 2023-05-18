@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  backend:
+    build: 
+      context: ./
+      dockerfile: dockerfile
+    volumes:
+      - ./sqlite:/usr/app/app/sqlite
+      - ./logs:/usr/src/app/app/Logs/Logs
+    environment:
+      - TZ=Asia/Taipei
+    container_name: autoclave-backend
+    restart: unless-stopped
+    links:
+      - mssql
+    ports:
+      - 5001:5001
+
+  mssql:
+    image: mcr.microsoft.com/azure-sql-edge
+    environment:
+      - MSSQL_SA_PASSWORD=1QAZ2wsx3edc
+      - ACCEPT_EULA=1
+      - TZ=Asia/Taipei
+    volumes:
+      - ./mssql:/var/opt/mssql
+    ports:
+      - "5434:1433"

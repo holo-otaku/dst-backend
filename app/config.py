@@ -7,7 +7,7 @@ class Config:
     DEBUG = True
     SECRET_KEY = 'mysecretkey'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///' + \
-        os.path.join(basedir, 'database.db')
+        os.path.join(basedir, './sqlite/database.db')
     SQLALCHEMY_BINDS = {
         'mssql': 'mssql+pyodbc://sa:1QAZ2wsx3edc@localhost:5434/MIS2000?driver=ODBC+Driver+17+for+SQL+Server'
     }

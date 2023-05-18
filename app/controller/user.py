@@ -29,7 +29,6 @@ def create(data):
 
     except SQLAlchemyError as e:
         db.session.rollback()
-        print("Failed to insert data: ", e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     finally:
@@ -50,7 +49,6 @@ def read(user_id):
         return make_response(jsonify({"code": 200, "msg": "Success", "data": result}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed to read data: ", e)
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": e}), 500)
 
@@ -67,7 +65,6 @@ def read_multi():
         return make_response(jsonify({"code": 200, "msg": "Success", "data": result}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed to read data: ", e)
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": e}), 500)
 
@@ -108,7 +105,6 @@ def update(user_id, data):
         return make_response(jsonify({"code": 200, "msg": "Success", "data": result}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed to update data: ", e)
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
@@ -128,7 +124,6 @@ def delete(user_id):
         return make_response(jsonify({"code": 200, "msg": "User deleted"}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed delete data: ", e)
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": e}), 500)
 

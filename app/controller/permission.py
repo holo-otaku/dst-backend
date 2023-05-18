@@ -21,7 +21,6 @@ def create(data):
         return make_response(jsonify({"code": 200, "msg": "Permission created"}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed to create permission: ", e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
 
@@ -36,7 +35,6 @@ def read(permission_id):
         return make_response(jsonify({"code": 200, "msg": "Permission found", "data": result}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed to get permission: ", e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
 
@@ -49,7 +47,6 @@ def read_multi():
         return make_response(jsonify({"code": 200, "msg": "Permission found", "data": result}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed to get permission: ", e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
 
@@ -68,7 +65,6 @@ def update(permission_id, data):
         return make_response(jsonify({"code": 200, "msg": "Permission updated"}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed to update permission: ", e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
 
@@ -84,5 +80,4 @@ def delete(permission_id):
         return make_response(jsonify({"code": 200, "msg": "Permission deleted"}), 200)
 
     except SQLAlchemyError as e:
-        print("Failed to delete permission: ", e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)

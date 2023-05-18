@@ -23,6 +23,5 @@ def login():
 
     except SQLAlchemyError as e:
         db.session.rollback()
-        print("Failed to insert data: ", e)
     finally:
         db.session.close()
