@@ -9,7 +9,6 @@ class Config:
     SQLALCHEMY_DATABASE_URI = 'sqlite:///' + \
         os.path.join(basedir, 'database.db')
     SQLALCHEMY_BINDS = {
-        'main': 'sqlite:///' + os.path.join(basedir, 'database.db'),
         'mssql': 'mssql+pyodbc://sa:1QAZ2wsx3edc@localhost:5434/MIS2000?driver=ODBC+Driver+17+for+SQL+Server'
     }
     SQLALCHEMY_TRACK_MODIFICATIONS = False
