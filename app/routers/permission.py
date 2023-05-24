@@ -27,7 +27,7 @@ def create_permission():
     return create(data)
 
 
-@permission.route("<int:permission_id>", methods=["PUT"])
+@permission.route("<int:permission_id>", methods=["PATCH"])
 # @jwt_required()
 def update_permission(permission_id):
     data = request.get_json()

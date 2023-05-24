@@ -27,7 +27,7 @@ def create_role():
     return create(data)
 
 
-@role.route("<int:role_id>", methods=["PUT"])
+@role.route("<int:role_id>", methods=["PATCH"])
 # @jwt_required()
 def update_role(role_id):
     data = request.get_json()

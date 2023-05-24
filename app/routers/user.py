@@ -27,7 +27,7 @@ def create_user():
     return create(data)
 
 
-@user.route("<int:user_id>", methods=["PUT"])
+@user.route("<int:user_id>", methods=["PATCH"])
 # @jwt_required()
 def update_user(user_id):
     data = request.get_json()
