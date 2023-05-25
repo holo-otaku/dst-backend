@@ -21,11 +21,16 @@ def create(data):
             for field_data in fields_data:
                 field_name = field_data.get('name')
                 field_data_type = field_data.get('dataType')
+                field_is_filtered = field_data.get('isFiltered', False)
                 field_is_required = field_data.get('isRequired', False)
 
                 # Create a new Field object and associate it with the series
                 field = Field(
-                    name=field_name, data_type=field_data_type, is_required=field_is_required)
+                    name=field_name,
+                    data_type=field_data_type,
+                    is_filtered=field_is_filtered,
+                    is_required=field_is_required
+                )
                 series.fields.append(field)
 
         db.session.add(series)
@@ -52,9 +57,12 @@ def read(series_id):
                     'createdBy': series.creator.username,
                     'createdAt': series.created_at.strftime("%Y-%m-%d %H:%M:%S")}
 
-            field = request.args.get('field', False)
+            field = bool(int(request.args.get('field', False)))
             if field:
-                field_data = [{'name': f.name, 'dataType': f.data_type,
+                field_data = [{'id': f.id,
+                               'name': f.name,
+                               'dataType': f.data_type,
+                               'isFiltered': f.is_filtered,
                                'isRequired': f.is_required} for f in series.fields]
                 data['fields'] = field_data
 
@@ -72,9 +80,12 @@ def read(series_id):
 
 def read_multi():
     try:
-        series = Series.query.all()
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+
+        series = Series.query.paginate(page=page, per_page=limit)
         result = []
-        field = request.args.get('field', False)
+        field = bool(int(request.args.get('field', False)))
         for s in series:
             data = {
                 'id': s.id,
@@ -84,7 +95,10 @@ def read_multi():
             }
 
             if field:
-                field_data = [{'name': f.name, 'dataType': f.data_type,
+                field_data = [{'id': f.id,
+                               'name': f.name,
+                               'dataType': f.data_type,
+                               'isFiltered': f.is_filtered,
                                'isRequired': f.is_required} for f in s.fields]
                 data['fields'] = field_data
 
@@ -132,11 +146,12 @@ def update(series_id, data):
             for field_data in fields_data:
                 field_name = field_data.get('name')
                 field_data_type = field_data.get('dataType')
+                field_is_filtered = field_data.get('isFiltered', False)
                 field_is_required = field_data.get('isRequired', False)
 
                 # Create a new Field object and associate it with the series
                 field = Field(
-                    name=field_name, data_type=field_data_type, is_required=field_is_required)
+                    name=field_name, data_type=field_data_type, is_filtered=field_is_filtered, is_required=field_is_required)
                 series.fields.append(field)
 
         db.session.commit()
