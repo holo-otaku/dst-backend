@@ -7,39 +7,41 @@ from sqlalchemy import and_, or_, text
 
 def create(data):
     try:
-        series_id = data.get('seriesId')
-        name = data.get('name')
-        attributes = data.get('attributes')
+        items = []
 
-        if not series_id or not name or not attributes:
-            return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
+        for item_data in data:
+            series_id = item_data.get('seriesId')
+            name = item_data.get('name')
+            attributes = item_data.get('attributes')
 
-        series = Series.query.get(series_id)
-        if not series:
-            return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
+            if not series_id or not name or not attributes:
+                return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
 
-        item = Item(series_id=series_id, name=name)
-        db.session.add(item)
+            series = Series.query.get(series_id)
+            if not series:
+                return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
 
-        field_ids = [attribute.get(
-            'fieldId') for attribute in attributes if attribute.get('fieldId')]
-        existing_fields = Field.query.filter(Field.id.in_(field_ids)).all()
-        existing_field_ids = [field.id for field in existing_fields]
+            item = Item(series_id=series_id, name=name)
+            db.session.add(item)
 
-        for attribute in attributes:
-            field_id = attribute.get('fieldId')
-            value = attribute.get('value')
+            for attribute in attributes:
+                field_id = attribute.get('fieldId')
+                value = attribute.get('value')
 
-            if field_id in existing_field_ids:
+                field = Field.query.get(field_id)
+                if not field:
+                    return make_response(jsonify({"code": 400, "msg": f"Invalid field_id: {field_id}"}), 400)
+
                 item_attribute = ItemAttribute(
                     item_id=item.id, field_id=field_id, value=value)
                 db.session.add(item_attribute)
-            else:
-                return make_response(jsonify({"code": 400, "msg": f"Invalid field_id: {field_id}"}), 400)
+
+            items.append(item)
 
         db.session.commit()
 
-        result = {'id': item.id, 'name': item.name, 'seriesId': item.series_id}
+        result = [{'id': item.id, 'name': item.name,
+                   'seriesId': item.series_id} for item in items]
         return make_response(jsonify({"code": 201, "msg": "Success", "data": result}), 201)
 
     except SQLAlchemyError as e:
