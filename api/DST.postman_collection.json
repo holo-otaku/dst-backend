@@ -83,11 +83,11 @@
 		{
 			"name": "更新使用者",
 			"request": {
-				"method": "PUT",
+				"method": "PATCH",
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"test\",\n    \"roleId\": \"2\"\n}",
+					"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"test\",\n    \"roleId\": \"1\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -117,13 +117,13 @@
 					"raw": ""
 				},
 				"url": {
-					"raw": "{{base_url}}/users/2",
+					"raw": "{{base_url}}/users/1",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
 						"users",
-						"2"
+						"1"
 					]
 				}
 			},
@@ -217,7 +217,7 @@
 		{
 			"name": "更新role",
 			"request": {
-				"method": "PUT",
+				"method": "PATCH",
 				"header": [],
 				"body": {
 					"mode": "raw",
@@ -275,7 +275,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"name\":\"delete\"\n}",
+					"raw": "{\n    \"name\":\"query\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -356,7 +356,7 @@
 		{
 			"name": "更新permission",
 			"request": {
-				"method": "PUT",
+				"method": "PATCH",
 				"header": [],
 				"body": {
 					"mode": "raw",
@@ -402,6 +402,291 @@
 					"path": [
 						"permissions",
 						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "新增series",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"RJ\",\n    \"createdBy\": \"1\",\n    \"fields\": [\n        {\n            \"name\": \"名稱\",\n            \"dataType\": \"string\",\n            \"isFiltered\": 1,\n            \"isRequired\": 1\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/series",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"series"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "查詢series",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\":\"RJ\",\n    \"created_by\":\"1\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/series/1?field=1&page=1&limit=1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"series",
+						"1"
+					],
+					"query": [
+						{
+							"key": "field",
+							"value": "1"
+						},
+						{
+							"key": "page",
+							"value": "1"
+						},
+						{
+							"key": "limit",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "查詢複數series",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\":\"RJ\",\n    \"created_by\":\"1\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/series?field=1&page=1&limit=1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"series"
+					],
+					"query": [
+						{
+							"key": "field",
+							"value": "1"
+						},
+						{
+							"key": "page",
+							"value": "1"
+						},
+						{
+							"key": "limit",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "更新series",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"RJ\",\n    \"createdBy\": \"1\",\n    \"fields\": [\n        {\n            \"name\": \"名稱\",\n            \"dataType\": \"string\",\n            \"isFiltered\": 1,\n            \"isRequired\": 1\n        },\n        {\n            \"name\": \"Prot 數\",\n            \"dataType\": \"number\",\n            \"isFiltered\": 1,\n            \"isRequired\": 0\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/series/1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"series",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "刪除series",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\":\"RJ\",\n    \"created_by\":\"1\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/series/1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"series",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "新增products",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "[\n    {\n        \"seriesId\": 1,\n        \"name\": \"2\",\n        \"attributes\": [\n            {\n                \"fieldId\": 1,\n                \"value\": \"test\"\n            },\n            {\n                \"fieldId\": 2,\n                \"value\": 3\n            }\n        ]\n    },    {\n        \"seriesId\": 1,\n        \"name\": \"3\",\n        \"attributes\": [\n            {\n                \"fieldId\": 1,\n                \"value\": \"test\"\n            },\n            {\n                \"fieldId\": 2,\n                \"value\": 3\n            }\n        ]\n    }\n]",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/products",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"products"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "查詢products",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "[\n    {\n        \"fieldId\": 1,\n        \"value\": \"test1\"\n    },\n    {\n        \"fieldId\": 2,\n        \"value\": 1,\n        \"operation\": \"greater\"\n    }\n]",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/products/1/search?page=1&limit=10",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"products",
+						"1",
+						"search"
+					],
+					"query": [
+						{
+							"key": "page",
+							"value": "1"
+						},
+						{
+							"key": "limit",
+							"value": "10"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "編輯多筆products",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "[\n    {\n        \"itemId\": 1,\n        \"name\": \"123\",\n        \"attributes\": [\n            {\n                \"fieldId\": 1,\n                \"value\": \"test123\"\n            },\n            {\n                \"fieldId\": 2,\n                \"value\": 50\n            }\n        ]\n    }\n]",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/products/edit",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"products",
+						"edit"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "刪除多筆products",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"itemId\": [\n        3,\n        4\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/products/delete",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"products",
+						"delete"
 					]
 				}
 			},
