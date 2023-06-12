@@ -57,6 +57,10 @@ def create(data):
         db.session.rollback()
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
     finally:
         db.session.close()
 
@@ -185,6 +189,7 @@ def read(series_id):
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     finally:
@@ -264,6 +269,10 @@ def edit(data):
         db.session.rollback()
         return make_response(jsonify({'code': 500, 'msg': str(e)}), 500)
 
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
     finally:
         # 確保關閉資料庫連線
         db.session.close()
@@ -303,6 +312,10 @@ def delete(data):
         # 處理例外情況，回滾交易並回傳錯誤訊息
         db.session.rollback()
         return make_response(jsonify({'code': 500, 'msg': str(e)}), 500)
+
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     finally:
         # 確保關閉資料庫連線

@@ -23,6 +23,13 @@ def create(data):
     except SQLAlchemyError as e:
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+    finally:
+        db.session.close()
+
 
 def read(permission_id):
     try:
@@ -37,16 +44,25 @@ def read(permission_id):
     except SQLAlchemyError as e:
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
 
 def read_multi():
     try:
         permissions = Permission.query.all()
 
-        result = [{'id': permission.id, 'name': permission.name} for permission in permissions]
+        result = [{'id': permission.id, 'name': permission.name}
+                  for permission in permissions]
 
         return make_response(jsonify({"code": 200, "msg": "Permission found", "data": result}), 200)
 
     except SQLAlchemyError as e:
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+    except Exception as e:
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
 
@@ -67,6 +83,13 @@ def update(permission_id, data):
     except SQLAlchemyError as e:
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+    finally:
+        db.session.close()
+
 
 def delete(permission_id):
     try:
@@ -81,3 +104,10 @@ def delete(permission_id):
 
     except SQLAlchemyError as e:
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+    finally:
+        db.session.close()

@@ -32,6 +32,59 @@
 			"response": []
 		},
 		{
+			"name": "使用者登入",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"test\",\n    \"password\": \"test\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/login",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "jwt更新",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"test\",\n    \"password\": \"test\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/jwt/refresh",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"jwt",
+						"refresh"
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "查詢使用者",
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
@@ -451,7 +504,7 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/series/1?field=1&page=1&limit=1",
+					"raw": "{{base_url}}/series/1?field=0&page=1&limit=1",
 					"host": [
 						"{{base_url}}"
 					],
@@ -462,7 +515,7 @@
 					"query": [
 						{
 							"key": "field",
-							"value": "1"
+							"value": "0"
 						},
 						{
 							"key": "page",
@@ -607,7 +660,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "[\n    {\n        \"fieldId\": 1,\n        \"value\": \"test1\"\n    },\n    {\n        \"fieldId\": 2,\n        \"value\": 1,\n        \"operation\": \"greater\"\n    }\n]",
+					"raw": "[\n    {\n        \"fieldId\": 1,\n        \"value\": \"test123\"\n    },\n    {\n        \"fieldId\": 2,\n        \"value\": 49,\n        \"operation\": \"greater\"\n    }\n]",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -691,8 +744,44 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "新增使用者 Copy",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"test\",\n    \"password\": \"test\",\n    \"roleId\": \"1\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/users",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"users"
+					]
+				}
+			},
+			"response": []
 		}
 	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY4NjU0NzA4NCwianRpIjoiMTA1MTg1MDQtYjhjZi00NGFmLWFmMTgtMjlhNmE1YzJlNTM4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjg2NTQ3MDg0LCJleHAiOjE2ODY1NDg4ODR9.cEx5brRazDNecCGr44bBtrcmBnIiyHLqZYpP3RL5yPU",
+				"type": "string"
+			}
+		]
+	},
 	"event": [
 		{
 			"listen": "prerequest",

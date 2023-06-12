@@ -6,7 +6,7 @@ products = Blueprint("products", __name__)
 
 
 @products.route("", methods=["POST"])
-# @jwt_required()
+@jwt_required()
 def create_product():
     data = request.get_json()
 
@@ -14,21 +14,21 @@ def create_product():
 
 
 @products.route("/<int:series_id>/search", methods=["POST"])
-# @jwt_required()
+@jwt_required()
 def read_product(series_id):
 
     return read(series_id)
 
 
 @products.route("/edit", methods=["PUT"])
-# @jwt_required()
+@jwt_required()
 def edit_product():
     data = request.get_json()
 
     return edit(data)
 
 @products.route("/delete", methods=["DELETE"])
-# @jwt_required()
+@jwt_required()
 def delete_product():
     data = request.get_json()
 

@@ -31,6 +31,10 @@ def create(data):
         db.session.rollback()
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
     finally:
         db.session.close()
 
@@ -52,6 +56,10 @@ def read(user_id):
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": e}), 500)
 
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
     finally:
         db.session.close()
 
@@ -67,6 +75,10 @@ def read_multi():
     except SQLAlchemyError as e:
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": e}), 500)
+
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     finally:
         db.session.close()
@@ -108,6 +120,10 @@ def update(user_id, data):
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
     finally:
         db.session.close()
 
@@ -126,6 +142,10 @@ def delete(user_id):
     except SQLAlchemyError as e:
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": e}), 500)
+
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     finally:
         db.session.close()

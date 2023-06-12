@@ -74,6 +74,10 @@ def read(series_id):
         print("Failed to read series data: ", e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
     finally:
         db.session.close()
 
@@ -108,6 +112,10 @@ def read_multi():
 
     except SQLAlchemyError as e:
         print("Failed to read series data: ", e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+    except Exception as e:
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     finally:
@@ -164,6 +172,10 @@ def update(series_id, data):
         db.session.rollback()
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
     finally:
         db.session.close()
 
@@ -183,6 +195,10 @@ def delete(series_id):
 
     except SQLAlchemyError as e:
         db.session.rollback()
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+    except Exception as e:
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     finally:
