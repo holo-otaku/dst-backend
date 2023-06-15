@@ -6,21 +6,21 @@ user = Blueprint("user", __name__)
 
 
 @user.route("", methods=["GET"])
-# @jwt_required()
+@jwt_required()
 def get_users():
 
     return read_multi()
 
 
 @user.route("/<int:user_id>", methods=["GET"])
-# @jwt_required()
+@jwt_required()
 def get_user(user_id):
 
     return read(user_id)
 
 
 @user.route("", methods=["POST"])
-# @jwt_required()
+@jwt_required()
 def create_user():
     data = request.get_json()
 
@@ -28,7 +28,7 @@ def create_user():
 
 
 @user.route("<int:user_id>", methods=["PATCH"])
-# @jwt_required()
+@jwt_required()
 def update_user(user_id):
     data = request.get_json()
 
@@ -36,7 +36,7 @@ def update_user(user_id):
 
 
 @user.route("<int:user_id>", methods=["DELETE"])
-# @jwt_required()
+@jwt_required()
 def delete_user(user_id):
 
     return delete(user_id)
