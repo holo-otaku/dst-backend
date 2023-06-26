@@ -34,7 +34,7 @@ class Item(db.Model):
 
     id = Column(Integer, primary_key=True)
     series_id = Column(Integer, ForeignKey('series.id'))
-    name = Column(String)
+    name = Column(String(length=50))
 
     series = relationship('Series')
 
@@ -44,6 +44,6 @@ class ItemAttribute(db.Model):
 
     item_id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     field_id = Column(Integer, ForeignKey('field.id'), primary_key=True)
-    value = Column(String)
+    value = Column(String(length=50))
 
     item = relationship('Item')

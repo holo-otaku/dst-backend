@@ -6,8 +6,7 @@ class Config:
     BASE_DIR = basedir
     DEBUG = True
     SECRET_KEY = 'mysecretkey'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + \
-        os.path.join(basedir, './sqlite/database.db')
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://admin:password@localhost:8081/Database'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = 'dst-super-secret'
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=30)

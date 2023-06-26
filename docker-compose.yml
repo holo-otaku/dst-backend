@@ -10,20 +10,35 @@ services:
       - ./logs:/usr/src/app/app/Logs/Logs
     environment:
       - TZ=Asia/Taipei
-    container_name: autoclave-backend
+    container_name: dst-backend
     restart: unless-stopped
-    links:
-      - mssql
     ports:
       - 5001:5001
 
-  mssql:
-    image: mcr.microsoft.com/azure-sql-edge
+  database:
+    image: mysql:8.0.33
+    container_name: dst-db
+    ports:
+      - "8081:3306"
     environment:
-      - MSSQL_SA_PASSWORD=1QAZ2wsx3edc
-      - ACCEPT_EULA=1
+      - MYSQL_ROOT_PASSWORD=1qaz@WSX3edc
+      - MYSQL_DATABASE=dst
+      - MYSQL_USER=admin
+      - MYSQL_PASSWORD=admin
       - TZ=Asia/Taipei
     volumes:
-      - ./mssql:/var/opt/mssql
+      - ./mysql:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: dst-phpmyadmin
+    restart: unless-stopped
     ports:
-      - "5434:1433"
+      - "8082:80"
+    depends_on:
+      - database
+    links:
+      - database
+    environment:
+      PMA_HOST: database
+      PMA_PORT: 3306

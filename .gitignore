@@ -13,6 +13,7 @@ pyvenv.cfg
 myapp/Logs/Logs/
 bin/
 mssql/
+mysql/
 .DS_Store
 *.ini
 *.lock
