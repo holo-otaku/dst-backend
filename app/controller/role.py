@@ -9,6 +9,12 @@ def create(data):
         role_name = data.get('roleName')
         permission_ids = data.get('permissionIds')
 
+        # 檢查 permission_ids 是否存在
+        for permission_id in permission_ids:
+            permission = Permission.query.get(permission_id)
+            if not permission:
+                return make_response(jsonify({"code": 400, "msg": f"Permission with ID {permission_id} not found"}), 400)
+
         role = Role(name=role_name)
         db.session.add(role)
         db.session.commit()
