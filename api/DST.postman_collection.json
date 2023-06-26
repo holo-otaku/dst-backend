@@ -33,12 +33,30 @@
 		},
 		{
 			"name": "使用者登入",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const responseJson = pm.response.json();",
+							"const accessToken = responseJson.data.accessToken;",
+							"",
+							"// 將新的存取令牌設定到 Postman 環境變數中",
+							"pm.environment.set('accessToken', accessToken);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
 			"request": {
+				"auth": {
+					"type": "noauth"
+				},
 				"method": "POST",
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"username\": \"test\",\n    \"password\": \"test\"\n}",
+					"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"test\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -85,7 +103,7 @@
 			"response": []
 		},
 		{
-			"name": "查詢使用者",
+			"name": "查詢單筆使用者",
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
 			},
@@ -122,12 +140,22 @@
 					"raw": ""
 				},
 				"url": {
-					"raw": "{{base_url}}/users",
+					"raw": "{{base_url}}/users?page=1&limit=1",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
 						"users"
+					],
+					"query": [
+						{
+							"key": "page",
+							"value": "1"
+						},
+						{
+							"key": "limit",
+							"value": "1"
+						}
 					]
 				}
 			},
@@ -140,7 +168,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"test\",\n    \"roleId\": \"1\"\n}",
+					"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"test\",\n    \"roleId\": \"3\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -189,7 +217,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"roleName\": \"test\",\n    \"permissionIds\": [\n        1\n    ]\n}",
+					"raw": "{\n    \"roleName\": \"test\",\n    \"permissionIds\": [\n        2,3\n    ]\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -209,7 +237,7 @@
 			"response": []
 		},
 		{
-			"name": "查詢role",
+			"name": "查詢單筆role",
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
 			},
@@ -226,13 +254,13 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/roles/1",
+					"raw": "{{base_url}}/roles/3",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
 						"roles",
-						"1"
+						"3"
 					]
 				}
 			},
@@ -256,12 +284,22 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/roles",
+					"raw": "{{base_url}}/roles?page=1&limit=1",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
 						"roles"
+					],
+					"query": [
+						{
+							"key": "page",
+							"value": "1"
+						},
+						{
+							"key": "limit",
+							"value": "1"
+						}
 					]
 				}
 			},
@@ -274,7 +312,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"roleName\": \"admin\",\n    \"permissionIds\": [\n        1,\n        2\n    ]\n}",
+					"raw": "{\n    \"roleName\": \"admin\",\n    \"permissionIds\": [\n        1\n    ]\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -282,13 +320,13 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/roles/1",
+					"raw": "{{base_url}}/roles/3",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
 						"roles",
-						"1"
+						"3"
 					]
 				}
 			},
@@ -348,7 +386,7 @@
 			"response": []
 		},
 		{
-			"name": "查詢permission",
+			"name": "查詢單筆permission",
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
 			},
@@ -395,12 +433,22 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/permissions",
+					"raw": "{{base_url}}/permissions?page=1&limit=1",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
 						"permissions"
+					],
+					"query": [
+						{
+							"key": "page",
+							"value": "1"
+						},
+						{
+							"key": "limit",
+							"value": "1"
+						}
 					]
 				}
 			},
@@ -467,7 +515,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"name\": \"RJ\",\n    \"createdBy\": \"1\",\n    \"fields\": [\n        {\n            \"name\": \"名稱\",\n            \"dataType\": \"string\",\n            \"isFiltered\": 1,\n            \"isRequired\": 1\n        }\n    ]\n}",
+					"raw": "{\n    \"name\": \"RJ\",\n    \"createdBy\": \"1\",\n    \"fields\": [\n        {\n            \"name\": \"日期\",\n            \"dataType\": \"time\",\n            \"isFiltered\": 1,\n            \"isRequired\": 1\n        },\n        {\n            \"name\": \"料號\",\n            \"dataType\": \"string\",\n            \"isFiltered\": 1,\n            \"isRequired\": 1\n        }\n    ]\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -487,7 +535,7 @@
 			"response": []
 		},
 		{
-			"name": "查詢series",
+			"name": "查詢單筆series",
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
 			},
@@ -504,7 +552,7 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/series/1?field=0&page=1&limit=1",
+					"raw": "{{base_url}}/series/1?field=1",
 					"host": [
 						"{{base_url}}"
 					],
@@ -515,14 +563,6 @@
 					"query": [
 						{
 							"key": "field",
-							"value": "0"
-						},
-						{
-							"key": "page",
-							"value": "1"
-						},
-						{
-							"key": "limit",
 							"value": "1"
 						}
 					]
@@ -548,7 +588,7 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/series?field=1&page=1&limit=1",
+					"raw": "{{base_url}}/series?field=1&page=1&limit=10",
 					"host": [
 						"{{base_url}}"
 					],
@@ -566,7 +606,7 @@
 						},
 						{
 							"key": "limit",
-							"value": "1"
+							"value": "10"
 						}
 					]
 				}
@@ -580,7 +620,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"name\": \"RJ\",\n    \"createdBy\": \"1\",\n    \"fields\": [\n        {\n            \"name\": \"名稱\",\n            \"dataType\": \"string\",\n            \"isFiltered\": 1,\n            \"isRequired\": 1\n        },\n        {\n            \"name\": \"Prot 數\",\n            \"dataType\": \"number\",\n            \"isFiltered\": 1,\n            \"isRequired\": 0\n        }\n    ]\n}",
+					"raw": "{\n    \"name\": \"RJ\",\n    \"createdBy\": \"1\",\n    \"fields\": [\n        {\n            \"name\": \"日期\",\n            \"dataType\": \"time\",\n            \"isFiltered\": 1,\n            \"isRequired\": 1\n        },\n        {\n            \"name\": \"料號\",\n            \"dataType\": \"string\",\n            \"isFiltered\": 1,\n            \"isRequired\": 1\n        },\n        {\n            \"name\": \"數量\",\n            \"dataType\": \"number\",\n            \"isFiltered\": 1,\n            \"isRequired\": 1\n        }\n    ]\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -634,7 +674,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "[\n    {\n        \"seriesId\": 1,\n        \"name\": \"2\",\n        \"attributes\": [\n            {\n                \"fieldId\": 1,\n                \"value\": \"test\"\n            },\n            {\n                \"fieldId\": 2,\n                \"value\": 3\n            }\n        ]\n    },    {\n        \"seriesId\": 1,\n        \"name\": \"3\",\n        \"attributes\": [\n            {\n                \"fieldId\": 1,\n                \"value\": \"test\"\n            },\n            {\n                \"fieldId\": 2,\n                \"value\": 3\n            }\n        ]\n    }\n]",
+					"raw": "[\n    {\n        \"seriesId\": 1,\n        \"name\": \"test1\",\n        \"attributes\": [\n            {\n                \"fieldId\": 1,\n                \"value\": \"2023-06-15\"\n            },\n            {\n                \"fieldId\": 2,\n                \"value\": \"R123\"\n            }\n        ]\n    }\n]",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -655,12 +695,23 @@
 		},
 		{
 			"name": "查詢products",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
 			"request": {
 				"method": "POST",
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "[\n    {\n        \"fieldId\": 1,\n        \"value\": \"test123\"\n    },\n    {\n        \"fieldId\": 2,\n        \"value\": 49,\n        \"operation\": \"greater\"\n    }\n]",
+					"raw": "[\n    {\n        \"fieldId\": 1,\n        \"value\": \"2023-06-10\",\n        \"operation\": \"greater\"\n    },\n    {\n        \"fieldId\": 2,\n        \"value\": \"R1234\"\n    }\n]",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -698,7 +749,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "[\n    {\n        \"itemId\": 1,\n        \"name\": \"123\",\n        \"attributes\": [\n            {\n                \"fieldId\": 1,\n                \"value\": \"test123\"\n            },\n            {\n                \"fieldId\": 2,\n                \"value\": 50\n            }\n        ]\n    }\n]",
+					"raw": "[\n    {\n        \"itemId\": 2,\n        \"name\": \"123\",\n        \"attributes\": [\n            {\n                \"fieldId\": 1,\n                \"value\": \"2023-06-15\"\n            },\n            {\n                \"fieldId\": 2,\n                \"value\": \"R1234\"\n            }\n        ]\n    }\n]",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -725,7 +776,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"itemId\": [\n        3,\n        4\n    ]\n}",
+					"raw": "{\n    \"itemId\": [\n        1,\n        2,\n        3,\n        4,\n        5\n    ]\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -772,23 +823,19 @@
 			"response": []
 		}
 	],
-	"auth": {
-		"type": "bearer",
-		"bearer": [
-			{
-				"key": "token",
-				"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY4NjU0NzA4NCwianRpIjoiMTA1MTg1MDQtYjhjZi00NGFmLWFmMTgtMjlhNmE1YzJlNTM4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjg2NTQ3MDg0LCJleHAiOjE2ODY1NDg4ODR9.cEx5brRazDNecCGr44bBtrcmBnIiyHLqZYpP3RL5yPU",
-				"type": "string"
-			}
-		]
-	},
 	"event": [
 		{
 			"listen": "prerequest",
 			"script": {
 				"type": "text/javascript",
 				"exec": [
-					""
+					"const accessToken = pm.environment.get('accessToken');",
+					"",
+					"// 在標頭中使用新的存取令牌進行身份驗證",
+					"pm.request.headers.add({",
+					"  key: 'Authorization',",
+					"  value: `Bearer ${accessToken}`",
+					"});"
 				]
 			}
 		},

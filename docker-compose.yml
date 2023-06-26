@@ -8,6 +8,7 @@ services:
     volumes:
       - ./sqlite:/usr/app/app/sqlite
       - ./logs:/usr/src/app/app/Logs/Logs
+      - ./app/config.py:/usr/src/app/app/config.py
     environment:
       - TZ=Asia/Taipei
     container_name: dst-backend

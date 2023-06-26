@@ -1,4 +1,4 @@
-from flask import current_app, jsonify, make_response
+from flask import current_app, jsonify, make_response, request
 from models.user import *
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
@@ -51,7 +51,12 @@ def read(permission_id):
 
 def read_multi():
     try:
-        permissions = Permission.query.all()
+        # Pagination parameters
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+
+        permissions = Permission.query.limit(
+            limit).offset((page - 1) * limit).all()
 
         result = [{'id': permission.id, 'name': permission.name}
                   for permission in permissions]

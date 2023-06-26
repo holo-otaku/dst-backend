@@ -307,10 +307,6 @@ def delete(data):
         db.session.rollback()
         return make_response(jsonify({'code': 500, 'msg': str(e)}), 500)
 
-    except Exception as e:
-        current_app.logger.error(e)
-        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
-
     finally:
         # 確保關閉資料庫連線
         db.session.close()

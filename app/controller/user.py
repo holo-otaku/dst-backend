@@ -1,4 +1,4 @@
-from flask import current_app, jsonify, make_response
+from flask import current_app, jsonify, make_response, request
 from models.user import *
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
@@ -29,6 +29,7 @@ def create(data):
 
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
@@ -66,7 +67,11 @@ def read(user_id):
 
 def read_multi():
     try:
-        users = User.query.all()
+        # Pagination parameters
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        
+        users = User.query.limit(limit).offset((page - 1) * limit).all()
         result = [{'id': user.id, 'userName': user.username,
                    'role': user.roles[0].name if user.roles else None} for user in users]
 
