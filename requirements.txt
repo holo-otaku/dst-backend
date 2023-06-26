@@ -12,6 +12,7 @@ Mako==1.2.4
 MarkupSafe==2.1.2
 pycodestyle==2.10.0
 PyJWT==2.7.0
+PyMySQL==1.0.3
 pyodbc==4.0.39
 SQLAlchemy==2.0.9
 tomli==2.0.1
