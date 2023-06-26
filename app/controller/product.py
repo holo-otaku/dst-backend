@@ -227,6 +227,9 @@ def update_multi(data):
 
                 # 查詢對應的 Field 記錄
                 field = Field.query.get(field_id)
+                
+                if not field:
+                    return make_response(jsonify({'code': 404, 'msg': f'field_id:{field_id} not found'}), 404)
 
                 # Check if the value is of the correct data type
                 type_err = __check_field_type(field, value)
