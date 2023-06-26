@@ -1,15 +1,16 @@
 from flask import current_app, jsonify, make_response, request
-from models.series import *
+from models.series import Series, Field, Item, ItemAttribute
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import and_, or_, text
-import math
+from datetime import datetime
 
 # Mapping of field data types to Python data types
 data_type_map = {
     'string': str,
     'number': (int, float),
     'boolean': bool,
+    'time': 'datetime'
     # Add other data types as needed
 }
 
@@ -23,6 +24,10 @@ def create(data):
             name = item_data.get('name')
             attributes = item_data.get('attributes')
 
+            # Get the fields related to this series
+            fields_query = db.session.query(Field).filter(
+                Field.series_id == series_id)
+
             if not series_id or not name or not attributes:
                 return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
 
@@ -33,6 +38,13 @@ def create(data):
             item = Item(series_id=series_id, name=name)
             db.session.add(item)
 
+            missing_field = __check_field_required(
+                fields_query, attributes, Field.is_required)
+
+            if (len(missing_field) != 0):
+                return make_response(jsonify({"code": 400,
+                                              "msg": f"Missing required field: {missing_field}"}), 400)
+
             for attribute in attributes:
                 field_id = attribute.get('fieldId')
                 value = attribute.get('value')
@@ -40,6 +52,14 @@ def create(data):
                 field = Field.query.get(field_id)
                 if not field:
                     return make_response(jsonify({"code": 400, "msg": f"Invalid field_id: {field_id}"}), 400)
+
+                # Check if the value is of the correct data type
+                type_err = __check_field_type(field, value)
+                if (len(type_err) != 0):
+                    return make_response(jsonify({
+                        "code": 400,
+                        "msg": type_err
+                    }), 400)
 
                 item_attribute = ItemAttribute(
                     item_id=item.id, field_id=field_id, value=value)
@@ -79,16 +99,15 @@ def read(series_id):
         # Get the fields related to this series
         fields_query = db.session.query(Field).filter(
             Field.series_id == series_id)
+
         fields = {field.id: field for field in fields_query.all()}
 
-        # Check if all required fields are in the request body
-        required_fields_query = fields_query.filter(Field.is_required == True)
-        required_fields = {
-            field.id: field for field in required_fields_query.all()}
-        for required_field_id in required_fields.keys():
-            if not any(filter.get('fieldId') == required_field_id for filter in filters):
-                return make_response(jsonify({"code": 400,
-                                              "msg": f"Missing required field: {required_fields[required_field_id].name}"}), 400)
+        missing_field = __check_field_required(
+            fields_query, filters, Field.is_filtered)
+
+        if (len(missing_field) != 0):
+            return make_response(jsonify({"code": 400,
+                                          "msg": f"Missing required field: {missing_field}"}), 400)
 
         # Create a SQL query to find the items
         sql_query = """
@@ -108,55 +127,24 @@ def read(series_id):
             value = filter_criteria['value']
             operation = filter_criteria.get('operation', 'equals')
 
-            # Check if the value is of the correct data type
-            field = fields[field_id]
-            correct_type = data_type_map[field.data_type.lower()]
-            if not isinstance(value, correct_type):
+            # Check if field_id exists in fields
+            if field_id not in fields:
                 return make_response(jsonify({
                     "code": 400,
-                    "msg": f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}."
+                    "msg": f"Invalid fieldId: {field_id}"
                 }), 400)
 
-            condition = f"""
-                (item.id, item.series_id, item.name) IN (
-                    SELECT DISTINCT item.id,
-                                    item.series_id,
-                                    item.name
-                    FROM item
-                        JOIN item_attribute ON item.id = item_attribute.item_id
-                    WHERE item.series_id = :series_id
-                        AND item_attribute.field_id = {field_id}
-                        AND item_attribute.value = '{value}'
-                )
-            """
-            if operation == 'greater' and field.data_type.lower() == 'number':
-                condition = f"""
-                (item.id, item.series_id, item.name) IN (
-                    SELECT DISTINCT item.id,
-                                    item.series_id,
-                                    item.name
-                    FROM item
-                        JOIN item_attribute ON item.id = item_attribute.item_id
-                    WHERE item.series_id = :series_id
-                        AND item_attribute.field_id = {field_id}
-                        AND CAST(item_attribute.value AS float) > {value}
-                )
-                """
-            elif operation == 'less' and field.data_type.lower() == 'number':
-                condition = f"""
-                (item.id, item.series_id, item.name) IN (
-                    SELECT DISTINCT item.id,
-                                    item.series_id,
-                                    item.name
-                    FROM item
-                        JOIN item_attribute ON item.id = item_attribute.item_id
-                    WHERE item.series_id = :series_id
-                        AND item_attribute.field_id = {field_id}
-                        AND CAST(item_attribute.value AS float) < {value}
-                )
-                """
+            # Check if the value is of the correct data type
+            field = fields[field_id]
+            type_err = __check_field_type(field, value)
+            if (len(type_err) != 0):
+                return make_response(jsonify({
+                    "code": 400,
+                    "msg": type_err
+                }), 400)
 
-            conditions.append(condition)
+            conditions.append(__check_condition(
+                field, operation, field_id, value))
 
         sql_query += " AND ".join(conditions)
         sql_query += ")"
@@ -171,10 +159,13 @@ def read(series_id):
         data = []
         for row in paginated_result:
             item_id, item_series_id, item_name = row
-            fields_data = {field.id: db.session.query(ItemAttribute).filter(
-                and_(ItemAttribute.item_id == item_id,
-                     ItemAttribute.field_id == field.id)
-            ).first().value for field in fields.values()}
+            fields_data = [
+                {"key": str(field.id), "value": db.session.query(ItemAttribute).filter(
+                    and_(ItemAttribute.item_id == item_id,
+                         ItemAttribute.field_id == field.id)
+                ).first().value}
+                for field in fields.values()
+            ]
             data.append({
                 'itemId': item_id,
                 'name': item_name,
@@ -196,7 +187,7 @@ def read(series_id):
         db.session.close()
 
 
-def edit(data):
+def update_multi(data):
     try:
         # 檢查輸入資料的完整性
         if not data:
@@ -237,9 +228,13 @@ def edit(data):
                 # 查詢對應的 Field 記錄
                 field = Field.query.get(field_id)
 
-                # 檢查 Field 是否存在且 data_type 符合預期
-                if not field or not isinstance(value, data_type_map[field.data_type.lower()]):
-                    return make_response(jsonify({'code': 400, 'msg': f'Invalid data type for fieldId: {field_id}'}), 400)
+                # Check if the value is of the correct data type
+                type_err = __check_field_type(field, value)
+                if (len(type_err) != 0):
+                    return make_response(jsonify({
+                        "code": 400,
+                        "msg": type_err
+                    }), 400)
 
                 # 將要編輯的 ItemAttribute 存入暫存字典
                 if item_id not in item_attributes:
@@ -268,10 +263,6 @@ def edit(data):
         # 處理例外情況，回滾交易並回傳錯誤訊息
         db.session.rollback()
         return make_response(jsonify({'code': 500, 'msg': str(e)}), 500)
-
-    except Exception as e:
-        current_app.logger.error(e)
-        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     finally:
         # 確保關閉資料庫連線
@@ -320,3 +311,113 @@ def delete(data):
     finally:
         # 確保關閉資料庫連線
         db.session.close()
+
+
+def __check_field_required(fields_query, filters, is_required_var):
+    missing_field = []
+
+    # Check if all required fields are in the request body
+    required_fields_query = fields_query.filter(is_required_var == True)
+    required_fields = {
+        field.id: field for field in required_fields_query.all()}
+    for required_field_id in required_fields.keys():
+        if not any(filter.get('fieldId') == required_field_id for filter in filters):
+            missing_field.append(required_fields[required_field_id].name)
+    return missing_field
+
+
+def __is_datetime(string):
+    try:
+        datetime.strptime(string, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
+
+def __check_field_type(field, value):
+    type_err = []
+    # Check if the value is of the correct data type
+    correct_type = data_type_map[field.data_type.lower()]
+    if (correct_type == 'datetime'):
+        if (not __is_datetime(value)):
+            type_err.append(
+                f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
+
+    else:
+        if not isinstance(value, correct_type):
+            type_err.append(
+                f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
+
+    return type_err
+
+
+def __check_condition(field, operation, field_id, value):
+    condition = f"""
+    (item.id, item.series_id, item.name) IN (
+        SELECT DISTINCT item.id,
+                        item.series_id,
+                        item.name
+        FROM item
+            JOIN item_attribute ON item.id = item_attribute.item_id
+        WHERE item.series_id = :series_id
+            AND item_attribute.field_id = {field_id}
+            AND item_attribute.value = '{value}'
+    )
+    """
+
+    if operation == 'greater':
+        if field.data_type.lower() == 'number':
+            condition = f"""
+            (item.id, item.series_id, item.name) IN (
+                SELECT DISTINCT item.id,
+                                item.series_id,
+                                item.name
+                FROM item
+                    JOIN item_attribute ON item.id = item_attribute.item_id
+                WHERE item.series_id = :series_id
+                    AND item_attribute.field_id = {field_id}
+                    AND CAST(item_attribute.value AS float) >= {value}
+            )
+            """
+        elif field.data_type.lower() == 'time':
+            condition = f"""
+            (item.id, item.series_id, item.name) IN (
+                SELECT DISTINCT item.id,
+                                item.series_id,
+                                item.name
+                FROM item
+                    JOIN item_attribute ON item.id = item_attribute.item_id
+                WHERE item.series_id = :series_id
+                    AND item_attribute.field_id = {field_id}
+                    AND CAST(item_attribute.value AS DATETIME) >= '{value}'
+            )
+            """
+    elif operation == 'less':
+        if field.data_type.lower() == 'number':
+            condition = f"""
+            (item.id, item.series_id, item.name) IN (
+                SELECT DISTINCT item.id,
+                                item.series_id,
+                                item.name
+                FROM item
+                    JOIN item_attribute ON item.id = item_attribute.item_id
+                WHERE item.series_id = :series_id
+                    AND item_attribute.field_id = {field_id}
+                    AND CAST(item_attribute.value AS float) <= {value}
+            )
+            """
+        elif field.data_type.lower() == 'time':
+            condition = f"""
+            (item.id, item.series_id, item.name) IN (
+                SELECT DISTINCT item.id,
+                                item.series_id,
+                                item.name
+                FROM item
+                    JOIN item_attribute ON item.id = item_attribute.item_id
+                WHERE item.series_id = :series_id
+                    AND item_attribute.field_id = {field_id}
+                    AND CAST(item_attribute.value AS DATETIME) <= '{value}'
+            )
+            """
+
+    return condition
