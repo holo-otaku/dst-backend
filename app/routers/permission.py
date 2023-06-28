@@ -5,7 +5,7 @@ from flask_jwt_extended import jwt_required
 permission = Blueprint("permission", __name__)
 
 
-@permission.route("", methods=["GET"])
+@permission.route("/multi", methods=["GET"])
 @jwt_required()
 def get_permissions():
 

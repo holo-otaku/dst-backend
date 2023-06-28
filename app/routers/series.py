@@ -5,7 +5,7 @@ from flask_jwt_extended import jwt_required
 series = Blueprint("series", __name__)
 
 
-@series.route("", methods=["GET"])
+@series.route("/multi", methods=["GET"])
 @jwt_required()
 def get_serieses():
 
@@ -27,7 +27,7 @@ def create_series():
     return create(data)
 
 
-@series.route("<int:series_id>", methods=["PUT"])
+@series.route("<int:series_id>", methods=["PATCH"])
 @jwt_required()
 def update_series(series_id):
     data = request.get_json()

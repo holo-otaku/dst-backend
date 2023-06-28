@@ -5,7 +5,7 @@ from flask_jwt_extended import jwt_required
 user = Blueprint("user", __name__)
 
 
-@user.route("", methods=["GET"])
+@user.route("/multi", methods=["GET"])
 @jwt_required()
 def get_users():
 

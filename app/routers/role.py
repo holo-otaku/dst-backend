@@ -5,7 +5,7 @@ from flask_jwt_extended import jwt_required
 role = Blueprint("role", __name__)
 
 
-@role.route("", methods=["GET"])
+@role.route("/multi", methods=["GET"])
 @jwt_required()
 def get_roles():
 

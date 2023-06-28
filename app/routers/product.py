@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from controller.product import create, read, edit, delete
+from controller.product import create, read, delete, update_multi
 from flask_jwt_extended import jwt_required
 
 products = Blueprint("products", __name__)
@@ -20,12 +20,13 @@ def read_product(series_id):
     return read(series_id)
 
 
-@products.route("/edit", methods=["PUT"])
+@products.route("/edit", methods=["PATCH"])
 @jwt_required()
 def edit_product():
     data = request.get_json()
 
-    return edit(data)
+    return update_multi(data)
+
 
 @products.route("/delete", methods=["DELETE"])
 @jwt_required()

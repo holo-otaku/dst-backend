@@ -1,0 +1,1185 @@
+swagger: "2.0"
+info:
+  version: "1.0.0"
+  title: Login and Token Refresh API
+  description: API for DST
+
+host: {{base_url}}
+schemes:
+  - https
+
+securityDefinitions:
+  Bearer:
+    type: apiKey
+    name: Authorization
+    in: header
+
+security:
+  - Bearer: []
+
+tags:
+  - name: Login
+    description: Operations related to Login
+  - name: User
+    description: Operations related to user management
+  - name: Permission
+    description: Operations related to permission management
+  - name: Role
+    description: Operations related to role management
+  - name: Series
+    description: Operations related to series management
+  - name: Products
+    description: Operations related to product management
+
+paths:
+  /login:
+    post:
+      tags:
+        - Login
+      summary: User login
+      description: Use this API to authenticate user login.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: loginPayload
+          description: User login credentials
+          required: true
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+      responses:
+        200:
+          description: Login successful
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              data:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY4Nzc3MDQ2NCwianRpIjoiM2M5OGEyM2ItNWE1NS00ZjUyLWJkODktOTk3NzUwMGU1OTUyIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjg3NzcwNDY0LCJleHAiOjE2ODc3NzIyNjR9.C2r9J4M5jh-XkMIHgg3-mz9Boa1HrWHPHWSyHnL8SYk
+              msg:
+                type: string
+                example: login success
+        400:
+          description: Invalid request
+        401:
+          description: Unauthorized
+        500:
+          description: Internal server error
+
+  /jwt/refresh:
+    post:
+      tags:
+        - Login
+      summary: Refresh access token
+      description: Use this API to refresh the access token.
+      security:
+        - Bearer: []
+      produces:
+        - application/json
+      responses:
+        200:
+          description: Token refreshed successfully
+          schema:
+            type: object
+            properties:
+              accessToken:
+                type: string
+                example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY4Nzc3MDQ2NCwianRpIjoiM2M5OGEyM2ItNWE1NS00ZjUyLWJkODktOTk3NzUwMGU1OTUyIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjg3NzcwNDY0LCJleHAiOjE2ODc3NzIyNjR9.C2r9J4M5jh-XkMIHgg3-mz9Boa1HrWHPHWSyHnL8SYk
+        401:
+          description: Unauthorized
+        500:
+          description: Internal server error
+
+  /user/multi:
+    get:
+      tags:
+        - User
+      summary: Get multiple users
+      description: Retrieve a list of users with pagination support.
+      security:
+        - Bearer: []
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: page
+          description: Page number for pagination
+          required: false
+          type: integer
+        - in: query
+          name: limit
+          description: Number of users per page
+          required: false
+          type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Success
+              data:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+                    userName:
+                      type: string
+                      example: admin
+                    role:
+                      type: string
+                      example: Administrator
+
+  /user/{user_id}:
+    get:
+      tags:
+        - User
+      summary: Get a user
+      description: Retrieve a specific user by ID.
+      security:
+        - Bearer: []
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: user_id
+          description: ID of the user to retrieve
+          required: true
+          type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Success
+              data:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  userName:
+                    type: string
+                    example: admin
+                  role:
+                    type: string
+                    example: Administrator
+
+    patch:
+      tags:
+        - User
+      summary: Update a user
+      description: Update a specific user by ID.
+      security:
+        - Bearer: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: user_id
+          description: ID of the user to update
+          required: true
+          type: integer
+        - in: body
+          name: updatePayload
+          description: User data to update
+          required: true
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+              roleId:
+                type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Success
+              data:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  username:
+                    type: string
+                    example: admin
+                  role:
+                    type: string
+                    example: Administrator
+
+    delete:
+      tags:
+        - User
+      summary: Delete a user
+      description: Delete a specific user by ID.
+      security:
+        - Bearer: []
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: user_id
+          description: ID of the user to delete
+          required: true
+          type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: User deleted
+
+  /user:
+    post:
+      tags:
+        - User
+      summary: Create a user
+      description: Create a new user.
+      security:
+        - Bearer: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: createPayload
+          description: User data to create
+          required: true
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+              roleId:
+                type: integer
+      responses:
+        201:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Success
+              data:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  username:
+                    type: string
+                    example: admin
+                  role:
+                    type: string
+                    example: Administrator
+        400:
+          description: Bad Request
+        500:
+          description: Internal Server Error
+
+  /permission/multi:
+    get:
+      tags:
+        - Permission
+      summary: Get multiple permissions
+      description: Retrieve a list of permissions with pagination support.
+      security:
+        - Bearer: []
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: page
+          description: Page number for pagination
+          required: false
+          type: integer
+        - in: query
+          name: limit
+          description: Number of permissions per page
+          required: false
+          type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Permission found
+              data:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+                    name:
+                      type: string
+                      example: read
+
+  /permission/{permission_id}:
+    get:
+      tags:
+        - Permission
+      summary: Get a permission
+      description: Retrieve a specific permission by ID.
+      security:
+        - Bearer: []
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: permission_id
+          description: ID of the permission to retrieve
+          required: true
+          type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Permission found
+              data:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  name:
+                    type: string
+                    example: read
+
+    patch:
+      tags:
+        - Permission
+      summary: Update a permission
+      description: Update a specific permission by ID.
+      security:
+        - Bearer: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: permission_id
+          description: ID of the permission to update
+          required: true
+          type: integer
+        - in: body
+          name: updatePayload
+          description: Permission data to update
+          required: true
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Permission updated
+
+    delete:
+      tags:
+        - Permission
+      summary: Delete a permission
+      description: Delete a specific permission by ID.
+      security:
+        - Bearer: []
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: permission_id
+          description: ID of the permission to delete
+          required: true
+          type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Permission deleted
+
+  /permission:
+    post:
+      tags:
+        - Permission
+      summary: Create a permission
+      description: Create a new permission.
+      security:
+        - Bearer: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: createPayload
+          description: Permission data to create
+          required: true
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Permission created
+
+        400:
+          description: Bad Request
+        500:
+          description: Internal Server Error
+
+  /role/multi:
+    get:
+      tags:
+        - Role
+      summary: Get multiple roles
+      description: Retrieve a list of roles with pagination support.
+      security:
+        - Bearer: []
+      parameters:
+        - in: query
+          name: page
+          description: Page number for pagination
+          required: false
+          type: integer
+        - in: query
+          name: limit
+          description: Number of roles per page
+          required: false
+          type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Success
+              data:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+                    name:
+                      type: string
+                      example: Admin
+
+    post:
+      tags:
+        - Role
+      summary: Create a role
+      description: Create a new role with the given data.
+      security:
+        - Bearer: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: createPayload
+          description: Role data to create
+          required: true
+          schema:
+            type: object
+            properties:
+              roleName:
+                type: string
+              permissionIds:
+                type: array
+                items:
+                  type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Role created
+
+  /role/{role_id}:
+    get:
+      tags:
+        - Role
+      summary: Get a role
+      description: Retrieve a specific role by ID.
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: role_id
+          description: ID of the role to retrieve
+          required: true
+          type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Success
+              data:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  name:
+                    type: string
+                    example: Admin
+                  permissions:
+                    type: array
+                    items:
+                      type: string
+                      example: "User Management"
+
+    patch:
+      tags:
+        - Role
+      summary: Update a role
+      description: Update a specific role by ID with the given data.
+      security:
+        - Bearer: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: role_id
+          description: ID of the role to update
+          required: true
+          type: integer
+        - in: body
+          name: updatePayload
+          description: Role data to update
+          required: true
+          schema:
+            type: object
+            properties:
+              roleName:
+                type: string
+              permissionIds:
+                type: array
+                items:
+                  type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Role updated
+
+    delete:
+      tags:
+        - Role
+      summary: Delete a role
+      description: Delete a specific role by ID.
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: role_id
+          description: ID of the role to delete
+          required: true
+          type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Role deleted
+
+  /series/multi:
+    get:
+      tags:
+        - Series
+      summary: Get multiple series
+      description: Retrieve a list of series with pagination support.
+      security:
+        - Bearer: []
+      parameters:
+        - in: query
+          name: page
+          description: Page number for pagination
+          required: false
+          type: integer
+        - in: query
+          name: limit
+          description: Number of series per page
+          required: false
+          type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Success
+              data:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+                    name:
+                      type: string
+                      example: Series 1
+
+    post:
+      tags:
+        - Series
+      summary: Create a series
+      description: Create a new series with the given data.
+      security:
+        - Bearer: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: createPayload
+          description: Series data to create
+          required: true
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+              createdBy:
+                type: integer
+              fields:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    dataType:
+                      type: string
+                    isFiltered:
+                      type: boolean
+                    isRequired:
+                      type: boolean
+      responses:
+        201:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 201
+              msg:
+                type: string
+                example: Success
+              data:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  name:
+                    type: string
+                    example: Series 1
+                  createdBy:
+                    type: integer
+                    example: 123
+
+  /series/{series_id}:
+    get:
+      tags:
+        - Series
+      summary: Get a series
+      description: Retrieve a specific series by ID.
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: series_id
+          description: ID of the series to retrieve
+          required: true
+          type: integer
+        - in: query
+          name: field
+          description: Include fields data in the response
+          required: false
+          type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Success
+              data:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  name:
+                    type: string
+                    example: Series 1
+                  createdBy:
+                    type: string
+                    example: John Doe
+                  createdAt:
+                    type: string
+                    example: 2023-06-28 10:30:00
+                  fields:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        name:
+                          type: string
+                          example: Field 1
+                        dataType:
+                          type: string
+                          example: String
+                        isFiltered:
+                          type: boolean
+                          example: false
+                        isRequired:
+                          type: boolean
+                          example: true
+
+    patch:
+      tags:
+        - Series
+      summary: Update a series
+      description: Update a specific series by ID with the given data.
+      security:
+        - Bearer: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: series_id
+          description: ID of the series to update
+          required: true
+          type: integer
+        - in: body
+          name: updatePayload
+          description: Series data to update
+          required: true
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+              createdBy:
+                type: integer
+              fields:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    dataType:
+                      type: string
+                    isFiltered:
+                      type: boolean
+                    isRequired:
+                      type: boolean
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Success
+
+    delete:
+      tags:
+        - Series
+      summary: Delete a series
+      description: Delete a specific series by ID.
+      security:
+        - Bearer: []
+      parameters:
+        - in: path
+          name: series_id
+          description: ID of the series to delete
+          required: true
+          type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Series deleted
+
+  /products:
+    post:
+      tags:
+        - Products
+      summary: Create a product
+      description: Create a new product with the given data.
+      security:
+        - Bearer: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: createPayload
+          description: Product data to create
+          required: true
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                seriesId:
+                  type: integer
+                name:
+                  type: string
+                attributes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      fieldId:
+                        type: integer
+                      value:
+                        type: string
+      responses:
+        201:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 201
+              msg:
+                type: string
+                example: Success
+              data:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    itemId:
+                      type: integer
+                      example: 1
+                    name:
+                      type: string
+                      example: Product 1
+                    seriesId:
+                      type: integer
+                      example: 1
+
+  /products/{series_id}/search:
+    post:
+      tags:
+        - Products
+      summary: Search products in a series
+      description: Search for products in a specific series based on the provided filter criteria.
+      security:
+        - Bearer: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: series_id
+          description: ID of the series to search in
+          required: true
+          type: integer
+        - in: body
+          name: filterPayload
+          description: Filter criteria for product search
+          required: true
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                fieldId:
+                  type: integer
+                value:
+                  type: string
+                operation:
+                  type: string
+                  enum:
+                    - equals
+                    - greater
+                    - less
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Success
+              data:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    itemId:
+                      type: integer
+                      example: 1
+                    name:
+                      type: string
+                      example: Product 1
+                    seriesId:
+                      type: integer
+                      example: 1
+                    fields:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          key:
+                            type: string
+                            example: 1
+                          value:
+                            type: string
+                            example: Field Value
+
+  /products/edit:
+    patch:
+      tags:
+        - Products
+      summary: Edit products
+      description: Edit multiple products with the given data.
+      security:
+        - Bearer: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: editPayload
+          description: Product data to edit
+          required: true
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                itemId:
+                  type: integer
+                name:
+                  type: string
+                attributes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      fieldId:
+                        type: integer
+                      value:
+                        type: string
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: ItemAttributes updated
+
+  /products/delete:
+    delete:
+      tags:
+        - Products
+      summary: Delete products
+      description: Delete multiple products based on the provided data.
+      security:
+        - Bearer: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: deletePayload
+          description: Data for deleting products
+          required: true
+          schema:
+            type: object
+            properties:
+              itemId:
+                type: array
+                items:
+                  type: integer
+      responses:
+        200:
+          description: Success
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 200
+              msg:
+                type: string
+                example: Items deleted
