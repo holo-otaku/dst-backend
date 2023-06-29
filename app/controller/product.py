@@ -1,4 +1,5 @@
 from flask import current_app, jsonify, make_response, request
+from controller.erp import read as read_erp
 from models.series import Series, Field, Item, ItemAttribute
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
@@ -157,9 +158,15 @@ def read(series_id):
 
         # Format the output
         data = []
+        fields_data = []
+
+        # Get ERP data
+        erp_data = read_erp(filters[1]['value'])
+        fields_data += erp_data
+
         for row in paginated_result:
             item_id, item_series_id, item_name = row
-            fields_data = [
+            fields_data += [
                 {"key": str(field.id), "value": db.session.query(ItemAttribute).filter(
                     and_(ItemAttribute.item_id == item_id,
                          ItemAttribute.field_id == field.id)
@@ -227,7 +234,7 @@ def update_multi(data):
 
                 # 查詢對應的 Field 記錄
                 field = Field.query.get(field_id)
-                
+
                 if not field:
                     return make_response(jsonify({'code': 404, 'msg': f'field_id:{field_id} not found'}), 404)
 
