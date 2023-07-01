@@ -3,7 +3,7 @@ from flask import Flask
 from models.shared import db
 from models import model
 from routers.routes import routes
-from logs.logger import logger
+from modules.logger import logger
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 
