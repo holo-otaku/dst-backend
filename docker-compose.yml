@@ -1,26 +1,11 @@
 version: "3.9"
 
 services:
-  backend:
-    build: 
-      context: ./
-      dockerfile: dockerfile
-    volumes:
-      - ./sqlite:/usr/app/app/sqlite
-      - ./logs:/usr/src/app/app/Logs/Logs
-      - ./app/config.py:/usr/src/app/app/config.py
-    environment:
-      - TZ=Asia/Taipei
-    container_name: dst-backend
-    restart: unless-stopped
-    ports:
-      - 5001:5001
-
   database:
     image: mysql:8.0.33
     container_name: dst-db
     ports:
-      - "8081:3306"
+      - "3306:3306"
     environment:
       - MYSQL_ROOT_PASSWORD=1qaz@WSX3edc
       - MYSQL_DATABASE=dst
@@ -28,7 +13,7 @@ services:
       - MYSQL_PASSWORD=admin
       - TZ=Asia/Taipei
     volumes:
-      - ./mysql:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
 
   phpmyadmin:
     image: phpmyadmin:latest
@@ -43,3 +28,6 @@ services:
     environment:
       PMA_HOST: database
       PMA_PORT: 3306
+
+volumes:
+  mysql_data:
