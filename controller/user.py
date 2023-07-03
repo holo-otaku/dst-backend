@@ -4,6 +4,41 @@ from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 
 
+def create_default_admin():
+    try:
+        username = "admin"
+        password = "admin"
+
+        # Check if admin account already exists
+        existing_admin = User.query.filter_by(username=username).first()
+        if existing_admin:
+            current_app.logger.info("Default admin account already exists.")
+            return
+
+        # Create admin account
+        admin = User(username=username, password=password)
+
+        # Set admin role
+        admin_role = Role.query.filter_by(name="admin").first()
+        if admin_role:
+            admin.roles.append(admin_role)
+
+        db.session.add(admin)
+        db.session.commit()
+
+        current_app.logger.info("Default admin account created.")
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(e)
+
+    except Exception as e:
+        current_app.logger.error(e)
+
+    finally:
+        db.session.close()
+
+
 def create(data):
     try:
         username = data.get('username')
@@ -70,7 +105,7 @@ def read_multi():
         # Pagination parameters
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
-        
+
         users = User.query.limit(limit).offset((page - 1) * limit).all()
         result = [{'id': user.id, 'userName': user.username,
                    'role': user.roles[0].name if user.roles else None} for user in users]
