@@ -1,26 +1,26 @@
 from flask import Blueprint, request
 from controller.user import create, read, read_multi, update, delete
-from flask_jwt_extended import jwt_required
+from controller.access import check_permission
 
 user = Blueprint("user", __name__)
 
 
 @user.route("/multi", methods=["GET"])
-@jwt_required()
+@check_permission('read')
 def get_users():
 
     return read_multi()
 
 
 @user.route("/<int:user_id>", methods=["GET"])
-@jwt_required()
+@check_permission('read')
 def get_user(user_id):
 
     return read(user_id)
 
 
 @user.route("", methods=["POST"])
-@jwt_required()
+@check_permission('create')
 def create_user():
     data = request.get_json()
 
@@ -28,7 +28,7 @@ def create_user():
 
 
 @user.route("<int:user_id>", methods=["PATCH"])
-@jwt_required()
+@check_permission('edit')
 def update_user(user_id):
     data = request.get_json()
 
@@ -36,7 +36,7 @@ def update_user(user_id):
 
 
 @user.route("<int:user_id>", methods=["DELETE"])
-@jwt_required()
+@check_permission('delete')
 def delete_user(user_id):
 
     return delete(user_id)

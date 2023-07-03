@@ -1,26 +1,26 @@
 from flask import Blueprint, request
 from controller.permission import create, read, update, delete, read_multi
-from flask_jwt_extended import jwt_required
+from controller.access import check_permission
 
 permission = Blueprint("permission", __name__)
 
 
 @permission.route("/multi", methods=["GET"])
-@jwt_required()
+@check_permission('read')
 def get_permissions():
 
     return read_multi()
 
 
 @permission.route("/<int:permission_id>", methods=["GET"])
-@jwt_required()
+@check_permission('read')
 def get_permission(permission_id):
 
     return read(permission_id)
 
 
 @permission.route("", methods=["POST"])
-@jwt_required()
+@check_permission('create')
 def create_permission():
     data = request.get_json()
 
@@ -28,7 +28,7 @@ def create_permission():
 
 
 @permission.route("<int:permission_id>", methods=["PATCH"])
-@jwt_required()
+@check_permission('edit')
 def update_permission(permission_id):
     data = request.get_json()
 
@@ -36,7 +36,7 @@ def update_permission(permission_id):
 
 
 @permission.route("<int:permission_id>", methods=["DELETE"])
-@jwt_required()
+@check_permission('delete')
 def delete_permission(permission_id):
 
     return delete(permission_id)

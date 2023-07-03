@@ -1,12 +1,12 @@
 from flask import Blueprint, request
 from controller.product import create, read, delete, update_multi
-from flask_jwt_extended import jwt_required
+from controller.access import check_permission
 
 products = Blueprint("products", __name__)
 
 
 @products.route("", methods=["POST"])
-@jwt_required()
+@check_permission('create')
 def create_product():
     data = request.get_json()
 
@@ -14,14 +14,14 @@ def create_product():
 
 
 @products.route("/<int:series_id>/search", methods=["POST"])
-@jwt_required()
+@check_permission('read')
 def read_product(series_id):
 
     return read(series_id)
 
 
 @products.route("/edit", methods=["PATCH"])
-@jwt_required()
+@check_permission('update')
 def edit_product():
     data = request.get_json()
 
@@ -29,7 +29,7 @@ def edit_product():
 
 
 @products.route("/delete", methods=["DELETE"])
-@jwt_required()
+@check_permission('delete')
 def delete_product():
     data = request.get_json()
 

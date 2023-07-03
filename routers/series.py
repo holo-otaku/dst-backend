@@ -1,26 +1,26 @@
 from flask import Blueprint, request
 from controller.series import create, read, read_multi, update, delete
-from flask_jwt_extended import jwt_required
+from controller.access import check_permission
 
 series = Blueprint("series", __name__)
 
 
 @series.route("/multi", methods=["GET"])
-@jwt_required()
+@check_permission('read')
 def get_serieses():
 
     return read_multi()
 
 
 @series.route("/<int:series_id>", methods=["GET"])
-@jwt_required()
+@check_permission('read')
 def get_series(series_id):
 
     return read(series_id)
 
 
 @series.route("", methods=["POST"])
-@jwt_required()
+@check_permission('create')
 def create_series():
     data = request.get_json()
 
@@ -28,7 +28,7 @@ def create_series():
 
 
 @series.route("<int:series_id>", methods=["PATCH"])
-@jwt_required()
+@check_permission('edit')
 def update_series(series_id):
     data = request.get_json()
 
@@ -36,7 +36,7 @@ def update_series(series_id):
 
 
 @series.route("<int:series_id>", methods=["DELETE"])
-@jwt_required()
+@check_permission('delete')
 def delete_series(series_id):
 
     return delete(series_id)

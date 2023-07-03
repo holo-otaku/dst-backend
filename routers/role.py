@@ -1,26 +1,26 @@
 from flask import Blueprint, request
 from controller.role import create, read, update, delete, read_multi
-from flask_jwt_extended import jwt_required
+from controller.access import check_permission
 
 role = Blueprint("role", __name__)
 
 
 @role.route("/multi", methods=["GET"])
-@jwt_required()
+@check_permission('read')
 def get_roles():
 
     return read_multi()
 
 
 @role.route("/<int:role_id>", methods=["GET"])
-@jwt_required()
+@check_permission('read')
 def get_role(role_id):
 
     return read(role_id)
 
 
 @role.route("", methods=["POST"])
-@jwt_required()
+@check_permission('create')
 def create_role():
     data = request.get_json()
 
@@ -28,7 +28,7 @@ def create_role():
 
 
 @role.route("<int:role_id>", methods=["PATCH"])
-@jwt_required()
+@check_permission('update')
 def update_role(role_id):
     data = request.get_json()
 
@@ -36,7 +36,7 @@ def update_role(role_id):
 
 
 @role.route("<int:role_id>", methods=["DELETE"])
-@jwt_required()
+@check_permission('delete')
 def delete_role(role_id):
 
     return delete(role_id)
