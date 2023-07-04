@@ -1,5 +1,5 @@
 from flask import current_app, jsonify, make_response, request
-from models.user import *
+from models.user import Permission, Role, RolePermission
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 

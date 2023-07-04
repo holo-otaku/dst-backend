@@ -18,8 +18,12 @@ routes(app)
 logger(app)
 
 if __name__ == '__main__':
-    # 建立預設的 admin 帳號
-    with app.app_context():
-        create_default_admin()
+    # 檢查是否已經執行過 create_default_admin()
+    if not app.config.get('DEFAULT_ADMIN_CREATED'):
+        with app.app_context():
+            create_default_admin()
+
+        # 設置標誌位，表示已經執行過 create_default_admin()
+        app.config['DEFAULT_ADMIN_CREATED'] = True
 
     app.run(host='0.0.0.0', debug=True, port=5001)

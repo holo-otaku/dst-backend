@@ -14,8 +14,7 @@ def login():
         # 在用户数据库中查找匹配的用户
         user = User.query.filter_by(username=username).first()
 
-        if user and user.password == password:
-            # 如果找到匹配的用户且密碼相符，就发出一个 JWT token
+        if user and user.check_password(password):
             access_token = create_access_token(identity=user.id)
             return make_response(jsonify({"code": 200, "msg": "login success", "data": {"accessToken": access_token}}), 200)
         else:

@@ -1,5 +1,5 @@
 from flask import current_app, jsonify, make_response, request
-from models.user import *
+from models.user import User, Role
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -16,7 +16,8 @@ def create_default_admin():
             return
 
         # Create admin account
-        admin = User(username=username, password=password)
+        admin = User(username=username)
+        admin.set_password(password)
 
         # Set admin role
         admin_role = Role.query.filter_by(name="admin").first()
@@ -52,7 +53,8 @@ def create(data):
         if role is None:
             return make_response(jsonify({"code": 200, "msg": "Invalid role"}), 400)
 
-        user = User(username=username, password=password)
+        user = User(username=username)
+        user.set_password(password)
         user.roles = [role]  # Associate user with the role
 
         db.session.add(user)

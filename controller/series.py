@@ -1,6 +1,6 @@
 from flask import current_app, jsonify, make_response, request
-from models.series import *
-from models.user import *
+from models.series import Series, Field
+from models.user import User
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 
