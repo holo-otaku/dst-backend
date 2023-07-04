@@ -3,15 +3,21 @@ from models.series import Series, Field
 from models.user import User
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
+from flask_jwt_extended import get_jwt_identity
 
 
 def create(data):
     try:
         name = data.get('name')
-        created_by = data.get('createdBy')
+        created_by = get_jwt_identity()
 
         if not name or not created_by:
             return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
+
+        # Check if the series with the same name already exists
+        existing_series = Series.query.filter_by(name=name).first()
+        if existing_series:
+            return make_response(jsonify({"code": 400, "msg": "Series name already exists"}), 400)
 
         series = Series(name=name, created_by=created_by)
 
@@ -42,6 +48,11 @@ def create(data):
 
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+    except Exception as e:
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     finally:

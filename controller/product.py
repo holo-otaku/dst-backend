@@ -123,7 +123,7 @@ def read(series_id):
         conditions = []
         parameters = {'series_id': series_id}
 
-        for filter_criteria in filters:
+        for index, filter_criteria in enumerate(filters):
             field_id = filter_criteria['fieldId']
             value = filter_criteria['value']
             operation = filter_criteria.get('operation', 'equals')
@@ -144,8 +144,15 @@ def read(series_id):
                     "msg": type_err
                 }), 400)
 
-            conditions.append(__check_condition(
-                field, operation, field_id, value))
+            field_name = f'field_id{index}'
+            value_name = f'value{index}'
+
+            parameters[field_name] = field_id
+            parameters[value_name] = value
+
+            condition = __check_condition(
+                field, operation, field_name, value_name)
+            conditions.append(condition)
 
         sql_query += " AND ".join(conditions)
         sql_query += ")"
@@ -184,6 +191,7 @@ def read(series_id):
 
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
@@ -357,7 +365,7 @@ def __check_field_type(field, value):
     return type_err
 
 
-def __check_condition(field, operation, field_id, value):
+def __check_condition(field, operation, field_name, value_name):
     condition = f"""
     (item.id, item.series_id, item.name) IN (
         SELECT DISTINCT item.id,
@@ -366,8 +374,8 @@ def __check_condition(field, operation, field_id, value):
         FROM item
             JOIN item_attribute ON item.id = item_attribute.item_id
         WHERE item.series_id = :series_id
-            AND item_attribute.field_id = {field_id}
-            AND item_attribute.value = '{value}'
+            AND item_attribute.field_id = :{field_name}
+            AND item_attribute.value = :{value_name}
     )
     """
 
@@ -381,8 +389,8 @@ def __check_condition(field, operation, field_id, value):
                 FROM item
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
-                    AND item_attribute.field_id = {field_id}
-                    AND CAST(item_attribute.value AS float) >= {value}
+                    AND item_attribute.field_id = :{field_name}
+                    AND CAST(item_attribute.value AS float) >= :{value_name}
             )
             """
         elif field.data_type.lower() == 'time':
@@ -394,10 +402,11 @@ def __check_condition(field, operation, field_id, value):
                 FROM item
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
-                    AND item_attribute.field_id = {field_id}
-                    AND CAST(item_attribute.value AS DATETIME) >= '{value}'
+                    AND item_attribute.field_id = :{field_name}
+                    AND CAST(item_attribute.value AS DATETIME) >= :{value_name}
             )
             """
+
     elif operation == 'less':
         if field.data_type.lower() == 'number':
             condition = f"""
@@ -408,8 +417,8 @@ def __check_condition(field, operation, field_id, value):
                 FROM item
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
-                    AND item_attribute.field_id = {field_id}
-                    AND CAST(item_attribute.value AS float) <= {value}
+                    AND item_attribute.field_id = :{field_name}
+                    AND CAST(item_attribute.value AS float) <= :{value_name}
             )
             """
         elif field.data_type.lower() == 'time':
@@ -421,8 +430,8 @@ def __check_condition(field, operation, field_id, value):
                 FROM item
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
-                    AND item_attribute.field_id = {field_id}
-                    AND CAST(item_attribute.value AS DATETIME) <= '{value}'
+                    AND item_attribute.field_id = :{field_name}
+                    AND CAST(item_attribute.value AS DATETIME) <= :{value_name}
             )
             """
 

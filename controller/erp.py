@@ -6,8 +6,12 @@ def read(prod_no):
     try:
         conn = Connect(current_app.config["DST_MSSQL"])
         cursor = conn.cursor()
-        cursor.execute(
-            f"SELECT TOP 1 FACT_NO, PROD_NO, PROD_NAME, PROD_C, PROD_CT, KEYI_D, LEAD_TIME, FIZO_D, PROD_STAT FROM PROD WHERE PROD_NO = '{prod_no}'")
+        sql_query = """
+            SELECT TOP 1 FACT_NO, PROD_NO, PROD_NAME, PROD_C, PROD_CT, KEYI_D, LEAD_TIME, FIZO_D, PROD_STAT
+            FROM PROD
+            WHERE PROD_NO = ?"""
+        cursor.execute(sql_query, (prod_no,))
+
         results = cursor.fetchall()
 
         data = []
