@@ -6,7 +6,7 @@ role = Blueprint("role", __name__)
 
 
 @role.route("/multi", methods=["GET"])
-@check_permission('read')
+@check_permission('role')
 def get_roles():
 
     return read_multi()
@@ -20,7 +20,7 @@ def get_role(role_id):
 
 
 @role.route("", methods=["POST"])
-@check_permission('create')
+@check_permission('role')
 def create_role():
     data = request.get_json()
 
@@ -28,7 +28,7 @@ def create_role():
 
 
 @role.route("<int:role_id>", methods=["PATCH"])
-@check_permission('update')
+@check_permission('role')
 def update_role(role_id):
     data = request.get_json()
 
@@ -36,7 +36,7 @@ def update_role(role_id):
 
 
 @role.route("<int:role_id>", methods=["DELETE"])
-@check_permission('delete')
+@check_permission('role')
 def delete_role(role_id):
 
     return delete(role_id)

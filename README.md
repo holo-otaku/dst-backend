@@ -89,3 +89,12 @@ flask db upgrade
 ```
 
 This will automatically detect the model classes in the project and generate a new database migration file.
+
+## Default Admin Account
+
+Upon starting the application, a default admin account is created. You can use the following credentials to log in as an administrator:
+
+- Username: admin
+- Password: admin
+
+Please make sure to change the default password after logging in for the first time.

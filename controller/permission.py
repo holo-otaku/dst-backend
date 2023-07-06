@@ -4,6 +4,29 @@ from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 
 
+def create_default_permissions():
+    try:
+        if not Permission.query.first():
+            # 建立預設的權限
+            permissions = ['user', 'role', 'permission', 'create', 'read', 'update', 'delete']
+            for permission in permissions:
+                existing_permission = Permission.query.filter_by(
+                    name=permission).first()
+                if not existing_permission:
+                    new_permission = Permission(name=permission)
+                    db.session.add(new_permission)
+                    db.session.commit()
+
+    except SQLAlchemyError as e:
+        current_app.logger.error(e)
+
+    except Exception as e:
+        current_app.logger.error(e)
+
+    finally:
+        db.session.close()
+
+
 def create(data):
     try:
         name = data.get('name')

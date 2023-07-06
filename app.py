@@ -6,7 +6,9 @@ from routers.routes import routes
 from modules.logger import logger
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
-from controller.user import create_default_admin
+from controller.user import create_admin_user
+from controller.role import create_admin_role
+from controller.permission import create_default_permissions
 
 app = Flask(__name__)
 app.config.from_object('config.Config')
@@ -17,13 +19,15 @@ jwt = JWTManager(app)
 routes(app)
 logger(app)
 
-if __name__ == '__main__':
-    # 檢查是否已經執行過 create_default_admin()
-    if not app.config.get('DEFAULT_ADMIN_CREATED'):
-        with app.app_context():
-            create_default_admin()
 
-        # 設置標誌位，表示已經執行過 create_default_admin()
-        app.config['DEFAULT_ADMIN_CREATED'] = True
+@app.before_first_request
+def initialize():
+    with app.app_context():
+        create_default_permissions()
+        create_admin_role()
+        create_admin_user()
+
+
+if __name__ == '__main__':
 
     app.run(host='0.0.0.0', debug=True, port=5001)

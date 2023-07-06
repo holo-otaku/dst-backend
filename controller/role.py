@@ -4,6 +4,26 @@ from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 
 
+def create_admin_role():
+    try:
+        if not Role.query.first():
+            admin_role = Role.query.filter_by(name='admin').first()
+            if not admin_role:
+                admin_role = Role(name='admin')
+                permissions = Permission.query.all()
+                admin_role.permissions.extend(permissions)
+                db.session.add(admin_role)
+            db.session.commit()
+
+    except SQLAlchemyError as e:
+        current_app.logger.error(e)
+
+    except Exception as e:
+        current_app.logger.error(e)
+
+    finally:
+        db.session.close()
+        
 def create(data):
     try:
         role_name = data.get('roleName')

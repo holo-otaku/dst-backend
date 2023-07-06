@@ -6,21 +6,21 @@ permission = Blueprint("permission", __name__)
 
 
 @permission.route("/multi", methods=["GET"])
-@check_permission('read')
+@check_permission('permission')
 def get_permissions():
 
     return read_multi()
 
 
 @permission.route("/<int:permission_id>", methods=["GET"])
-@check_permission('read')
+@check_permission('permission')
 def get_permission(permission_id):
 
     return read(permission_id)
 
 
 @permission.route("", methods=["POST"])
-@check_permission('create')
+@check_permission('permission')
 def create_permission():
     data = request.get_json()
 
@@ -28,7 +28,7 @@ def create_permission():
 
 
 @permission.route("<int:permission_id>", methods=["PATCH"])
-@check_permission('edit')
+@check_permission('permission')
 def update_permission(permission_id):
     data = request.get_json()
 
@@ -36,7 +36,7 @@ def update_permission(permission_id):
 
 
 @permission.route("<int:permission_id>", methods=["DELETE"])
-@check_permission('delete')
+@check_permission('permission')
 def delete_permission(permission_id):
 
     return delete(permission_id)

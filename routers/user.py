@@ -6,7 +6,7 @@ user = Blueprint("user", __name__)
 
 
 @user.route("/multi", methods=["GET"])
-@check_permission('read')
+@check_permission('user')
 def get_users():
 
     return read_multi()
@@ -20,7 +20,7 @@ def get_user(user_id):
 
 
 @user.route("", methods=["POST"])
-@check_permission('create')
+@check_permission('user')
 def create_user():
     data = request.get_json()
 
@@ -28,7 +28,7 @@ def create_user():
 
 
 @user.route("<int:user_id>", methods=["PATCH"])
-@check_permission('edit')
+@check_permission('user')
 def update_user(user_id):
     data = request.get_json()
 
@@ -36,7 +36,7 @@ def update_user(user_id):
 
 
 @user.route("<int:user_id>", methods=["DELETE"])
-@check_permission('delete')
+@check_permission('user')
 def delete_user(user_id):
 
     return delete(user_id)

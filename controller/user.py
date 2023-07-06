@@ -4,30 +4,21 @@ from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 
 
-def create_default_admin():
+def create_admin_user():
     try:
-        username = "admin"
-        password = "admin"
+        if not User.query.first():
+            admin_user = User.query.filter_by(username='admin').first()
+            if not admin_user:
+                admin_user = User(username='admin')
+                admin_user.set_password('admin')
+                admin_role = Role.query.filter_by(name='admin').first()
+                admin_user.roles.append(admin_role)
+                db.session.add(admin_user)
+                current_app.logger.info("Default admin account created.")
+            else:
+                current_app.logger.info("Default admin account exist.")
 
-        # Check if admin account already exists
-        existing_admin = User.query.filter_by(username=username).first()
-        if existing_admin:
-            current_app.logger.info("Default admin account already exists.")
-            return
-
-        # Create admin account
-        admin = User(username=username)
-        admin.set_password(password)
-
-        # Set admin role
-        admin_role = Role.query.filter_by(name="admin").first()
-        if admin_role:
-            admin.roles.append(admin_role)
-
-        db.session.add(admin)
-        db.session.commit()
-
-        current_app.logger.info("Default admin account created.")
+            db.session.commit()
 
     except SQLAlchemyError as e:
         db.session.rollback()
