@@ -6,6 +6,7 @@ from routers.routes import routes
 from modules.logger import logger
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
+from flask_cors import CORS
 from controller.user import create_admin_user
 from controller.role import create_admin_role
 from controller.permission import create_default_permissions
@@ -18,7 +19,7 @@ jwt = JWTManager(app)
 
 routes(app)
 logger(app)
-
+CORS(app)
 
 with app.app_context():
     create_default_permissions()
