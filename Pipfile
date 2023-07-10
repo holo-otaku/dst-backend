@@ -26,6 +26,7 @@ typing-extensions = "==4.5.0"
 werkzeug = "==2.2.3"
 cryptography = "*"
 flask-cors = "*"
+flask-swagger-ui = "*"
 
 [dev-packages]
 
