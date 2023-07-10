@@ -6,6 +6,17 @@ info:
 
 servers:
   - url: http://127.0.0.1:5001
+    description: Local server
+  - url: http://{host}:{port}/{basePath}
+    description: The development API server
+    variables:
+      host:
+        default: "localhost"
+      port:
+        default: 5000
+      basePath:
+        default: ""
+
 
 tags:
   - name: Health
