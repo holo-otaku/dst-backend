@@ -98,3 +98,15 @@ Upon starting the application, a default admin account is created. You can use t
 - Password: admin
 
 Please make sure to change the default password after logging in for the first time.
+
+## API Document
+
+After starting the application, you can access the Swagger API documentation at the following URL:
+
+```
+http://127.0.0.1:5001/api/docs/
+```
+
+The Swagger API documentation provides detailed information about the available endpoints, request/response structures, and parameters for interacting with the API. It serves as a helpful resource for developers to understand and utilize the API effectively.
+
+Please refer to the Swagger API documentation for more information on how to interact with the API endpoints and perform various operations within your application.

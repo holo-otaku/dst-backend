@@ -141,11 +141,8 @@ def update(series_id, data):
             return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
 
         name = data.get('name')
-        created_by = data.get('createdBy')
 
-        if not name or not created_by:
-            return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
-
+        created_by = get_jwt_identity()
         user = User.query.get(created_by)
         if not user:
             return make_response(jsonify({"code": 400, "msg": "Invalid user"}), 400)

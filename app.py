@@ -20,12 +20,10 @@ routes(app)
 logger(app)
 
 
-@app.before_first_request
-def initialize():
-    with app.app_context():
-        create_default_permissions()
-        create_admin_role()
-        create_admin_user()
+with app.app_context():
+    create_default_permissions()
+    create_admin_role()
+    create_admin_user()
 
 
 if __name__ == '__main__':

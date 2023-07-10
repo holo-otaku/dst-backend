@@ -18,6 +18,8 @@ def check_permission(permission):
                 return f(*args, **kwargs)
             else:
                 # 沒有權限，回傳拒絕訪問的訊息
+                current_app.logger.error(
+                    f"{user.username} try to access {permission}")
                 return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
 
         return wrapper

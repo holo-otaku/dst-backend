@@ -28,7 +28,7 @@ def create_series():
 
 
 @series.route("<int:series_id>", methods=["PATCH"])
-@check_permission('edit')
+@check_permission('update')
 def update_series(series_id):
     data = request.get_json()
 

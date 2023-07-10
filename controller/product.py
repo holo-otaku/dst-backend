@@ -296,20 +296,13 @@ def delete(data):
         # 獲取要刪除的 Item IDs
         item_ids = data['itemId']
 
-        # 查詢要刪除的 Item 記錄
-        items = Item.query.filter(Item.id.in_(item_ids)).all()
-
-        # 檢查是否找到對應的 Item 記錄
-        if not items:
-            return make_response(jsonify({'code': 404, 'msg': 'Items not found'}), 404)
+        # 批次刪除 ItemAttribute 記錄
+        db.session.query(ItemAttribute).filter(
+            ItemAttribute.item_id.in_(item_ids)).delete(synchronize_session=False)
 
         # 批次刪除 Item 記錄
         db.session.query(Item).filter(Item.id.in_(item_ids)
                                       ).delete(synchronize_session=False)
-
-        # 批次刪除 ItemAttribute 記錄
-        db.session.query(ItemAttribute).filter(
-            ItemAttribute.item_id.in_(item_ids)).delete(synchronize_session=False)
 
         # 儲存變更到資料庫
         db.session.commit()
