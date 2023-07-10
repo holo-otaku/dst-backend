@@ -5,7 +5,7 @@ from controller.access import check_permission
 role = Blueprint("role", __name__)
 
 
-@role.route("/multi", methods=["GET"])
+@role.route("", methods=["GET"])
 @check_permission('role')
 def get_roles():
 

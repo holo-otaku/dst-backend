@@ -8,6 +8,8 @@ servers:
   - url: http://127.0.0.1:5001
 
 tags:
+  - name: Health
+    description: Connection Health
   - name: Login
     description: Operations related to Login
   - name: User
@@ -22,6 +24,30 @@ tags:
     description: Operations related to product management
 
 paths:
+  /health:
+      get:
+        tags:
+          - Health
+        summary: Connection health
+        description: Use this API to test connection health.
+
+        responses:
+          "200":
+            description: Connection successful
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    code:
+                      type: integer
+                      example: 200
+                    msg:
+                      type: string
+                      example: Success
+          "500":
+            description: Internal server error
+          
   /login:
     post:
       tags:
@@ -126,7 +152,6 @@ paths:
         "500":
           description: Internal Server Error
 
-  /user/multi:
     get:
       tags:
         - User
@@ -262,7 +287,40 @@ paths:
                     type: string
                     example: User deleted
 
-  /permission/multi:
+  /permission:
+    post:
+      tags:
+        - Permission
+      summary: Create a permission
+      description: Create a new permission.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionCreatePayload"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: Permission created
+
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+
     get:
       tags:
         - Permission
@@ -396,41 +454,7 @@ paths:
                     type: string
                     example: Permission deleted
 
-  /permission:
-    post:
-      tags:
-        - Permission
-      summary: Create a permission
-      description: Create a new permission.
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PermissionCreatePayload"
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  code:
-                    type: integer
-                    example: 200
-                  msg:
-                    type: string
-                    example: Permission created
-
-        "400":
-          description: Bad Request
-        "500":
-          description: Internal Server Error
-
-  /role/multi:
+  /role:
     get:
       tags:
         - Role
@@ -592,7 +616,7 @@ paths:
                     type: string
                     example: Role deleted
 
-  /series/multi:
+  /series:
     get:
       tags:
         - Series
@@ -630,7 +654,6 @@ paths:
                     items:
                       $ref: "#/components/schemas/Series"
 
-  /series:
     post:
       tags:
         - Series
@@ -760,7 +783,7 @@ paths:
                   msg:
                     type: string
                     example: Series deleted
-  
+
   /product:
     post:
       tags:
@@ -792,7 +815,7 @@ paths:
                         value:
                           type: string
       responses:
-        '201':
+        "201":
           description: Success
           content:
             application/json:
@@ -856,7 +879,7 @@ paths:
                       - greater
                       - less
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
@@ -926,7 +949,7 @@ paths:
                         value:
                           type: string
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
@@ -960,7 +983,7 @@ paths:
                   items:
                     type: integer
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:

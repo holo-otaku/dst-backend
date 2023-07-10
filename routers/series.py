@@ -5,7 +5,7 @@ from controller.access import check_permission
 series = Blueprint("series", __name__)
 
 
-@series.route("/multi", methods=["GET"])
+@series.route("", methods=["GET"])
 @check_permission('read')
 def get_serieses():
 
