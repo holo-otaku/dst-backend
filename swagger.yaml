@@ -646,6 +646,11 @@ paths:
           description: Number of series per page
           schema:
             type: integer
+        - in: query
+          name: showField
+          description: Detail of series
+          schema:
+            type: integer
       responses:
         "200":
           description: Success
@@ -706,12 +711,6 @@ paths:
           required: true
           name: series_id
           description: ID of the series to retrieve
-          schema:
-            type: integer
-        - in: query
-          required: true
-          name: field
-          description: Detail of the series
           schema:
             type: integer
       responses:

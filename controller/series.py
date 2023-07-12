@@ -26,7 +26,7 @@ def create(data):
         if fields_data:
             for field_data in fields_data:
                 field_name = field_data.get('name')
-                field_data_type = field_data.get('dataType')
+                field_data_type = field_data.get('dataType').lower()
                 field_is_filtered = field_data.get('isFiltered', False)
                 field_is_required = field_data.get('isRequired', False)
 
@@ -68,14 +68,12 @@ def read(series_id):
                     'createdBy': series.creator.username,
                     'createdAt': series.created_at.strftime("%Y-%m-%d %H:%M:%S")}
 
-            field = bool(int(request.args.get('field', False)))
-            if field:
-                field_data = [{'id': f.id,
-                               'name': f.name,
-                               'dataType': f.data_type,
-                               'isFiltered': f.is_filtered,
-                               'isRequired': f.is_required} for f in series.fields]
-                data['fields'] = field_data
+            field_data = [{'id': f.id,
+                            'name': f.name,
+                            'dataType': f.data_type,
+                            'isFiltered': f.is_filtered,
+                            'isRequired': f.is_required} for f in series.fields]
+            data['fields'] = field_data
 
             return make_response(jsonify({"code": 200, "msg": "Success", "data": data}), 200)
         else:
@@ -100,7 +98,7 @@ def read_multi():
 
         series = Series.query.paginate(page=page, per_page=limit)
         result = []
-        field = bool(int(request.args.get('field', False)))
+        show_field = bool(int(request.args.get('showField', False)))
         for s in series:
             data = {
                 'id': s.id,
@@ -109,7 +107,7 @@ def read_multi():
                 'createdAt': s.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             }
 
-            if field:
+            if show_field:
                 field_data = [{'id': f.id,
                                'name': f.name,
                                'dataType': f.data_type,

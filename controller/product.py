@@ -11,7 +11,7 @@ data_type_map = {
     'string': str,
     'number': (int, float),
     'boolean': bool,
-    'time': 'datetime'
+    'datetime': 'datetime'
     # Add other data types as needed
 }
 
@@ -386,7 +386,7 @@ def __check_condition(field, operation, field_name, value_name):
                     AND CAST(item_attribute.value AS float) >= :{value_name}
             )
             """
-        elif field.data_type.lower() == 'time':
+        elif field.data_type.lower() == 'datetime':
             condition = f"""
             (item.id, item.series_id, item.name) IN (
                 SELECT DISTINCT item.id,
@@ -414,7 +414,7 @@ def __check_condition(field, operation, field_name, value_name):
                     AND CAST(item_attribute.value AS float) <= :{value_name}
             )
             """
-        elif field.data_type.lower() == 'time':
+        elif field.data_type.lower() == 'datetime':
             condition = f"""
             (item.id, item.series_id, item.name) IN (
                 SELECT DISTINCT item.id,
