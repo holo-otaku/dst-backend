@@ -1,4 +1,4 @@
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from flask import current_app, jsonify, make_response
 from functools import wraps
 from models.user import User, Permission, Role, RolePermission, UserRole
@@ -8,10 +8,10 @@ from models.shared import db
 def check_permission(permission):
     def decorator(f):
         @wraps(f)
-        @jwt_required()
+        @jwt_required(optional=True)
         def wrapper(*args, **kwargs):
             user_id = get_jwt_identity()
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
 
             if has_permission(user, permission):
                 # 有權限，執行原始函數
@@ -27,10 +27,9 @@ def check_permission(permission):
 
 
 def has_permission(user, required_permission):
-    permissions = db.session.query(Permission).join(RolePermission).join(
-        Role).join(UserRole).filter(UserRole.user_id == user.id).all()
-    for permission in permissions:
-        if permission.name == required_permission:
-            return True
-
+    permissions = get_jwt()["permissions"]
+    if required_permission in permissions:
+        return True
+    current_app.logger.warn(
+        f"{user.username} try to access {required_permission}")
     return False

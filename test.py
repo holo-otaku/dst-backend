@@ -12,18 +12,24 @@ from controller.role import create_admin_role
 from controller.permission import create_default_permissions
 
 
-app = Flask(__name__)
-app.config.from_object('config.Config')
-db.init_app(app)
-migrate = Migrate(app, db)
-jwt = JWTManager(app)
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object('config.Config')
+    app.config['TESTING'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:1qaz%40WSX3edc@localhost:3306/test'
+    db.init_app(app)
+    migrate = Migrate(app, db)
+    jwt = JWTManager(app)
 
-routes(app)
-logger(app)
-CORS(app)
+    routes(app)
+    logger(app)
+    CORS(app)
+
+    return app, db
 
 
 if __name__ == '__main__':
+    app, db = create_app()
 
     with app.app_context():
         create_default_permissions()

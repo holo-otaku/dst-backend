@@ -2,6 +2,7 @@ from flask import current_app, jsonify, make_response, request
 from models.series import Series, Field
 from models.user import User
 from models.shared import db
+from models.mapping_table import data_type_map
 from sqlalchemy.exc import SQLAlchemyError
 from flask_jwt_extended import get_jwt_identity
 
@@ -27,6 +28,10 @@ def create(data):
             for field_data in fields_data:
                 field_name = field_data.get('name')
                 field_data_type = field_data.get('dataType').lower()
+
+                if field_data_type not in data_type_map:
+                    return make_response(jsonify({"code": 400, "msg": f"{field_name} DataType Error"}), 400)
+
                 field_is_filtered = field_data.get('isFiltered', False)
                 field_is_required = field_data.get('isRequired', False)
 
@@ -61,7 +66,8 @@ def create(data):
 
 def read(series_id):
     try:
-        series = Series.query.get(series_id)
+        series = db.session.get(Series, series_id)
+
         if series:
             data = {'id': series.id,
                     'name': series.name,
@@ -69,10 +75,10 @@ def read(series_id):
                     'createdAt': series.created_at.strftime("%Y-%m-%d %H:%M:%S")}
 
             field_data = [{'id': f.id,
-                            'name': f.name,
-                            'dataType': f.data_type,
-                            'isFiltered': f.is_filtered,
-                            'isRequired': f.is_required} for f in series.fields]
+                           'name': f.name,
+                           'dataType': f.data_type,
+                           'isFiltered': f.is_filtered,
+                           'isRequired': f.is_required} for f in series.fields]
             data['fields'] = field_data
 
             return make_response(jsonify({"code": 200, "msg": "Success", "data": data}), 200)
@@ -133,7 +139,7 @@ def read_multi():
 
 def update(series_id, data):
     try:
-        series = Series.query.get(series_id)
+        series = db.session.get(Series, series_id)
 
         if not series:
             return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
@@ -141,7 +147,8 @@ def update(series_id, data):
         name = data.get('name')
 
         created_by = get_jwt_identity()
-        user = User.query.get(created_by)
+        user = db.session.get(User, created_by)
+
         if not user:
             return make_response(jsonify({"code": 400, "msg": "Invalid user"}), 400)
 
@@ -188,7 +195,8 @@ def update(series_id, data):
 
 def delete(series_id):
     try:
-        series = Series.query.get(series_id)
+        series = db.session.get(Series, series_id)
+
         if series:
             # Delete associated fields
             Field.query.filter_by(series_id=series.id).delete()

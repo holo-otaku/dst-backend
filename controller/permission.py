@@ -8,7 +8,8 @@ def create_default_permissions():
     try:
         if not Permission.query.first():
             # 建立預設的權限
-            permissions = ['user', 'role', 'permission', 'create', 'read', 'update', 'delete']
+            permissions = ['user', 'role', 'permission',
+                           'create', 'read', 'update', 'delete']
             for permission in permissions:
                 existing_permission = Permission.query.filter_by(
                     name=permission).first()
@@ -32,18 +33,24 @@ def create(data):
         name = data.get('name')
 
         if not name:
-            return make_response(jsonify({"code": 200, "msg": 'Incomplete data'}), 400)
+            return make_response(jsonify({"code": 400, "msg": 'Incomplete data'}), 400)
 
         existing_permission = Permission.query.filter_by(name=name).first()
         if existing_permission:
-            return make_response(jsonify({"code": 200, "msg": 'Permission name already exists'}), 400)
+            return make_response(jsonify({"code": 400, "msg": 'Permission name already exists'}), 400)
 
         permission = Permission(name=name)
         db.session.add(permission)
         db.session.commit()
-        return make_response(jsonify({"code": 200, "msg": "Permission created"}), 200)
+
+        permission_data = {
+            'id': permission.id,
+            'name': permission.name
+        }
+        return make_response(jsonify({"code": 200, "msg": "Permission created", "data": permission_data}), 200)
 
     except SQLAlchemyError as e:
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
@@ -56,7 +63,8 @@ def create(data):
 
 def read(permission_id):
     try:
-        permission = Permission.query.get(permission_id)
+        permission = db.session.get(Permission, permission_id)
+
         if permission is None:
             return make_response(jsonify({"code": 404, "msg": 'Permission not found'}), 404)
 
@@ -65,6 +73,7 @@ def read(permission_id):
         return make_response(jsonify({"code": 200, "msg": "Permission found", "data": result}), 200)
 
     except SQLAlchemyError as e:
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
@@ -87,6 +96,7 @@ def read_multi():
         return make_response(jsonify({"code": 200, "msg": "Permission found", "data": result}), 200)
 
     except SQLAlchemyError as e:
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
@@ -96,7 +106,8 @@ def read_multi():
 
 def update(permission_id, data):
     try:
-        permission = Permission.query.get(permission_id)
+        permission = db.session.get(Permission, permission_id)
+
         if permission is None:
             return make_response(jsonify({"code": 404, "msg": 'Permission not found'}), 404)
 
@@ -109,6 +120,7 @@ def update(permission_id, data):
         return make_response(jsonify({"code": 200, "msg": "Permission updated"}), 200)
 
     except SQLAlchemyError as e:
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
@@ -121,7 +133,8 @@ def update(permission_id, data):
 
 def delete(permission_id):
     try:
-        permission = Permission.query.get(permission_id)
+        permission = db.session.get(Permission, permission_id)
+
         if permission is None:
             return make_response(jsonify({"code": 404, "msg": 'Permission not found'}), 404)
 
@@ -131,6 +144,7 @@ def delete(permission_id):
         return make_response(jsonify({"code": 200, "msg": "Permission deleted"}), 200)
 
     except SQLAlchemyError as e:
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
