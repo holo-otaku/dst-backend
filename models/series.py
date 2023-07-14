@@ -9,11 +9,11 @@ class Series(db.Model):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(50), unique=True, nullable=False)
-    created_by = Column(Integer, ForeignKey('users.id'))
+    created_by = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.now)
 
     creator = relationship('User')
-    fields = relationship('Field')
+    fields = relationship('Field', back_populates='series')
 
 
 class Field(db.Model):
@@ -26,7 +26,7 @@ class Field(db.Model):
     is_filtered = Column(Boolean)
     series_id = Column(Integer, ForeignKey('series.id'))
 
-    item_attributes = relationship('ItemAttribute')
+    series = relationship('Series', back_populates='fields')
 
 
 class Item(db.Model):
@@ -47,3 +47,4 @@ class ItemAttribute(db.Model):
     value = Column(String(length=50))
 
     item = relationship('Item')
+    field = relationship('Field')

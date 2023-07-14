@@ -17,7 +17,6 @@ servers:
       basePath:
         default: ""
 
-
 tags:
   - name: Health
     description: Connection Health
@@ -36,29 +35,29 @@ tags:
 
 paths:
   /health:
-      get:
-        tags:
-          - Health
-        summary: Connection health
-        description: Use this API to test connection health.
+    get:
+      tags:
+        - Health
+      summary: Connection health
+      description: Use this API to test connection health.
 
-        responses:
-          "200":
-            description: Connection successful
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    code:
-                      type: integer
-                      example: 200
-                    msg:
-                      type: string
-                      example: Success
-          "500":
-            description: Internal server error
-          
+      responses:
+        "200":
+          description: Connection successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: Success
+        "500":
+          description: Internal server error
+
   /login:
     post:
       tags:
@@ -326,6 +325,14 @@ paths:
                   msg:
                     type: string
                     example: Permission created
+                  data:
+                    properties:
+                      id:
+                        type: number
+                        example: 1
+                      name:
+                        type: string
+                        example: read
 
         "400":
           description: Bad Request
@@ -530,6 +537,12 @@ paths:
                   msg:
                     type: string
                     example: Role created
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
 
   /role/{role_id}:
     get:
@@ -843,7 +856,7 @@ paths:
                     items:
                       type: object
                       properties:
-                        itemId:
+                        id:
                           type: integer
                           example: 1
                         name:
@@ -1108,6 +1121,26 @@ components:
         name:
           type: string
           example: Series 1
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              dataType:
+                type: string
+                example: Series 1
+              id:
+                type: string
+                example: Series 1
+              isFiltered:
+                type: string
+                example: Series 1
+              isRequired:
+                type: string
+                example: Series 1
+              name:
+                type: string
+                example: Series 1
 
     SeriesCreatePayload:
       type: object

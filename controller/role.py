@@ -23,15 +23,22 @@ def create_admin_role():
 
     finally:
         db.session.close()
-        
+
+
 def create(data):
     try:
         role_name = data.get('roleName')
         permission_ids = data.get('permissionIds')
 
+        # 檢查 roleName 是否重複
+        existing_role = Role.query.filter_by(name=role_name).first()
+        if existing_role:
+            return make_response(jsonify({"code": 400, "msg": f"Role with name '{role_name}' already exists"}), 400)
+
         # 檢查 permission_ids 是否存在
         for permission_id in permission_ids:
-            permission = Permission.query.get(permission_id)
+            permission = db.session.get(Permission, permission_id)
+
             if not permission:
                 return make_response(jsonify({"code": 400, "msg": f"Permission with ID {permission_id} not found"}), 400)
 
@@ -41,11 +48,11 @@ def create(data):
 
         update_role_permissions(role.id, permission_ids)
 
-        return make_response(jsonify({"code": 200, "msg": "Role created"}), 201)
+        return make_response(jsonify({"code": 200, "msg": "Role created", "data": {"id": role.id}}), 201)
 
     except SQLAlchemyError as e:
-        current_app.logger.error(e)
         db.session.rollback()
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
@@ -59,7 +66,8 @@ def create(data):
 def update(role_id, data):
     try:
         # 查询要更新的角色
-        role = Role.query.get(role_id)
+        role = db.session.get(Role, role_id)
+
         if role is None:
             return make_response(jsonify({"code": 200, "msg": 'Role not found'}), 404)
 
@@ -72,8 +80,8 @@ def update(role_id, data):
         return make_response(jsonify({"code": 200, "msg": "Role updated"}), 200)
 
     except SQLAlchemyError as e:
-        current_app.logger.error(e)
         db.session.rollback()
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
@@ -99,7 +107,8 @@ def update_role_permissions(role_id, permission_ids):
 
 def delete(role_id):
     try:
-        role = Role.query.get(role_id)
+        role = db.session.get(Role, role_id)
+
         if role is None:
             return make_response(jsonify({"code": 200, "msg": 'Role not found'}), 404)
 
@@ -112,8 +121,8 @@ def delete(role_id):
         return make_response(jsonify({"code": 200, "msg": "Role deleted"}), 200)
 
     except SQLAlchemyError as e:
-        current_app.logger.error(e)
         db.session.rollback()
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
@@ -126,7 +135,8 @@ def delete(role_id):
 
 def read(role_id):
     try:
-        role = Role.query.get(role_id)
+        role = db.session.get(Role, role_id)
+
         if role is None:
             return make_response(jsonify({"code": 404, "msg": 'Role not found'}), 404)
 
@@ -152,7 +162,7 @@ def read_multi():
         # Pagination parameters
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
-        
+
         roles = Role.query.limit(limit).offset((page - 1) * limit).all()
 
         result = [{'id': role.id, 'name': role.name, 'permissions': [

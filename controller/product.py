@@ -2,18 +2,10 @@ from flask import current_app, jsonify, make_response, request
 from controller.erp import read as read_erp
 from models.series import Series, Field, Item, ItemAttribute
 from models.shared import db
+from models.mapping_table import data_type_map
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import and_, or_, text
 from datetime import datetime
-
-# Mapping of field data types to Python data types
-data_type_map = {
-    'string': str,
-    'number': (int, float),
-    'boolean': bool,
-    'datetime': 'datetime'
-    # Add other data types as needed
-}
 
 
 def create(data):
@@ -32,7 +24,8 @@ def create(data):
             if not series_id or not name or not attributes:
                 return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
 
-            series = Series.query.get(series_id)
+            series = db.session.get(Series, series_id)
+
             if not series:
                 return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
 
@@ -50,7 +43,7 @@ def create(data):
                 field_id = attribute.get('fieldId')
                 value = attribute.get('value')
 
-                field = Field.query.get(field_id)
+                field = db.session.get(Field, field_id)
                 if not field:
                     return make_response(jsonify({"code": 400, "msg": f"Invalid field_id: {field_id}"}), 400)
 
@@ -222,7 +215,7 @@ def update_multi(data):
                 return make_response(jsonify({'code': 400, 'msg': 'Incomplete data'}), 400)
 
             # 查詢對應的 Item 記錄
-            item = Item.query.get(item_id)
+            item = db.session.get(Item, item_id)
 
             # 檢查 Item 是否存在
             if not item:
@@ -241,7 +234,7 @@ def update_multi(data):
                     return make_response(jsonify({'code': 400, 'msg': 'Incomplete attribute data'}), 400)
 
                 # 查詢對應的 Field 記錄
-                field = Field.query.get(field_id)
+                field = db.session.get(Field, field_id)
 
                 if not field:
                     return make_response(jsonify({'code': 404, 'msg': f'field_id:{field_id} not found'}), 404)
@@ -343,6 +336,11 @@ def __is_datetime(string):
 
 def __check_field_type(field, value):
     type_err = []
+
+    if field.data_type.lower() not in data_type_map:
+        type_err.append(
+            f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
+
     # Check if the value is of the correct data type
     correct_type = data_type_map[field.data_type.lower()]
     if (correct_type == 'datetime'):

@@ -27,6 +27,8 @@ werkzeug = "==2.2.3"
 cryptography = "*"
 flask-cors = "*"
 flask-swagger-ui = "*"
+pytest = "*"
+faker = "*"
 
 [dev-packages]
 

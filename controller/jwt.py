@@ -8,14 +8,23 @@ from sqlalchemy.exc import SQLAlchemyError
 
 def login():
     try:
+        if not request.json:
+            return make_response(jsonify({"msg": "Invalid request"}), 400)
+
         username = request.json.get("username", None)
         password = request.json.get("password", None)
 
         # 在用户数据库中查找匹配的用户
         user = User.query.filter_by(username=username).first()
 
+        permissions = []
+        for role in user.roles:
+            for permission in role.permissions:
+                permissions.append(permission.name)
+
         if user and user.check_password(password):
-            access_token = create_access_token(identity=user.id)
+            access_token = create_access_token(identity=user.id,
+                                               additional_claims={"permissions": permissions})
             return make_response(jsonify({"code": 200, "msg": "login success", "data": {"accessToken": access_token}}), 200)
         else:
             return make_response(jsonify({"msg": "Invalid credentials"}), 401)
