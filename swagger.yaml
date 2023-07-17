@@ -650,6 +650,11 @@ paths:
         - bearerAuth: []
       parameters:
         - in: query
+          name: keyword
+          description: keyword for fuzzy search
+          schema:
+            type: string
+        - in: query
           name: page
           description: Page number for pagination
           schema:

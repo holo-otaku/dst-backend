@@ -101,9 +101,17 @@ def read_multi():
     try:
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
+        keyword = str(request.args.get('keyword', ''))
 
-        series = Series.query.filter_by(
-            status=1).paginate(page=page, per_page=limit)
+        if keyword:
+            series = Series.query.filter(
+                Series.name.ilike(f"%{keyword}%"),
+                Series.status == 1
+            ).all()
+        else:
+            series = Series.query.filter_by(
+                status=1).paginate(page=page, per_page=limit)
+
         result = []
         show_field = bool(int(request.args.get('showField', False)))
         for s in series:
