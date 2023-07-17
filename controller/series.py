@@ -1,5 +1,5 @@
 from flask import current_app, jsonify, make_response, request
-from models.series import Series, Field
+from models.series import Series, Field, Item
 from models.user import User
 from models.shared import db
 from models.mapping_table import data_type_map
@@ -66,7 +66,7 @@ def create(data):
 
 def read(series_id):
     try:
-        series = db.session.get(Series, series_id)
+        series = Series.query.filter_by(id=series_id, status=1).first()
 
         if series:
             data = {'id': series.id,
@@ -102,7 +102,8 @@ def read_multi():
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
 
-        series = Series.query.paginate(page=page, per_page=limit)
+        series = Series.query.filter_by(
+            status=1).paginate(page=page, per_page=limit)
         result = []
         show_field = bool(int(request.args.get('showField', False)))
         for s in series:
@@ -143,6 +144,12 @@ def update(series_id, data):
 
         if not series:
             return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
+
+        # Check if any items are associated with the series
+        has_related_items = db.session.query(
+            Item).filter_by(series_id=series.id).first()
+        if has_related_items:
+            return make_response(jsonify({"code": 400, "msg": "Cannot update series with associated items"}), 400)
 
         name = data.get('name')
 
@@ -198,10 +205,9 @@ def delete(series_id):
         series = db.session.get(Series, series_id)
 
         if series:
-            # Delete associated fields
-            Field.query.filter_by(series_id=series.id).delete()
+            # Set series status to 0 (deleted)
+            series.status = 0
 
-            db.session.delete(series)
             db.session.commit()
             return make_response(jsonify({"code": 200, "msg": "Series deleted"}), 200)
         else:

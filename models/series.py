@@ -8,9 +8,10 @@ class Series(db.Model):
     __tablename__ = 'series'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), unique=True, nullable=False)
+    name = Column(String(50), nullable=False)
     created_by = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.now)
+    status = Column(Integer, default=1)
 
     creator = relationship('User')
     fields = relationship('Field', back_populates='series')

@@ -4,7 +4,7 @@ from models.series import Series, Field, Item, ItemAttribute
 from models.shared import db
 from models.mapping_table import data_type_map
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import and_, or_, text
+from sqlalchemy import and_, text
 from datetime import datetime
 
 
@@ -85,6 +85,10 @@ def read(series_id):
         filters = request.json
         # Ensure the series_id is an integer
         series_id = int(series_id)
+
+        series = Series.query.filter_by(id=series_id, status=1).first()
+        if not series:
+            return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
 
         # Pagination parameters
         page = int(request.args.get('page', 1))
