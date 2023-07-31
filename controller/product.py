@@ -7,6 +7,49 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import and_, text
 from datetime import datetime
 
+def show(product_id):
+    try:
+        # Check if product_id is provided
+        if not product_id:
+            return make_response(jsonify({"code": 400, "msg": "Product ID is required"}), 400)
+
+        # Get the item related to this product_id
+        item = db.session.get(Item, product_id)
+
+        # Check if product exists
+        if not item:
+            return make_response(jsonify({"code": 404, "msg": "Product not found"}), 404)
+
+        # Get the attributes related to this product
+        attributes_query = db.session.query(ItemAttribute).filter(
+            ItemAttribute.item_id == product_id)
+
+        # Format attributes
+        attributes = [{"fieldId": attribute.field_id, "value": attribute.value} 
+                      for attribute in attributes_query.all()]
+
+        # Format the output
+        result = {
+            "itemId": item.id,
+            "name": item.name,
+            "seriesId": item.series_id,
+            "attributes": attributes
+        }
+
+        return make_response(jsonify({"code": 200, "msg": "Success", "data": result}), 200)
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+    except Exception as e:
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+    finally:
+        db.session.close()
+
 
 def create(data):
     try:

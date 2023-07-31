@@ -871,6 +871,39 @@ paths:
                           type: integer
                           example: 1
 
+  /product/{product_id}:
+    get:
+      tags:
+        - Products
+      summary: Get a product
+      description: Retrieve a specific product by ID.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          required: true
+          name: product_id
+          description: ID of the product to retrieve
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: Success
+                  data:
+                    $ref: "#/components/schemas/Product"
+
+
   /product/{series_id}/search:
     post:
       tags:
@@ -1184,3 +1217,29 @@ components:
                 type: integer
               isRequired:
                 type: integer
+
+    Product:
+      type: object
+      properties:
+        itemId:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Product 1
+        seriesId:
+          type: integer
+          example: 1
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+    Field:
+      type: object
+      properties:
+        key:
+          type: string
+          example: "1"
+        value:
+          type: string
+          example: Field Value
