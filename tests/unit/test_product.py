@@ -75,6 +75,27 @@ def test_create_product(client_and_db, access_token):
     global created_product_id
     created_product_id = response.json['data'][0]['id']
 
+def test_show_products(client_and_db, access_token):
+    client, _ = client_and_db
+
+    product_id = created_product_id
+
+    response = client.get(
+        f'/product/{product_id}', headers=access_token)
+
+    assert response.status_code == 200
+    assert response.json['msg'] == 'Success'
+    assert 'data' in response.json
+    assert 'attributes' in response.json['data']
+    attributes = response.json['data']['attributes']
+    assert isinstance(attributes, list)
+    
+    for attribute in attributes:
+        assert 'fieldId' in attribute
+        assert 'value' in attribute
+
+        assert isinstance(attribute['fieldId'], int)
+        assert isinstance(attribute['value'], str)
 # Search products in a series
 
 
