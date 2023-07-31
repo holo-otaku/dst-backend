@@ -15,11 +15,6 @@ def create(data):
         if not name or not created_by:
             return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
 
-        # Check if the series with the same name already exists
-        existing_series = Series.query.filter_by(name=name).first()
-        if existing_series:
-            return make_response(jsonify({"code": 400, "msg": "Series name already exists"}), 400)
-
         series = Series(name=name, created_by=created_by)
 
         # Check if 'fields' data is provided in the request
