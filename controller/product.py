@@ -123,12 +123,12 @@ def create(data):
         db.session.close()
 
 
-def read(series_id):
+def read():
     try:
         # Extract the filter criteria from the request body
         filters = request.json
         # Ensure the series_id is an integer
-        series_id = int(series_id)
+        series_id = int(request.args.get('seriesId', 1))
 
         series = Series.query.filter_by(id=series_id, status=1).first()
         if not series:

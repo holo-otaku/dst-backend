@@ -4,6 +4,7 @@ from controller.access import check_permission
 
 products = Blueprint("products", __name__)
 
+
 @products.route("", methods=["POST"])
 @check_permission('create')
 def create_product():
@@ -12,11 +13,11 @@ def create_product():
     return create(data)
 
 
-@products.route("/<int:series_id>/search", methods=["POST"])
+@products.route("/search", methods=["POST"])
 @check_permission('read')
-def read_product(series_id):
+def read_product():
 
-    return read(series_id)
+    return read()
 
 
 @products.route("/edit", methods=["PATCH"])
@@ -33,6 +34,7 @@ def delete_product():
     data = request.get_json()
 
     return delete(data)
+
 
 @products.route("/<int:product_id>", methods=["GET"])
 @check_permission('read')

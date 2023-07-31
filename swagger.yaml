@@ -904,7 +904,7 @@ paths:
                     $ref: "#/components/schemas/Product"
 
 
-  /product/{series_id}/search:
+  /product/search:
     post:
       tags:
         - Products
@@ -913,10 +913,20 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - in: path
+        - in: query
           name: series_id
           description: ID of the series to search in
           required: true
+          schema:
+            type: integer
+        - in: query
+          name: page
+          description: Page number for pagination
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          description: Number of users per page
           schema:
             type: integer
       requestBody:
