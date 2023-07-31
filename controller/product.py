@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import and_, text
 from datetime import datetime
 
+
 def show(product_id):
     try:
         # Check if product_id is provided
@@ -25,7 +26,7 @@ def show(product_id):
             ItemAttribute.item_id == product_id)
 
         # Format attributes
-        attributes = [{"fieldId": attribute.field_id, "value": attribute.value} 
+        attributes = [{"fieldId": attribute.field_id, "value": attribute.value}
                       for attribute in attributes_query.all()]
 
         # Format the output
@@ -220,10 +221,8 @@ def read(series_id):
             fields_data = []
             item_id, item_series_id, item_name = row
             fields_data += [
-                {"key": str(field.id), "value": db.session.query(ItemAttribute).filter(
-                    and_(ItemAttribute.item_id == item_id,
-                         ItemAttribute.field_id == field.id)
-                ).first().value}
+                {"key": str(field.id), "value": __get_field_value_by_type(
+                    item_id, field)}
                 for field in fields.values()
             ]
             data.append({
@@ -364,6 +363,20 @@ def delete(data):
     finally:
         # 確保關閉資料庫連線
         db.session.close()
+
+
+def __get_field_value_by_type(item_id, field):
+    result = db.session.query(ItemAttribute).filter(
+        and_(ItemAttribute.item_id == item_id,
+             ItemAttribute.field_id == field.id)
+    ).first()
+    value = result.value
+    data_type = result.field.data_type
+
+    if (data_type == "number"):
+        value = int(value)
+
+    return value
 
 
 def __check_field_required(fields_query, filters, is_required_var):
