@@ -26,7 +26,7 @@ def show(product_id):
             ItemAttribute.item_id == product_id)
 
         # Format attributes
-        attributes = [{"fieldId": attribute.field_id, "value": attribute.value}
+        attributes = [{"fieldId": attribute.field_id, "value": __get_field_value_by_type(attribute)}
                       for attribute in attributes_query.all()]
 
         # Format the output
@@ -220,11 +220,17 @@ def read():
         for row in paginated_result:
             fields_data = []
             item_id, item_series_id, item_name = row
-            fields_data += [
-                {"key": str(field.id), "value": __get_field_value_by_type(
-                    item_id, field)}
-                for field in fields.values()
-            ]
+            for field in fields.values():
+
+                item = db.session.query(ItemAttribute).filter(
+                    and_(ItemAttribute.item_id == item_id,
+                         ItemAttribute.field_id == field.id)
+                ).first()
+
+                fields_data += [
+                    {"key": str(field.id),
+                     "value": __get_field_value_by_type(item)}
+                ]
             data.append({
                 'itemId': item_id,
                 'name': item_name,
@@ -365,16 +371,14 @@ def delete(data):
         db.session.close()
 
 
-def __get_field_value_by_type(item_id, field):
-    result = db.session.query(ItemAttribute).filter(
-        and_(ItemAttribute.item_id == item_id,
-             ItemAttribute.field_id == field.id)
-    ).first()
-    value = result.value
-    data_type = result.field.data_type
+def __get_field_value_by_type(item):
+    value = item.value
+    data_type = item.field.data_type
 
     if (data_type == "number"):
         value = int(value)
+    elif (data_type == "boolean"):
+        value = bool(value)
 
     return value
 
