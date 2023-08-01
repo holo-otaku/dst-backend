@@ -228,14 +228,14 @@ def read():
                 ).first()
 
                 fields_data += [
-                    {"key": str(field.id),
+                    {"fieldId": str(field.id),
                      "value": __get_field_value_by_type(item)}
                 ]
             data.append({
                 'itemId': item_id,
                 'name': item_name,
                 'seriesId': item_series_id,
-                'fields': fields_data
+                'attributes': fields_data
             })
 
         return make_response(jsonify({"code": 200, "msg": "Success", "data": data}), 200)
