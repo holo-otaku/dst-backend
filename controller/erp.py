@@ -3,6 +3,8 @@ from models.mssql import Connect
 
 
 def read(prod_no):
+    conn = None
+    cursor = None
     try:
         conn = Connect(current_app.config["DST_MSSQL"])
         cursor = conn.cursor()
@@ -31,6 +33,10 @@ def read(prod_no):
     except Exception as e:
         current_app.logger.error(e)
 
+        return None
+
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()

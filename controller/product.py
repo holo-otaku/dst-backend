@@ -212,6 +212,11 @@ def read():
 
         # Get ERP data
         erp_data = read_erp(filters[1]['value'])
+        # 檢查 erp_data 是否為 None，若為 None 則表示發生錯誤
+        if erp_data is None:
+            error_message = "Failed to fetch ERP data."
+            current_app.logger.error(error_message)
+            return make_response(jsonify({"code": 500, "msg": error_message}), 500)
         fields_data += erp_data
 
         # Format the output
