@@ -17,14 +17,8 @@ def login():
         # 在用户数据库中查找匹配的用户
         user = User.query.filter_by(username=username).first()
 
-        permissions = []
-        for role in user.roles:
-            for permission in role.permissions:
-                permissions.append(permission.name)
-
         if user and user.check_password(password):
-            access_token = create_access_token(identity=user.id,
-                                               additional_claims={"permissions": permissions})
+            access_token = __create_access_token(user)
             return make_response(jsonify({"code": 200, "msg": "login success", "data": {"accessToken": access_token}}), 200)
         else:
             return make_response(jsonify({"msg": "Invalid credentials"}), 401)
@@ -45,16 +39,10 @@ def refresh():
     try:
         # 獲取當前用戶的 ID
         current_user = get_jwt_identity()
-        # 獲取當前用戶的 JWT Token 的加密內容
-        # jwt_token = get_raw_jwt()
-
-        # 檢查 JWT Token 是否在黑名單中，如果是，則無法進行刷新
-        # if jwt_token in blacklist:
-        #     return jsonify({"msg": "Invalid token"}), 401
+        user = db.session.get(User, current_user)
 
         # 創建新的 JWT Token，有效期為 30 分鐘
-        new_token = create_access_token(
-            identity=current_user, expires_delta=timedelta(minutes=30))
+        new_token = __create_access_token(user)
 
         # 返回新的 JWT Token 給用戶
         return make_response(jsonify({"accessToken": new_token}), 200)
@@ -62,3 +50,13 @@ def refresh():
     except Exception as e:
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+
+def __create_access_token(user):
+    permissions = []
+    for role in user.roles:
+        for permission in role.permissions:
+            permissions.append(permission.name)
+
+    return create_access_token(identity=user.id,
+                               additional_claims={"permissions": permissions})
