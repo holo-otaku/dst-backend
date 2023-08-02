@@ -293,7 +293,7 @@ def update_multi(data):
                 value = attribute.get('value')
 
                 # 檢查屬性的完整性
-                if not field_id or not value:
+                if not field_id or value is None:
                     return make_response(jsonify({'code': 400, 'msg': 'Incomplete attribute data'}), 400)
 
                 # 查詢對應的 Field 記錄
