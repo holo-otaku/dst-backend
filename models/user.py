@@ -1,7 +1,8 @@
 from models.shared import db
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 
 class User(db.Model):
@@ -11,6 +12,8 @@ class User(db.Model):
     password = Column(String(128), nullable=False)  # 增加密碼欄位長度
 
     roles = relationship('Role', secondary='user_role', backref='users')
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, nullable=False)
 
     def set_password(self, password):
         self.password = generate_password_hash(password)  # 將密碼加密
@@ -23,12 +26,16 @@ class UserRole(db.Model):
     __tablename__ = 'user_role'
     user_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
     role_id = Column(Integer, ForeignKey('roles.id'), primary_key=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, nullable=False)
 
 
 class Role(db.Model):
     __tablename__ = 'roles'
     id = Column(Integer, primary_key=True)
     name = Column(String(50), unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, nullable=False)
 
     permissions = relationship(
         'Permission', secondary='role_permission', backref='roles')

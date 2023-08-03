@@ -11,6 +11,7 @@ class Series(db.Model):
     name = Column(String(50), nullable=False)
     created_by = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, nullable=False)
     status = Column(Integer, default=1)
 
     creator = relationship('User')
@@ -36,6 +37,8 @@ class Item(db.Model):
     id = Column(Integer, primary_key=True)
     series_id = Column(Integer, ForeignKey('series.id'))
     name = Column(String(length=50))
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, nullable=False)
 
     series = relationship('Series')
 
