@@ -132,7 +132,7 @@ def update(user_id, data):
         if username is not None:
             user.username = username
         if password is not None:
-            user.password = password
+            user.set_password(password)
 
         if role_id is not None:
             role = db.session.get(Role, role_id)
