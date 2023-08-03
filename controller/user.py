@@ -79,7 +79,9 @@ def read(user_id):
             return make_response(jsonify({'code': 200, 'msg': 'User not found'}), 404)
 
         role_name = user.roles[0].name if user.roles else None
-        result = {'id': user.id, 'userName': user.username, 'role': role_name}
+        role_id = user.roles[0].id if user.roles else None
+        result = {'userName': user.username,
+                  'role': role_name, 'roleId': role_id}
 
         return make_response(jsonify({"code": 200, "msg": "Success", "data": result}), 200)
 

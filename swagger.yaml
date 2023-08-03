@@ -229,7 +229,17 @@ paths:
                     type: string
                     example: Success
                   data:
-                    $ref: "#/components/schemas/User"
+                      type: object
+                      properties:
+                        userName:
+                          type: string
+                          example: admin
+                        role:
+                          type: string
+                          example: Administrator
+                        roleId:
+                          type: number
+                          example: 1
 
     patch:
       tags:
