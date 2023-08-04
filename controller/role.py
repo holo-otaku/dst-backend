@@ -140,7 +140,8 @@ def read(role_id):
         if role is None:
             return make_response(jsonify({"code": 404, "msg": 'Role not found'}), 404)
 
-        permissions = [permission.name for permission in role.permissions]
+        permissions = [{'id': permission.id, 'name': permission.name}
+                       for permission in role.permissions]
 
         result = {'id': role.id, 'name': role.name, 'permissions': permissions}
 
@@ -166,7 +167,7 @@ def read_multi():
         roles = Role.query.limit(limit).offset((page - 1) * limit).all()
 
         result = [{'id': role.id, 'name': role.name, 'permissions': [
-            permission.name for permission in role.permissions]} for role in roles]
+            {'id': permission.id, 'name': permission.name} for permission in role.permissions]} for role in roles]
 
         return make_response(jsonify({"code": 200, "msg": "Roles found", "data": result}), 200)
 
