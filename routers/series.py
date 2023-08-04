@@ -6,21 +6,21 @@ series = Blueprint("series", __name__)
 
 
 @series.route("", methods=["GET"])
-@check_permission('read')
+@check_permission('series.read')
 def get_serieses():
 
     return read_multi()
 
 
 @series.route("/<int:series_id>", methods=["GET"])
-@check_permission('read')
+@check_permission('series.read')
 def get_series(series_id):
 
     return read(series_id)
 
 
 @series.route("", methods=["POST"])
-@check_permission('create')
+@check_permission('series.create')
 def create_series():
     data = request.get_json()
 
@@ -28,7 +28,7 @@ def create_series():
 
 
 @series.route("<int:series_id>", methods=["PATCH"])
-@check_permission('update')
+@check_permission('series.edit')
 def update_series(series_id):
     data = request.get_json()
 
@@ -36,7 +36,7 @@ def update_series(series_id):
 
 
 @series.route("<int:series_id>", methods=["DELETE"])
-@check_permission('delete')
+@check_permission('series.delete')
 def delete_series(series_id):
 
     return delete(series_id)

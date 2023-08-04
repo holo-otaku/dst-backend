@@ -6,7 +6,7 @@ products = Blueprint("products", __name__)
 
 
 @products.route("", methods=["POST"])
-@check_permission('create')
+@check_permission('product.create')
 def create_product():
     data = request.get_json()
 
@@ -14,14 +14,14 @@ def create_product():
 
 
 @products.route("/search", methods=["POST"])
-@check_permission('read')
+@check_permission('product.read')
 def read_product():
 
     return read()
 
 
 @products.route("/edit", methods=["PATCH"])
-@check_permission('update')
+@check_permission('product.edit')
 def edit_product():
     data = request.get_json()
 
@@ -29,7 +29,7 @@ def edit_product():
 
 
 @products.route("/delete", methods=["DELETE"])
-@check_permission('delete')
+@check_permission('product.delete')
 def delete_product():
     data = request.get_json()
 
@@ -37,7 +37,7 @@ def delete_product():
 
 
 @products.route("/<int:product_id>", methods=["GET"])
-@check_permission('read')
+@check_permission('product.read')
 def show_product(product_id):
 
     return show(product_id)

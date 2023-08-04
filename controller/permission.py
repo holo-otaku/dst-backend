@@ -8,8 +8,12 @@ def create_default_permissions():
     try:
         if not Permission.query.first():
             # 建立預設的權限
-            permissions = ['user', 'role', 'permission',
-                           'create', 'read', 'update', 'delete']
+            permissions = ['user.create', 'user.read', 'user.edit', 'user.delete',
+                           'role.create', 'role.read', 'role.edit', 'role.delete',
+                           'permission.create', 'permission.read', 'permission.edit', 'permission.delete',
+                           'series.create', 'series.read', 'series.edit', 'series.delete',
+                           'product.create', 'product.read', 'product.edit', 'product.delete',
+                           ]
             for permission in permissions:
                 existing_permission = Permission.query.filter_by(
                     name=permission).first()
