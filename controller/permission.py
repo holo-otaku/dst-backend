@@ -23,6 +23,7 @@ def create_default_permissions():
                     db.session.commit()
 
     except SQLAlchemyError as e:
+        db.session.rollback()
         current_app.logger.error(e)
 
     except Exception as e:
@@ -54,6 +55,7 @@ def create(data):
         return make_response(jsonify({"code": 200, "msg": "Permission created", "data": permission_data}), 200)
 
     except SQLAlchemyError as e:
+        db.session.rollback()
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
@@ -124,6 +126,7 @@ def update(permission_id, data):
         return make_response(jsonify({"code": 200, "msg": "Permission updated"}), 200)
 
     except SQLAlchemyError as e:
+        db.session.rollback()
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
@@ -148,6 +151,7 @@ def delete(permission_id):
         return make_response(jsonify({"code": 200, "msg": "Permission deleted"}), 200)
 
     except SQLAlchemyError as e:
+        db.session.rollback()
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 

@@ -16,6 +16,7 @@ def create_admin_role():
             db.session.commit()
 
     except SQLAlchemyError as e:
+        db.session.rollback()
         current_app.logger.error(e)
 
     except Exception as e:
@@ -46,7 +47,7 @@ def create(data):
         db.session.add(role)
         db.session.commit()
 
-        update_role_permissions(role.id, permission_ids)
+        __update_role_permissions(role.id, permission_ids)
 
         return make_response(jsonify({"code": 200, "msg": "Role created", "data": {"id": role.id}}), 201)
 
@@ -75,7 +76,7 @@ def update(role_id, data):
         db.session.commit()
 
         permission_ids = data.get('permissionIds')
-        update_role_permissions(role.id, permission_ids)
+        __update_role_permissions(role.id, permission_ids)
 
         return make_response(jsonify({"code": 200, "msg": "Role updated"}), 200)
 
@@ -92,7 +93,7 @@ def update(role_id, data):
         db.session.close()
 
 
-def update_role_permissions(role_id, permission_ids):
+def __update_role_permissions(role_id, permission_ids):
     # 先移除角色原有的权限关联
     RolePermission.query.filter_by(role_id=role_id).delete()
 
@@ -148,6 +149,7 @@ def read(role_id):
         return make_response(jsonify({"code": 200, "msg": "Role found", "data": result}), 200)
 
     except SQLAlchemyError as e:
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
@@ -172,6 +174,7 @@ def read_multi():
         return make_response(jsonify({"code": 200, "msg": "Roles found", "data": result}), 200)
 
     except SQLAlchemyError as e:
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:

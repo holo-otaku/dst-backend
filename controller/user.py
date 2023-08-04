@@ -155,6 +155,7 @@ def update(user_id, data):
         return make_response(jsonify({"code": 200, "msg": "Success", "data": result}), 200)
 
     except SQLAlchemyError as e:
+        db.session.rollback()
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
@@ -178,6 +179,7 @@ def delete(user_id):
         return make_response(jsonify({"code": 200, "msg": "User deleted"}), 200)
 
     except SQLAlchemyError as e:
+        db.session.rollback()
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": e}), 500)
 

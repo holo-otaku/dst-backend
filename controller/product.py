@@ -113,6 +113,7 @@ def create(data):
 
     except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
 
     except Exception as e:
@@ -333,9 +334,13 @@ def update_multi(data):
         # 回傳成功訊息
         return make_response(jsonify({'code': 200, 'msg': 'ItemAttributes updated'}), 200)
 
-    except Exception as e:
-        # 處理例外情況，回滾交易並回傳錯誤訊息
+    except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+    except Exception as e:
+        current_app.logger.error(e)
         return make_response(jsonify({'code': 500, 'msg': str(e)}), 500)
 
     finally:
@@ -366,9 +371,13 @@ def delete(data):
         # 回傳成功訊息
         return make_response(jsonify({'code': 200, 'msg': 'Items deleted'}), 200)
 
-    except Exception as e:
-        # 處理例外情況，回滾交易並回傳錯誤訊息
+    except SQLAlchemyError as e:
         db.session.rollback()
+        current_app.logger.error(e)
+        return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+
+    except Exception as e:
+        current_app.logger.error(e)
         return make_response(jsonify({'code': 500, 'msg': str(e)}), 500)
 
     finally:
