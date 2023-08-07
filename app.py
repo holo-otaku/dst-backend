@@ -30,4 +30,4 @@ if __name__ == '__main__':
         create_admin_role()
         create_admin_user()
 
-    app.run(host='0.0.0.0', debug=True, port=5001)
+    app.run(host='0.0.0.0', debug=True, port=app.config['PORT'])

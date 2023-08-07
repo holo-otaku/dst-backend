@@ -1,3 +1,5 @@
+import os
+import base64
 from .client import client_and_db, access_token
 from models.series import Series, Field, Item, ItemAttribute
 # Create a product
@@ -27,14 +29,43 @@ def test_create_product(client_and_db, access_token):
         is_filtered=False,
     )
 
+    field3 = Field(
+        name='Field 3',
+        data_type='Boolean',
+        is_required=True,
+        is_filtered=False,
+    )
+
+    field4 = Field(
+        name='Field 4',
+        data_type='Picture',
+        is_required=True,
+        is_filtered=False,
+    )
+
     # 将 Field 实例关联到 Series 实例
-    series.fields = [field1, field2]
+    series.fields = [field1, field2, field3, field4]
 
     # 添加 Series 和 Field 实例到数据库
     db.session.add(series)
     db.session.add(field1)
     db.session.add(field2)
+    db.session.add(field3)
+    db.session.add(field4)
     db.session.commit()
+
+    # Sample image file path (replace with your actual image file path)
+    image_file_path = './tests/test.png'
+
+    # Get the absolute path of the image file
+    image_file_path = os.path.abspath(image_file_path)
+
+    # Read the image file as bytes
+    with open(image_file_path, 'rb') as image_file:
+        image_bytes = image_file.read()
+
+    # Encode the image bytes as a base64 string
+    image_base64 = base64.b64encode(image_bytes).decode()
 
     payload = [
         {
@@ -48,6 +79,14 @@ def test_create_product(client_and_db, access_token):
                 {
                     "fieldId": field2.id,
                     "value": 5
+                },
+                {
+                    "fieldId": field3.id,
+                    "value": True
+                },
+                {
+                    "fieldId": field4.id,
+                    "value": image_base64
                 }
             ]
         }
@@ -75,6 +114,7 @@ def test_create_product(client_and_db, access_token):
     global created_product_id
     created_product_id = response.json['data'][0]['id']
 
+
 def test_show_products(client_and_db, access_token):
     client, _ = client_and_db
 
@@ -89,7 +129,7 @@ def test_show_products(client_and_db, access_token):
     assert 'attributes' in response.json['data']
     attributes = response.json['data']['attributes']
     assert isinstance(attributes, list)
-    
+
     for attribute in attributes:
         assert 'fieldId' in attribute
         assert 'value' in attribute

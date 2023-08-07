@@ -1,11 +1,13 @@
-from flask import current_app, jsonify, make_response, request
+from flask import current_app, jsonify, make_response, request, url_for
 from controller.erp import read as read_erp
 from models.series import Series, Field, Item, ItemAttribute
 from models.shared import db
 from models.mapping_table import data_type_map
+from models.image import Image
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import and_, text
 from datetime import datetime
+import base64
 
 
 def show(product_id):
@@ -79,9 +81,8 @@ def create(data):
             missing_field = __check_field_required(
                 fields_query, attributes, Field.is_required)
 
-            if (len(missing_field) != 0):
-                return make_response(jsonify({"code": 400,
-                                              "msg": f"Missing required field: {missing_field}"}), 400)
+            if len(missing_field) != 0:
+                return make_response(jsonify({"code": 400, "msg": f"Missing required field: {missing_field}"}), 400)
 
             for attribute in attributes:
                 field_id = attribute.get('fieldId')
@@ -93,11 +94,12 @@ def create(data):
 
                 # Check if the value is of the correct data type
                 type_err = __check_field_type(field, value)
-                if (len(type_err) != 0):
-                    return make_response(jsonify({
-                        "code": 400,
-                        "msg": type_err
-                    }), 400)
+                if len(type_err) != 0:
+                    return make_response(jsonify({"code": 400, "msg": type_err}), 400)
+
+                # Check if picture upload first
+                if field.data_type.lower() == 'picture':
+                    value = __save_image(value, item.id)
 
                 item_attribute = ItemAttribute(
                     item_id=item.id, field_id=field_id, value=value)
@@ -128,6 +130,9 @@ def read():
     try:
         # Extract the filter criteria from the request body
         filters = request.json
+        if not filters or not isinstance(filters, list):
+            return make_response(jsonify({"code": 400, "msg": "Invalid filter criteria"}), 400)
+
         # Ensure the series_id is an integer
         series_id = int(request.args.get('seriesId', 1))
 
@@ -385,6 +390,18 @@ def delete(data):
         db.session.close()
 
 
+def __save_image(image_data, item_id):
+    # Save the picture in the Image table
+    image_data = base64.b64decode(image_data)
+    # Generate a unique name for the image
+    image_name = f"{item_id}_picture.png"
+    image = Image(name=image_name, data=image_data)
+    db.session.add(image)
+    # Ensure that the image gets an ID before using it in item_attribute value
+    db.session.flush()
+    return image.id
+
+
 def __get_field_value_by_type(item):
     value = item.value
     data_type = item.field.data_type
@@ -393,6 +410,9 @@ def __get_field_value_by_type(item):
         value = int(value)
     elif (data_type == "boolean"):
         value = bool(value)
+    elif (data_type == "picture"):
+        # Get the corresponding image URL based on the image ID (value)
+        value = f"http://127.0.0.1:{current_app.config['PORT']}/image/{value}"
 
     return value
 
@@ -427,7 +447,18 @@ def __check_field_type(field, value):
 
     # Check if the value is of the correct data type
     correct_type = data_type_map[field.data_type.lower()]
-    if (correct_type == 'datetime'):
+
+    if correct_type == 'picture':
+        # Check if the value is a valid base64-encoded string
+        try:
+            # This will raise an exception if the value is not a valid base64 string
+            base64.b64decode(value)
+        except base64.binascii.Error:
+            type_err.append(
+                f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}."
+            )
+
+    elif (correct_type == 'datetime'):
         if (not __is_datetime(value)):
             type_err.append(
                 f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
