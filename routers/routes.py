@@ -6,6 +6,7 @@ from routers.product import products
 from routers.jwt import jwt
 from routers.swagger import swagger_ui_blueprint
 from routers.healthcheck import health_check
+from routers.image import image
 
 
 class routes:
@@ -18,3 +19,4 @@ class routes:
         app.register_blueprint(products, url_prefix='/product')
         app.register_blueprint(jwt)
         app.register_blueprint(health_check, url_prefix='/health')
+        app.register_blueprint(image, url_prefix='/image')

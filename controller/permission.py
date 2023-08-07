@@ -13,6 +13,7 @@ def create_default_permissions():
                            'permission.create', 'permission.read', 'permission.edit', 'permission.delete',
                            'series.create', 'series.read', 'series.edit', 'series.delete',
                            'product.create', 'product.read', 'product.edit', 'product.delete',
+                           'image.read', 'image.create'
                            ]
             for permission in permissions:
                 existing_permission = Permission.query.filter_by(
