@@ -25,7 +25,8 @@ class Field(db.Model):
     name = Column(String(50), nullable=False)
     data_type = Column(String(50), nullable=False)
     is_required = Column(Boolean, default=0)
-    is_filtered = Column(Boolean)
+    is_filtered = Column(Boolean, default=0)
+    is_erp = Column(Boolean, default=0)
     series_id = Column(Integer, ForeignKey('series.id'))
 
     series = relationship('Series', back_populates='fields')
