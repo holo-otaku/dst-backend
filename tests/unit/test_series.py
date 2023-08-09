@@ -14,13 +14,15 @@ def test_create_series(client_and_db, access_token):
                 'name': 'Field 1',
                 'dataType': 'String',
                 'isFiltered': 1,
-                'isRequired': 1
+                'isRequired': 1,
+                'isErp': 0,
             },
             {
                 'name': 'Field 2',
                 'dataType': 'Number',
                 'isFiltered': 0,
-                'isRequired': 0
+                'isRequired': 0,
+                'isErp': 1,
             }
         ]
     }
@@ -102,6 +104,7 @@ def test_get_single_series(client_and_db, access_token):
         assert isinstance(field['dataType'], str)
         assert isinstance(field['isFiltered'], bool)
         assert isinstance(field['isRequired'], bool)
+        assert isinstance(field['isErp'], bool)
 
 
 # Update a series
@@ -117,13 +120,15 @@ def test_update_series(client_and_db, access_token):
                 'name': 'Updated Field 1',
                 'dataType': 'String',
                 'isFiltered': 1,
-                'isRequired': 1
+                'isRequired': 1,
+                'isErp': 1,
             },
             {
                 'name': 'Updated Field 2',
                 'dataType': 'Number',
                 'isFiltered': 0,
-                'isRequired': 0
+                'isRequired': 0,
+                'isErp': 0,
             }
         ]
     }

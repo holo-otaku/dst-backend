@@ -20,6 +20,8 @@ def create(data):
         # Check if 'fields' data is provided in the request
         fields_data = data.get('fields', [])
         if fields_data:
+            # Check is_erp only one
+            erp_count = 0
             for field_data in fields_data:
                 field_name = field_data.get('name')
                 field_data_type = field_data.get('dataType').lower()
@@ -29,13 +31,20 @@ def create(data):
 
                 field_is_filtered = field_data.get('isFiltered', False)
                 field_is_required = field_data.get('isRequired', False)
+                field_is_erp = field_data.get('isErp', False)
+
+                if (field_is_erp):
+                    erp_count += 1
+                    if (erp_count > 1):
+                        return make_response(jsonify({"code": 400, "msg": "Erp can only be set once !"}), 400)
 
                 # Create a new Field object and associate it with the series
                 field = Field(
                     name=field_name,
                     data_type=field_data_type,
                     is_filtered=field_is_filtered,
-                    is_required=field_is_required
+                    is_required=field_is_required,
+                    is_erp=field_is_erp
                 )
                 series.fields.append(field)
 
@@ -73,7 +82,8 @@ def read(series_id):
                            'name': f.name,
                            'dataType': f.data_type,
                            'isFiltered': f.is_filtered,
-                           'isRequired': f.is_required} for f in series.fields]
+                           'isRequired': f.is_required,
+                           'isErp': f.is_erp} for f in series.fields]
             data['fields'] = field_data
 
             return make_response(jsonify({"code": 200, "msg": "Success", "data": data}), 200)
@@ -122,7 +132,8 @@ def read_multi():
                                'name': f.name,
                                'dataType': f.data_type,
                                'isFiltered': f.is_filtered,
-                               'isRequired': f.is_required} for f in s.fields]
+                               'isRequired': f.is_required,
+                               'isErp': f.is_erp} for f in s.fields]
                 data['fields'] = field_data
 
             result.append(data)
@@ -179,10 +190,11 @@ def update(series_id, data):
                 field_data_type = field_data.get('dataType')
                 field_is_filtered = field_data.get('isFiltered', False)
                 field_is_required = field_data.get('isRequired', False)
+                field_is_erp = field_data.get('isErp', False)
 
                 # Create a new Field object and associate it with the series
                 field = Field(
-                    name=field_name, data_type=field_data_type, is_filtered=field_is_filtered, is_required=field_is_required)
+                    name=field_name, data_type=field_data_type, is_filtered=field_is_filtered, is_required=field_is_required, is_erp=field_is_erp)
                 series.fields.append(field)
 
         db.session.commit()

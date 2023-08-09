@@ -229,17 +229,17 @@ paths:
                     type: string
                     example: Success
                   data:
-                      type: object
-                      properties:
-                        userName:
-                          type: string
-                          example: admin
-                        role:
-                          type: string
-                          example: Administrator
-                        roleId:
-                          type: number
-                          example: 1
+                    type: object
+                    properties:
+                      userName:
+                        type: string
+                        example: admin
+                      role:
+                        type: string
+                        example: Administrator
+                      roleId:
+                        type: number
+                        example: 1
 
     patch:
       tags:
@@ -916,7 +916,6 @@ paths:
                   data:
                     $ref: "#/components/schemas/Product"
 
-
   /product/search:
     post:
       tags:
@@ -977,30 +976,7 @@ paths:
                     type: string
                     example: Success
                   data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        itemId:
-                          type: integer
-                          example: 1
-                        name:
-                          type: string
-                          example: Product 1
-                        seriesId:
-                          type: integer
-                          example: 1
-                        fields:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              key:
-                                type: string
-                                example: 1
-                              value:
-                                type: string
-                                example: Field Value
+                    $ref: "#/components/schemas/Product"
 
   /product/edit:
     patch:
@@ -1241,6 +1217,8 @@ components:
                 type: integer
               isRequired:
                 type: integer
+              isErp:
+                type: integer
 
     SeriesUpdatePayload:
       type: object
@@ -1262,22 +1240,36 @@ components:
                 type: integer
 
     Product:
-      type: object
-      properties:
-        itemId:
-          type: integer
-          example: 1
-        name:
-          type: string
-          example: Product 1
-        seriesId:
-          type: integer
-          example: 1
-        fields:
-          type: array
-          items:
-            $ref: '#/components/schemas/Field'
-    Field:
+      type: array
+      items:
+        type: object
+        properties:
+          itemId:
+            type: integer
+            example: 1
+          name:
+            type: string
+            example: Product 1
+          seriesId:
+            type: integer
+            example: 1
+          attributes:
+            type: array
+            items:
+              $ref: "#/components/schemas/Attribute"
+          erp:
+            type: array
+            items:
+              type: object
+              properties:
+                key:
+                  type: string
+                  example: 廠商編號
+                value:
+                  type: string
+                  example: Field Value
+
+    Attribute:
       type: object
       properties:
         key:
