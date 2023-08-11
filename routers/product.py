@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from controller.product import create, read, delete, update_multi, show
+from controller.product import create, read, delete, update_multi, read_multi
 from controller.access import check_permission
 
 products = Blueprint("products", __name__)
@@ -15,9 +15,10 @@ def create_product():
 
 @products.route("/search", methods=["POST"])
 @check_permission('product.read')
-def read_product():
+def read_multi_product():
+    data = request.get_json()
 
-    return read()
+    return read_multi(data)
 
 
 @products.route("/edit", methods=["PATCH"])
@@ -38,6 +39,6 @@ def delete_product():
 
 @products.route("/<int:product_id>", methods=["GET"])
 @check_permission('product.read')
-def show_product(product_id):
+def read_product(product_id):
 
-    return show(product_id)
+    return read(product_id)

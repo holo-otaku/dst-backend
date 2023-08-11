@@ -33,7 +33,7 @@ def read(prod_no):
     except Exception as e:
         current_app.logger.error(e)
 
-        return None
+        return []
 
     finally:
         if cursor:

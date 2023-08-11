@@ -926,12 +926,6 @@ paths:
         - bearerAuth: []
       parameters:
         - in: query
-          name: series_id
-          description: ID of the series to search in
-          required: true
-          schema:
-            type: integer
-        - in: query
           name: page
           description: Page number for pagination
           schema:
@@ -947,20 +941,25 @@ paths:
         content:
           application/json:
             schema:
-              type: array
-              items:
-                type: object
-                properties:
-                  fieldId:
-                    type: integer
-                  value:
-                    type: string
-                  operation:
-                    type: string
-                    enum:
-                      - equals
-                      - greater
-                      - less
+              type: object
+              properties:
+                seriesId:
+                  type: number
+                filter:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      fieldId:
+                        type: integer
+                      value:
+                        type: string
+                      operation:
+                        type: string
+                        enum:
+                          - equals
+                          - greater
+                          - less
       responses:
         "200":
           description: Success
@@ -1272,9 +1271,15 @@ components:
     Attribute:
       type: object
       properties:
-        key:
+        fieldId:
           type: string
           example: "1"
+        fieldName:
+          type: string
+          example: "料號"
+        dataType:
+          type: string
+          example: "string"
         value:
           type: string
           example: Field Value
