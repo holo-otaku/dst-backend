@@ -384,25 +384,30 @@ def update_multi(data):
 
 def delete(data):
     try:
-        # 檢查輸入資料的完整性
         if not data or 'itemId' not in data:
             return make_response(jsonify({'code': 400, 'msg': 'Invalid data'}), 400)
 
-        # 獲取要刪除的 Item IDs
         item_ids = data['itemId']
 
-        # 批次刪除 ItemAttribute 記錄
-        db.session.query(ItemAttribute).filter(
-            ItemAttribute.item_id.in_(item_ids)).delete(synchronize_session=False)
+        items_to_delete = db.session.query(
+            Item).filter(Item.id.in_(item_ids)).all()
 
-        # 批次刪除 Item 記錄
+        for item in items_to_delete:
+            for attribute in item.attributes:
+                if attribute.field.data_type == 'picture':
+                    image_id = attribute.value
+                    image_to_delete = db.session.query(Image).get(image_id)
+                    if image_to_delete:
+                        db.session.delete(image_to_delete)
+
+            db.session.query(ItemAttribute).filter(
+                ItemAttribute.item_id == item.id).delete(synchronize_session=False)
+
         db.session.query(Item).filter(Item.id.in_(item_ids)
                                       ).delete(synchronize_session=False)
 
-        # 儲存變更到資料庫
         db.session.commit()
 
-        # 回傳成功訊息
         return make_response(jsonify({'code': 200, 'msg': 'Items deleted'}), 200)
 
     except SQLAlchemyError as e:
@@ -415,7 +420,6 @@ def delete(data):
         return make_response(jsonify({'code': 500, 'msg': str(e)}), 500)
 
     finally:
-        # 確保關閉資料庫連線
         db.session.close()
 
 
@@ -474,11 +478,15 @@ def __read_without_filter(series_id):
 
 
 def __save_image(image_data, item_id):
-    # Save the picture in the Image table
-    image_data = base64.b64decode(image_data)
-    # Generate a unique name for the image
+    # Extract base64 encoded image data
+    _, base64_data = image_data.split(',', 1)
+
+    # Decode base64 data
+    image_bytes = base64.b64decode(base64_data)
+
+    # Save the image in the Image table
     image_name = f"{item_id}_picture.png"
-    image = Image(name=image_name, data=image_data)
+    image = Image(name=image_name, data=image_bytes)
     db.session.add(image)
     # Ensure that the image gets an ID before using it in item_attribute value
     db.session.flush()

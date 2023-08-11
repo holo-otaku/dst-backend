@@ -43,17 +43,20 @@ def create():
 
 def read(image_id):
     try:
+        if not image_id:
+            # If the image ID is not found in the database, return a 404 Not Found response
+            abort(404)
+
         image = db.session.get(Image, image_id)
 
         if image is None:
             return make_response(jsonify({"code": 404, "msg": 'Image not found'}), 404)
 
-        if not image:
-            # If the image ID is not found in the database, return a 404 Not Found response
-            abort(404)
-
-        # Serve the image data as a file using Flask's send_file function
-        return send_file(io.BytesIO(image.data), mimetype='image/jpeg')
+        return send_file(
+            io.BytesIO(image.data),
+            mimetype='image/jpeg',
+            as_attachment=True,
+            download_name='%s.jpg' % image_id)
 
     except SQLAlchemyError as e:
         current_app.logger.error(e)

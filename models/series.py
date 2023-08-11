@@ -41,6 +41,7 @@ class Item(db.Model):
     created_at = Column(DateTime, default=datetime.now, nullable=False)
     updated_at = Column(DateTime, default=datetime.now, nullable=False)
 
+    attributes = relationship('ItemAttribute', back_populates='item')
     series = relationship('Series')
 
 
