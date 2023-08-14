@@ -179,8 +179,10 @@ def read_multi(data):
         sql_query = """
             SELECT item.id AS item_id,
                 item.series_id AS item_series_id,
-                item.name AS item_name
+                item.name AS item_name,
+                s.name AS series_name
             FROM item
+            JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
                 AND (
         """
@@ -244,7 +246,7 @@ def read_multi(data):
 
         for row in paginated_result:
             fields_data = []
-            item_id, item_series_id, item_name = row
+            item_id, item_series_id, item_name, series_name = row
             erp_data = []
             for field in fields.values():
                 item = db.session.query(ItemAttribute).filter(
@@ -260,20 +262,21 @@ def read_multi(data):
                 ]
 
                 # Get erp data
-                if field.is_erp:
-                    erp_product_no = __get_field_value_by_type(item)
-                    # 檢查 erp_data 是否為 None，若為 None 則表示發生錯誤
-                    if erp_product_no is None:
-                        error_message = "Failed to fetch ERP data."
-                        current_app.logger.error(error_message)
-                        return make_response(jsonify({"code": 500, "msg": error_message}), 500)
-                    else:
-                        erp_data += __get_erp_data(erp_product_no)
+                # if field.is_erp:
+                #     erp_product_no = __get_field_value_by_type(item)
+                #     # 檢查 erp_data 是否為 None，若為 None 則表示發生錯誤
+                #     if erp_product_no is None:
+                #         error_message = "Failed to fetch ERP data."
+                #         current_app.logger.error(error_message)
+                #         return make_response(jsonify({"code": 500, "msg": error_message}), 500)
+                #     else:
+                #         erp_data += __get_erp_data(erp_product_no)
 
             data.append({
                 'itemId': item_id,
                 'name': item_name,
                 'seriesId': item_series_id,
+                'seriesName': series_name,
                 'attributes': fields_data,
                 'erp': erp_data
             })
