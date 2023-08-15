@@ -52,6 +52,7 @@ def read(product_id):
             "name": item.name,
             "seriesId": item.series_id,
             "attributes": attributes,
+            "seriesName": item.series.name,
             "erp": erp_data
         }
 
@@ -149,11 +150,6 @@ def read_multi(data):
         if not series_id:
             return make_response(jsonify({"code": 404, "msg": "SeriesId not found"}), 404)
 
-        # Extract the filter criteria from the request body
-        filters = data.get('filters', [])
-        if len(filters) == 0:
-            return __read_without_filter(series_id)
-
         series = Series.query.filter_by(id=series_id, status=1).first()
         if not series:
             return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
@@ -161,6 +157,11 @@ def read_multi(data):
         # Pagination parameters
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
+
+        # Extract the filter criteria from the request body
+        filters = data.get('filters', [])
+        if len(filters) == 0:
+            return __read_without_filter(series_id, page, limit)
 
         # Get the fields related to this series
         fields_query = db.session.query(Field).filter(
@@ -262,15 +263,15 @@ def read_multi(data):
                 ]
 
                 # Get erp data
-                # if field.is_erp:
-                #     erp_product_no = __get_field_value_by_type(item)
-                #     # 檢查 erp_data 是否為 None，若為 None 則表示發生錯誤
-                #     if erp_product_no is None:
-                #         error_message = "Failed to fetch ERP data."
-                #         current_app.logger.error(error_message)
-                #         return make_response(jsonify({"code": 500, "msg": error_message}), 500)
-                #     else:
-                #         erp_data += __get_erp_data(erp_product_no)
+                if field.is_erp:
+                    erp_product_no = __get_field_value_by_type(item)
+                    # 檢查 erp_data 是否為 None，若為 None 則表示發生錯誤
+                    if erp_product_no is None:
+                        error_message = "Failed to fetch ERP data."
+                        current_app.logger.error(error_message)
+                        return make_response(jsonify({"code": 500, "msg": error_message}), 500)
+                    else:
+                        erp_data += __get_erp_data(erp_product_no)
 
             data.append({
                 'itemId': item_id,
@@ -426,21 +427,10 @@ def delete(data):
         db.session.close()
 
 
-def __read_without_filter(series_id):
-    # Check if series_id is provided
-    if not series_id:
-        return make_response(jsonify({"code": 400, "msg": "Series ID is required"}), 400)
-
-    # Pagination parameters
-    page = int(request.args.get('page', 1))
-    limit = int(request.args.get('limit', 10))
-
+def __read_without_filter(series_id, page, limit):
     # Get the items related to this series_id with pagination
     items = db.session.query(Item).filter(
         Item.series_id == series_id).offset((page - 1) * limit).limit(limit).all()
-
-    if not items:
-        return make_response(jsonify({"code": 404, "msg": "Items not found"}), 404)
 
     result = []
 
@@ -474,6 +464,7 @@ def __read_without_filter(series_id):
             "name": item.name,
             "seriesId": item.series_id,
             "attributes": attributes,
+            'seriesName': item.series.name,
             'erp': erp_data
         })
 
