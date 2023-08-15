@@ -52,6 +52,7 @@ def read(product_id):
             "name": item.name,
             "seriesId": item.series_id,
             "attributes": attributes,
+            "seriesName": item.series.name,
             "erp": erp_data
         }
 
@@ -149,11 +150,6 @@ def read_multi(data):
         if not series_id:
             return make_response(jsonify({"code": 404, "msg": "SeriesId not found"}), 404)
 
-        # Extract the filter criteria from the request body
-        filters = data.get('filters', [])
-        if len(filters) == 0:
-            return __read_without_filter(series_id)
-
         series = Series.query.filter_by(id=series_id, status=1).first()
         if not series:
             return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
@@ -161,6 +157,11 @@ def read_multi(data):
         # Pagination parameters
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
+
+        # Extract the filter criteria from the request body
+        filters = data.get('filters', [])
+        if len(filters) == 0:
+            return __read_without_filter(series_id, page, limit)
 
         # Get the fields related to this series
         fields_query = db.session.query(Field).filter(
@@ -179,8 +180,10 @@ def read_multi(data):
         sql_query = """
             SELECT item.id AS item_id,
                 item.series_id AS item_series_id,
-                item.name AS item_name
+                item.name AS item_name,
+                s.name AS series_name
             FROM item
+            JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
                 AND (
         """
@@ -244,7 +247,7 @@ def read_multi(data):
 
         for row in paginated_result:
             fields_data = []
-            item_id, item_series_id, item_name = row
+            item_id, item_series_id, item_name, series_name = row
             erp_data = []
             for field in fields.values():
                 item = db.session.query(ItemAttribute).filter(
@@ -274,6 +277,7 @@ def read_multi(data):
                 'itemId': item_id,
                 'name': item_name,
                 'seriesId': item_series_id,
+                'seriesName': series_name,
                 'attributes': fields_data,
                 'erp': erp_data
             })
@@ -423,21 +427,10 @@ def delete(data):
         db.session.close()
 
 
-def __read_without_filter(series_id):
-    # Check if series_id is provided
-    if not series_id:
-        return make_response(jsonify({"code": 400, "msg": "Series ID is required"}), 400)
-
-    # Pagination parameters
-    page = int(request.args.get('page', 1))
-    limit = int(request.args.get('limit', 10))
-
+def __read_without_filter(series_id, page, limit):
     # Get the items related to this series_id with pagination
     items = db.session.query(Item).filter(
         Item.series_id == series_id).offset((page - 1) * limit).limit(limit).all()
-
-    if not items:
-        return make_response(jsonify({"code": 404, "msg": "Items not found"}), 404)
 
     result = []
 
@@ -471,6 +464,7 @@ def __read_without_filter(series_id):
             "name": item.name,
             "seriesId": item.series_id,
             "attributes": attributes,
+            'seriesName': item.series.name,
             'erp': erp_data
         })
 
