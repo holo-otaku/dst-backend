@@ -24,9 +24,9 @@ class Field(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False)
     data_type = Column(String(50), nullable=False)
-    is_required = Column(Boolean, default=0)
-    is_filtered = Column(Boolean, default=0)
-    is_erp = Column(Boolean, default=0)
+    is_required = Column(Boolean, default=0, nullable=False)
+    is_filtered = Column(Boolean, default=0, nullable=False)
+    is_erp = Column(Boolean, default=0, nullable=False)
     series_id = Column(Integer, ForeignKey('series.id'))
 
     series = relationship('Series', back_populates='fields')
@@ -50,7 +50,7 @@ class ItemAttribute(db.Model):
 
     item_id = Column(Integer, ForeignKey('item.id'), primary_key=True)
     field_id = Column(Integer, ForeignKey('field.id'), primary_key=True)
-    value = Column(String(length=50))
+    value = Column(String(length=256))
 
     item = relationship('Item')
     field = relationship('Field')
