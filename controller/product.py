@@ -84,7 +84,7 @@ def create(data):
             fields_query = db.session.query(Field).filter(
                 Field.series_id == series_id)
 
-            if not series_id or not name or not attributes:
+            if not series_id or not name:
                 return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
 
             series = db.session.get(Series, series_id)
@@ -101,25 +101,16 @@ def create(data):
             if len(missing_field) != 0:
                 return make_response(jsonify({"code": 400, "msg": f"Missing required field: {missing_field}"}), 400)
 
-            for attribute in attributes:
-                field_id = attribute.get('fieldId')
-                value = attribute.get('value')
+            for field in fields_query:
+                attribute = next(
+                    (a for a in attributes if a.get('fieldId') == field.id), None)
+                value = attribute.get('value') if attribute else None
 
-                field = db.session.get(Field, field_id)
-                if not field:
-                    return make_response(jsonify({"code": 400, "msg": f"Invalid field_id: {field_id}"}), 400)
-
-                # Check if the value is of the correct data type
-                type_err = __check_field_type(field, value)
-                if len(type_err) != 0:
-                    return make_response(jsonify({"code": 400, "msg": type_err}), 400)
-
-                # Check if picture upload first
-                if field.data_type.lower() == 'picture':
+                if field.data_type.lower() == 'picture' and value:
                     value = __save_image(value, item.id)
 
                 item_attribute = ItemAttribute(
-                    item_id=item.id, field_id=field_id, value=value)
+                    item_id=item.id, field_id=field.id, value=value)
                 db.session.add(item_attribute)
 
             items.append(item)
