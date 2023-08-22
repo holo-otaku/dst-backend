@@ -953,6 +953,8 @@ paths:
                     properties:
                       fieldId:
                         type: integer
+                      like:
+                        type: boolean
                       value:
                         type: string
                       operation:
