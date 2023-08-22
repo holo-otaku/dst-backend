@@ -1273,6 +1273,8 @@ components:
           items:
             type: object
             properties:
+              id:
+                type: number
               name:
                 type: string
               dataType:
@@ -1281,6 +1283,21 @@ components:
                 type: integer
               isRequired:
                 type: integer
+        create:
+          type: object
+          properties:
+            name:
+              type: string
+            dataType:
+              type: string
+            isFiltered:
+              type: integer
+            isRequired:
+              type: integer
+        delete:
+          type: array
+          items:
+              type: integer
 
     Product:
       type: array

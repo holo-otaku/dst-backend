@@ -1,5 +1,5 @@
 from flask import current_app, jsonify, make_response, request
-from models.series import Series, Field, Item
+from models.series import Series, Field, Item, ItemAttribute
 from models.user import User
 from models.shared import db
 from models.mapping_table import data_type_map
@@ -159,49 +159,57 @@ def update(series_id, data):
         if not series:
             return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
 
-        # Check if any items are associated with the series
-        has_related_items = db.session.query(
-            Item).filter_by(series_id=series.id).first()
-        if has_related_items:
-            return make_response(jsonify({"code": 400, "msg": "Cannot update series with associated items"}), 400)
+        # Update the series name
+        series.name = data.get('name')
 
-        name = data.get('name')
-
-        created_by = get_jwt_identity()
-        user = db.session.get(User, created_by)
-
-        if not user:
-            return make_response(jsonify({"code": 400, "msg": "Invalid user"}), 400)
-
-        series.name = name
-        series.creator = user
-
-        # Delete existing fields associated with the series
-        Field.query.filter_by(series_id=series.id).delete()
-
-        # Check if 'fields' data is provided in the request
+        # Handle field updates
         fields_data = data.get('fields', [])
-        if fields_data:
-            # Clear existing fields associated with the series
-            series.fields.clear()
+        for field_data in fields_data:
+            field_id = field_data.get('id')
+            field = db.session.get(Field, field_id)
 
-            for field_data in fields_data:
-                field_name = field_data.get('name')
-                field_data_type = field_data.get('dataType')
-                field_is_filtered = field_data.get('isFiltered', False)
-                field_is_required = field_data.get('isRequired', False)
-                field_is_erp = field_data.get('isErp', False)
+            if not field:
+                return make_response(jsonify({"code": 404, "msg": f"Field with ID {field_id} not found"}), 404)
 
-                # Create a new Field object and associate it with the series
-                field = Field(
-                    name=field_name, data_type=field_data_type, is_filtered=field_is_filtered, is_required=field_is_required, is_erp=field_is_erp)
-                series.fields.append(field)
+            # Check if there are any item attributes using this field
+            has_related_item_attributes = db.session.query(
+                ItemAttribute).filter_by(field_id=field.id).first()
+            if has_related_item_attributes and field.data_type != field_data.get('dataType'):
+                return make_response(jsonify({"code": 400, "msg": f"Cannot update data type of field with ID {field_id} since it's being used in ItemAttribute"}), 400)
+
+            field.name = field_data.get('name')
+            field.data_type = field_data.get('dataType')
+            field.is_filtered = field_data.get('isFiltered')
+            field.is_required = field_data.get('isRequired')
+            field.is_erp = field_data.get('isErp')
+
+        # Handle field creation
+        create_data = data.get('create')
+        if create_data:
+            new_field = Field(name=create_data.get('name'), data_type=create_data.get('dataType'),
+                              is_filtered=create_data.get('isFiltered'), is_required=create_data.get('isRequired'),
+                              is_erp=create_data.get('isErp'), series_id=series_id)
+            db.session.add(new_field)
+            db.session.flush()  # Ensure new_field has an ID
+
+            # Create ItemAttribute for all items in this series with value as null
+            items_in_series = db.session.query(Item).filter(
+                Item.series_id == series_id).all()
+            for item in items_in_series:
+                new_item_attribute = ItemAttribute(
+                    item_id=item.id, field_id=new_field.id, value=None)
+                db.session.add(new_item_attribute)
+
+        # Handle field deletion
+        delete_ids = data.get('delete', [])
+        for delete_id in delete_ids:
+            field_to_delete = db.session.get(Field, delete_id)
+            if field_to_delete:
+                db.session.delete(field_to_delete)
 
         db.session.commit()
 
-        result = {'id': series.id, 'name': series.name,
-                  'created_by': series.creator.username}
-        return make_response(jsonify({"code": 200, "msg": "Success", "data": result}), 200)
+        return make_response(jsonify({"code": 200, "msg": "Success"}), 200)
 
     except SQLAlchemyError as e:
         db.session.rollback()
