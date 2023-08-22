@@ -160,13 +160,6 @@ def read_multi(data):
 
         fields = {field.id: field for field in fields_query.all()}
 
-        missing_field = __check_field_required(
-            fields_query, filters, Field.is_filtered)
-
-        if (len(missing_field) != 0):
-            return make_response(jsonify({"code": 400,
-                                          "msg": f"Missing required field: {missing_field}"}), 400)
-
         # Create a SQL query to find the items
         sql_query = """
             SELECT item.id AS item_id,
