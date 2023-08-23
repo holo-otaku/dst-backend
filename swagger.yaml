@@ -975,6 +975,9 @@ paths:
                   msg:
                     type: string
                     example: Success
+                  totalCount:
+                    type: number
+                    example: 87
                   data:
                     $ref: "#/components/schemas/Product"
 
