@@ -203,6 +203,9 @@ def update(series_id, data):
         # Handle field deletion
         delete_ids = data.get('delete', [])
         for delete_id in delete_ids:
+            db.session.query(ItemAttribute).filter_by(
+                field_id=delete_id).delete()
+
             field_to_delete = db.session.get(Field, delete_id)
             if field_to_delete:
                 db.session.delete(field_to_delete)
