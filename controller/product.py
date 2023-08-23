@@ -179,7 +179,6 @@ def read_multi(data):
             field_id = filter_criteria['fieldId']
             value = filter_criteria['value']
             operation = filter_criteria.get('operation', 'equals')
-            like = filter_criteria.get('like', 0)
 
             # Check if field_id exists in fields
             if field_id not in fields:
@@ -203,13 +202,14 @@ def read_multi(data):
             parameters[field_name] = field_id
 
             # like binding
-            if like and field.data_type.lower() == 'string':
+            if field.data_type.lower() == 'string':
                 parameters[value_name] = f"{value}%"
             else:
                 parameters[value_name] = value
 
             condition = __check_condition(
-                field, operation, field_name, value_name, like)
+                field, operation, field_name, value_name)
+
             conditions.append(condition)
 
         sql_query += " AND ".join(conditions)
@@ -540,7 +540,7 @@ def __check_field_type(field, value):
     return type_err
 
 
-def __check_condition(field, operation, field_name, value_name, like=0):
+def __check_condition(field, operation, field_name, value_name):
     condition = f"""
     (item.id, item.series_id, item.name) IN (
         SELECT DISTINCT item.id,
@@ -610,19 +610,17 @@ def __check_condition(field, operation, field_name, value_name, like=0):
             )
             """
 
-    elif operation == 'equals':
-        if field.data_type.lower() == 'string':
-            if like:
-                condition = f"""
-                        (item.id, item.series_id, item.name) IN (
-                            SELECT DISTINCT item.id,
-                                            item.series_id,
-                                            item.name
-                            FROM item
-                                JOIN item_attribute ON item.id = item_attribute.item_id
-                            WHERE item.series_id = :series_id
-                                AND item_attribute.field_id = :{field_name}
-                                AND item_attribute.value LIKE :{value_name}
-                        )
-                        """
+    if field.data_type.lower() == 'string':
+        condition = f"""
+                (item.id, item.series_id, item.name) IN (
+                    SELECT DISTINCT item.id,
+                                    item.series_id,
+                                    item.name
+                    FROM item
+                        JOIN item_attribute ON item.id = item_attribute.item_id
+                    WHERE item.series_id = :series_id
+                        AND item_attribute.field_id = :{field_name}
+                        AND item_attribute.value LIKE :{value_name}
+                )
+                """
     return condition
