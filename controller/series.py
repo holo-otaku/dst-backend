@@ -184,7 +184,7 @@ def update(series_id, data):
             field.is_erp = field_data.get('isErp')
 
         # Handle field creation
-        creates_data = data.get('create')
+        creates_data = data.get('create', [])
         for create_data in creates_data:
             new_field = Field(name=create_data.get('name'), data_type=create_data.get('dataType').lower(),
                               is_filtered=create_data.get('isFiltered'), is_required=create_data.get('isRequired'),
