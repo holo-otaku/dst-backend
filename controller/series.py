@@ -174,7 +174,7 @@ def update(series_id, data):
             # Check if there are any item attributes using this field
             has_related_item_attributes = db.session.query(
                 ItemAttribute).filter_by(field_id=field.id).first()
-            if has_related_item_attributes and field.data_type != field_data.get('dataType'):
+            if has_related_item_attributes and field.data_type != field_data.get('dataType').lower():
                 return make_response(jsonify({"code": 400, "msg": f"Cannot update data type of field with ID {field_id} since it's being used in ItemAttribute"}), 400)
 
             field.name = field_data.get('name')
@@ -184,9 +184,9 @@ def update(series_id, data):
             field.is_erp = field_data.get('isErp')
 
         # Handle field creation
-        create_data = data.get('create')
-        if create_data:
-            new_field = Field(name=create_data.get('name'), data_type=create_data.get('dataType'),
+        creates_data = data.get('create')
+        for create_data in creates_data:
+            new_field = Field(name=create_data.get('name'), data_type=create_data.get('dataType').lower(),
                               is_filtered=create_data.get('isFiltered'), is_required=create_data.get('isRequired'),
                               is_erp=create_data.get('isErp'), series_id=series_id)
             db.session.add(new_field)

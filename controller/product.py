@@ -287,9 +287,6 @@ def update_multi(data):
         if not data:
             return make_response(jsonify({'code': 400, 'msg': 'Empty data'}), 400)
 
-        # 建立一個暫存字典來存放要編輯的 ItemAttribute
-        item_attributes = {}
-
         # 遍歷每個輸入項目
         for item_data in data:
             item_id = item_data.get('itemId')

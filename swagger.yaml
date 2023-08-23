@@ -1286,16 +1286,18 @@ components:
               isRequired:
                 type: integer
         create:
-          type: object
-          properties:
-            name:
-              type: string
-            dataType:
-              type: string
-            isFiltered:
-              type: integer
-            isRequired:
-              type: integer
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              dataType:
+                type: string
+              isFiltered:
+                type: integer
+              isRequired:
+                type: integer
         delete:
           type: array
           items:
