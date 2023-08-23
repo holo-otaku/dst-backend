@@ -266,7 +266,24 @@ def read_multi(data):
                 'erp': erp_data
             })
 
-        return make_response(jsonify({"code": 200, "msg": "Success", "data": data}), 200)
+        count_query = """
+            SELECT COUNT(item.id) 
+            FROM item
+            JOIN series AS s ON item.series_id = s.id
+            WHERE item.series_id = :series_id
+                AND (
+        """
+
+        # Using the same conditions for the count query
+        count_query += " AND ".join(conditions)
+        count_query += ")"
+
+        # Execute the count query
+        count_result = db.session.execute(
+            text(count_query), parameters).fetchone()
+        total_count = count_result[0]
+
+        return make_response(jsonify({"code": 200, "msg": "Success", "data": data, "totalCount": total_count}), 200)
 
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -405,6 +422,10 @@ def __read_without_filter(series_id, page, limit):
     items = db.session.query(Item).filter(
         Item.series_id == series_id).offset((page - 1) * limit).limit(limit).all()
 
+   # Get the total count of items related to this series_id
+    total_count = db.session.query(Item).filter(
+        Item.series_id == series_id).count()
+
     result = []
 
     for item in items:
@@ -441,7 +462,7 @@ def __read_without_filter(series_id, page, limit):
             'erp': erp_data
         })
 
-    return make_response(jsonify({"code": 200, "msg": "Success", "data": result}), 200)
+    return make_response(jsonify({"code": 200, "msg": "Success", "data": result, "totalCount": total_count}), 200)
 
 
 def __save_image(image_data, item_id):
