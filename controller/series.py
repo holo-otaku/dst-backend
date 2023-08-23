@@ -160,7 +160,7 @@ def update(series_id, data):
             return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
 
         # Update the series name
-        series.name = data.get('name')
+        series.name = data.get('name', series.name)
 
         # Handle field updates
         fields_data = data.get('fields', [])
