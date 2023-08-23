@@ -333,21 +333,13 @@ def update_multi(data):
                         "msg": type_err
                     }), 400)
 
-                # 將要編輯的 ItemAttribute 存入暫存字典
-                if item_id not in item_attributes:
-                    item_attributes[item_id] = {}
-                item_attributes[item_id][field_id] = value
-
-        # 根據暫存字典進行批量編輯
-        for item_id, attribute_values in item_attributes.items():
-            for field_id, value in attribute_values.items():
-                # 查詢對應的 ItemAttribute 記錄
-                item_attribute = ItemAttribute.query.filter_by(
+                item_attribute = db.session.query(ItemAttribute).filter_by(
                     item_id=item_id, field_id=field_id).first()
 
-                # 檢查是否找到對應的記錄
+                if isinstance(value, bool):
+                    value = 1 if value else 0
+
                 if item_attribute:
-                    # 更新 value 值
                     item_attribute.value = value
 
         # 儲存變更到資料庫
@@ -489,7 +481,7 @@ def __get_field_value_by_type(item):
     if (data_type == "number"):
         value = int(value)
     elif (data_type == "boolean"):
-        value = bool(value)
+        value = bool(int(value))
     elif (data_type == "picture"):
         # Get the corresponding image URL based on the image ID (value)
         value = f"http://127.0.0.1:{current_app.config['PORT']}/image/{value}"
