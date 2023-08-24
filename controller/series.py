@@ -108,14 +108,17 @@ def read_multi():
         limit = int(request.args.get('limit', 10))
         keyword = str(request.args.get('keyword', ''))
 
+        # Initialize the base query
+        base_query = Series.query.filter_by(status=1)
+
         if keyword:
-            series = Series.query.filter(
-                Series.name.ilike(f"%{keyword}%"),
-                Series.status == 1
-            ).all()
-        else:
-            series = Series.query.filter_by(
-                status=1).paginate(page=page, per_page=limit)
+            base_query = base_query.filter(Series.name.ilike(f"%{keyword}%"))
+
+        # Get the total count before applying pagination
+        total_count = base_query.count()
+
+        # Apply pagination to the query
+        series = base_query.paginate(page=page, per_page=limit).items
 
         result = []
         show_field = bool(int(request.args.get('showField', False)))
@@ -138,7 +141,7 @@ def read_multi():
 
             result.append(data)
 
-        return make_response(jsonify({"code": 200, "msg": "Success", "data": result}), 200)
+        return make_response(jsonify({"code": 200, "msg": "Success", "data": result, "totalCount": total_count}), 200)
 
     except SQLAlchemyError as e:
         current_app.logger.error(e)
