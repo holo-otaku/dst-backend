@@ -203,7 +203,7 @@ def read_multi(data):
 
             # like binding
             if field.data_type.lower() == 'string':
-                parameters[value_name] = f"{value}%"
+                parameters[value_name] = f"%{value}%"
             else:
                 parameters[value_name] = value
 
@@ -330,7 +330,7 @@ def update_multi(data):
                 value = attribute.get('value')
 
                 # 檢查屬性的完整性
-                if not field_id or value is None:
+                if not field_id:
                     return make_response(jsonify({'code': 400, 'msg': 'Incomplete attribute data'}), 400)
 
                 # 查詢對應的 Field 記錄
@@ -497,7 +497,7 @@ def __get_field_value_by_type(item):
     data_type = item.field.data_type
 
     if (data_type == "number"):
-        value = int(value)
+        value = float(value)
     elif (data_type == "boolean"):
         value = bool(int(value))
     elif (data_type == "picture"):
@@ -531,32 +531,33 @@ def __is_datetime(string):
 def __check_field_type(field, value):
     type_err = []
 
-    if field.data_type.lower() not in data_type_map:
-        type_err.append(
-            f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
-
-    # Check if the value is of the correct data type
-    correct_type = data_type_map[field.data_type.lower()]
-
-    if correct_type == 'picture':
-        # Check if the value is a valid base64-encoded string
-        try:
-            # This will raise an exception if the value is not a valid base64 string
-            base64.b64decode(value)
-        except base64.binascii.Error:
-            type_err.append(
-                f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}."
-            )
-
-    elif (correct_type == 'datetime'):
-        if (not __is_datetime(value)):
+    if value:
+        if field.data_type.lower() not in data_type_map:
             type_err.append(
                 f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
 
-    else:
-        if not isinstance(value, correct_type):
-            type_err.append(
-                f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
+        # Check if the value is of the correct data type
+        correct_type = data_type_map[field.data_type.lower()]
+
+        if correct_type == 'picture':
+            # Check if the value is a valid base64-encoded string
+            try:
+                # This will raise an exception if the value is not a valid base64 string
+                base64.b64decode(value)
+            except base64.binascii.Error:
+                type_err.append(
+                    f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}."
+                )
+
+        elif (correct_type == 'datetime'):
+            if (not __is_datetime(value)):
+                type_err.append(
+                    f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
+
+        else:
+            if not isinstance(value, correct_type):
+                type_err.append(
+                    f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
 
     return type_err
 
