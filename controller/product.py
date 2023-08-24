@@ -499,7 +499,7 @@ def __get_field_value_by_type(item):
         value = bool(int(value))
     elif (data_type == "picture"):
         # Get the corresponding image URL based on the image ID (value)
-        value = f"http://127.0.0.1:{current_app.config['PORT']}/image/{value}"
+        value = f"/image/{value}"
 
     return value
 
