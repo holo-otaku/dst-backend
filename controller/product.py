@@ -32,7 +32,7 @@ def read(product_id):
         for attribute in attributes_query.all():
             attributes += [{"fieldId": attribute.field_id,
                             "fieldName": attribute.field.name,
-                            "data_type": attribute.field.data_type,
+                            "dataType": attribute.field.data_type,
                             "value": __get_field_value_by_type(attribute)}]
 
             # Get erp data
