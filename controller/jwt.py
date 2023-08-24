@@ -39,7 +39,10 @@ def refresh():
     try:
         # 獲取當前用戶的 ID
         current_user = get_jwt_identity()
-        user = db.session.get(User, current_user)
+        user = db.session.query(User).filter_by(id=current_user).first()
+
+        if not user:
+            return make_response(jsonify({"code": 404, "msg": "User not found"}), 404)
 
         # 創建新的 JWT Token，有效期為 30 分鐘
         new_token = __create_access_token(user)
