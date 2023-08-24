@@ -223,13 +223,10 @@ def read_multi(data):
         # Execute the SQL query
         result = db.session.execute(text(sql_query), parameters).fetchall()
 
-        # Paginate the results
-        paginated_result = result[(page-1)*limit: page*limit]
-
         # Format the output
         data = []
 
-        for row in paginated_result:
+        for row in result:
             fields_data = []
             item_id, item_series_id, item_name, series_name = row
             erp_data = []
