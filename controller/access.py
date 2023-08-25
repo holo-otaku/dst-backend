@@ -13,13 +13,14 @@ def check_permission(permission):
             user_id = get_jwt_identity()
             user = db.session.get(User, user_id)
 
-            if has_permission(user, permission):
+            if user and has_permission(user, permission):
                 # 有權限，執行原始函數
                 return f(*args, **kwargs)
             else:
-                # 沒有權限，回傳拒絕訪問的訊息
+                # 如果 user 不存在，將其設置為 "Unknown user" 以避免 AttributeError
+                username = user.username if user else "Unknown user"
                 current_app.logger.error(
-                    f"{user.username} try to access {permission}")
+                    f"{username} try to access {permission}")
                 return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
 
         return wrapper
