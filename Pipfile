@@ -29,6 +29,7 @@ flask-cors = "*"
 flask-swagger-ui = "*"
 pytest = "*"
 faker = "*"
+python-dotenv = "*"
 
 [dev-packages]
 
