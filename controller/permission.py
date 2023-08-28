@@ -2,19 +2,15 @@ from flask import current_app, jsonify, make_response, request
 from models.user import Permission
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
+from models.mapping_table import permissions_table
 
 
 def create_default_permissions():
     try:
         if not Permission.query.first():
             # 建立預設的權限
-            permissions = ['user.create', 'user.read', 'user.edit', 'user.delete',
-                           'role.create', 'role.read', 'role.edit', 'role.delete',
-                           'permission.create', 'permission.read', 'permission.edit', 'permission.delete',
-                           'series.create', 'series.read', 'series.edit', 'series.delete',
-                           'product.create', 'product.read', 'product.edit', 'product.delete',
-                           'image.read', 'image.create'
-                           ]
+            permissions = permissions_table
+
             for permission in permissions:
                 existing_permission = Permission.query.filter_by(
                     name=permission).first()

@@ -1,5 +1,6 @@
 from flask import request
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+from flask_jwt_extended.exceptions import NoAuthorizationError
 from models.shared import db
 from models.log import ActivityLog
 
@@ -8,25 +9,34 @@ class middlewares():
     def __init__(self, app) -> None:
         @app.after_request
         def log_response_status(response):
-            if any(endpoint in request.path for endpoint in ["login", "refresh"]):
+            # Skip logging for login and refresh endpoints
+            if any(endpoint in request.path for endpoint in ["login", "refresh", "log"]):
                 return response
 
-            user_id = get_jwt_identity() if jwt_required(optional=True) else None
+            # Attempt to get user identity
+            user_id = None
+            try:
+                verify_jwt_in_request()  # Checks if JWT exists in the request
+                user_id = get_jwt_identity()
+            except NoAuthorizationError:  # This exception is raised if JWT is missing
+                pass
+
             log_data = {
                 'url': request.path,
                 'user_id': user_id
             }
 
-            if any(endpoint in request.path for endpoint in ["user"]):
-                pass
-            else:
+            # If endpoint contains 'user', skip logging payload
+            if "user" not in request.path:
                 # Log URL, user ID, and payload (if available)
                 payload = request.get_json(silent=True)
 
                 if payload:
                     log_data['payload'] = payload
+            else:
+                return response
 
-            # Store log_data in your database or wherever you want
+            # Store log_data in your database
             activity_log = ActivityLog(
                 url=log_data['url'], user_id=log_data['user_id'], payload=log_data.get('payload'))
             db.session.add(activity_log)
