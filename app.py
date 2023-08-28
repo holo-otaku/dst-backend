@@ -10,8 +10,7 @@ from flask_cors import CORS
 from controller.user import create_admin_user
 from controller.role import create_admin_role
 from controller.permission import create_default_permissions
-
-
+from middlewares.middlewares import middlewares
 app = Flask(__name__)
 app.config.from_object('config.Config')
 db.init_app(app)
@@ -21,7 +20,7 @@ jwt = JWTManager(app)
 routes(app)
 logger(app)
 CORS(app)
-
+middlewares(app)
 
 if __name__ == '__main__':
 

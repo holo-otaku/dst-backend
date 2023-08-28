@@ -34,6 +34,8 @@ tags:
     description: Operations related to product management
   - name: Field
     description: Operations related to field management
+  - name: Log
+    description: Operations related to log management
 paths:
   /health:
     get:
@@ -1109,6 +1111,82 @@ paths:
                   msg:
                     type: string
                     example: Success
+
+  /log:
+    get:
+      tags:
+        - Log
+      summary: List logs
+      description: List logs
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          description: Page number for pagination
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          description: Number of per page
+          schema:
+            type: integer
+
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: Success
+                  data:
+                    $ref: "#/components/schemas/Log"
+
+  /log/user/{user_id}:
+    get:
+      tags:
+        - Log
+      summary: List user logs
+      description: List user logs
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          description: Page number for pagination
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          description: Number of per page
+          schema:
+            type: integer
+
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: Success
+                  data:
+                    $ref: "#/components/schemas/Log"
+
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1305,7 +1383,7 @@ components:
         delete:
           type: array
           items:
-              type: integer
+            type: integer
 
     Product:
       type: array
@@ -1352,3 +1430,25 @@ components:
         value:
           type: string
           example: Field Value
+
+    Log:
+      type: array
+      items:
+        type: object
+        properties:
+          UserId:
+            type: integer
+            example: 1
+          url:
+            type: string
+            example: /product/search
+          payload:
+            type: object
+            example:
+              { "filters": [{ "fieldId": 13, "value": "精和" }], "seriesId": 4 }
+          id:
+            type: integer
+            example: 1
+          createdAt:
+            type: string
+            example: 2023-08-25 15:28:42
