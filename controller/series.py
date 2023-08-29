@@ -165,6 +165,15 @@ def update(series_id, data):
         # Update the series name
         series.name = data.get('name', series.name)
 
+        # Check for duplicate isErp in update data and create data
+        erp_count = sum(1 for field_data in data.get(
+            'fields', []) if field_data.get('isErp'))
+        erp_count += sum(1 for create_data in data.get('create',
+                         []) if create_data.get('isErp'))
+
+        if erp_count > 1:
+            return make_response(jsonify({"code": 400, "msg": "Only one field can be set as Erp in a series!"}), 400)
+
         # Handle field updates
         fields_data = data.get('fields', [])
         for field_data in fields_data:
