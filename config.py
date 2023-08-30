@@ -1,9 +1,5 @@
 import os
 from datetime import timedelta
-from dotenv import load_dotenv
-
-# This will load the environment variables from .env file
-load_dotenv()
 
 
 class Config:
