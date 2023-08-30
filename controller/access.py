@@ -11,6 +11,10 @@ def check_permission(permission):
         @jwt_required(optional=True)
         def wrapper(*args, **kwargs):
             user_id = get_jwt_identity()
+
+            if not user_id:
+                return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
+
             user = db.session.get(User, user_id)
 
             if user and has_permission(user, permission):
