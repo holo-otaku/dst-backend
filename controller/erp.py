@@ -2,23 +2,28 @@ from flask import current_app
 from models.mssql import Connect
 
 
-def read(prod_no):
+def read(product_numbers):
+    if not product_numbers:
+        return {}
+
+    placeholders = ",".join(["?" for _ in product_numbers])
+    sql_query = f"""
+        SELECT FACT_NO, PROD_NO, PROD_NAME, PROD_C, PROD_CT, KEYI_D, LEAD_TIME, FIZO_D, PROD_STAT
+        FROM PROD
+        WHERE PROD_NO IN ({placeholders})
+    """
     conn = None
     cursor = None
     try:
         conn = Connect(current_app.config["DST_MSSQL"])
         cursor = conn.cursor()
-        sql_query = """
-            SELECT TOP 1 FACT_NO, PROD_NO, PROD_NAME, PROD_C, PROD_CT, KEYI_D, LEAD_TIME, FIZO_D, PROD_STAT
-            FROM PROD
-            WHERE PROD_NO = ?"""
-        cursor.execute(sql_query, (prod_no,))
+        cursor.execute(sql_query, tuple(product_numbers))
 
         results = cursor.fetchall()
 
-        data = []
-
+        data_map = {}
         for row in results:
+            data = []
             data.append({"key": "廠商編號", "value": str(row.FACT_NO)})
             data.append({"key": "產品編號", "value": str(row.PROD_NO)})
             data.append({"key": "品名規格", "value": str(row.PROD_NAME)})
@@ -29,12 +34,30 @@ def read(prod_no):
             data.append({"key": "停產日期", "value": str(row.FIZO_D)})
             data.append({"key": "交易狀態", "value": str(row.PROD_STAT)})
 
-        return data
+            data_map[row.PROD_NO] = data
+
+        # Ensure all product_numbers have a result in the data_map
+        # Ensure all product_numbers have a result in the data_map
+        for product_no in product_numbers:
+            if product_no not in data_map:
+                default_data = []
+                default_data.append({"key": "廠商編號", "value": ""})
+                default_data.append({"key": "產品編號", "value": product_no})
+                default_data.append({"key": "品名規格", "value": ""})
+                default_data.append({"key": "標準進價(進貨幣別)", "value": ""})
+                default_data.append({"key": "實際單位總成本(本地幣)", "value": ""})
+                default_data.append({"key": "建檔日期", "value": ""})
+                default_data.append({"key": "LeadTime(天)", "value": ""})
+                default_data.append({"key": "停產日期", "value": ""})
+                default_data.append({"key": "交易狀態", "value": ""})
+
+                data_map[product_no] = default_data
+
+        return data_map
+
     except Exception as e:
         current_app.logger.error(e)
-
-        return []
-
+        return {}
     finally:
         if cursor:
             cursor.close()

@@ -28,23 +28,27 @@ def read(product_id):
             ItemAttribute.item_id == product_id)
 
         attributes = []
-        erp_data = []
+        erp_product_nos = set()  # Collect all ERP product numbers
+
         for attribute in attributes_query.all():
             attributes += [{"fieldId": attribute.field_id,
                             "fieldName": attribute.field.name,
                             "dataType": attribute.field.data_type,
                             "value": __get_field_value_by_type(attribute)}]
 
-            # Get erp data
+            # Collect erp product numbers
             if attribute.field.is_erp:
                 erp_product_no = __get_field_value_by_type(attribute)
-                # 檢查 erp_data 是否為 None，若為 None 則表示發生錯誤
-                if erp_product_no is None:
-                    error_message = "Failed to fetch ERP data."
-                    current_app.logger.error(error_message)
-                    return make_response(jsonify({"code": 500, "msg": error_message}), 500)
-                else:
-                    erp_data += __get_erp_data(erp_product_no)
+                if erp_product_no:
+                    erp_product_nos.add(erp_product_no)
+
+        # Fetch ERP data in bulk
+        erp_data_map = read_erp(erp_product_nos)
+
+        # Extract ERP data
+        erp_data = []
+        for product_no in erp_product_nos:
+            erp_data += erp_data_map.get(product_no, [])
 
         # Format the output
         result = {
@@ -223,6 +227,23 @@ def read_multi(data):
         # Execute the SQL query
         result = db.session.execute(text(sql_query), parameters).fetchall()
 
+        # Extract all product numbers from the result that need ERP data
+        product_nos_to_fetch = set()
+        for row in result:
+            item_id, item_series_id, item_name, series_name = row
+            for field in fields.values():
+                item = db.session.query(ItemAttribute).filter(
+                    and_(ItemAttribute.item_id == item_id,
+                         ItemAttribute.field_id == field.id)
+                ).first()
+                if field.is_erp:
+                    erp_product_no = __get_field_value_by_type(item)
+                    if erp_product_no:
+                        product_nos_to_fetch.add(erp_product_no)
+
+        # Fetch ERP data in a single call
+        erp_data_map = read_erp(product_nos_to_fetch)
+
         # Format the output
         data = []
 
@@ -244,15 +265,8 @@ def read_multi(data):
                 ]
 
                 # Get erp data
-                if field.is_erp:
-                    erp_product_no = __get_field_value_by_type(item)
-                    # 檢查 erp_data 是否為 None，若為 None 則表示發生錯誤
-                    if erp_product_no is None:
-                        error_message = "Failed to fetch ERP data."
-                        current_app.logger.error(error_message)
-                        return make_response(jsonify({"code": 500, "msg": error_message}), 500)
-                    else:
-                        erp_data += __get_erp_data(erp_product_no)
+                if field.is_erp and value in erp_data_map:
+                    erp_data += erp_data_map[value]
 
             data.append({
                 'itemId': item_id,
@@ -425,6 +439,8 @@ def __read_without_filter(series_id, page, limit):
 
     result = []
 
+    erp_data_map = read_erp(__gen_erp_data_map(items))
+
     for item in items:
         attributes_query = db.session.query(ItemAttribute).filter(
             ItemAttribute.item_id == item.id)
@@ -432,23 +448,16 @@ def __read_without_filter(series_id, page, limit):
         attributes = []
         erp_data = []
         for attribute in attributes_query.all():
+            prod_no = __get_field_value_by_type(attribute)
+            if attribute.field.is_erp:
+                erp_data += erp_data_map.get(prod_no, [])
+
             attributes.append({
                 "fieldId": attribute.field_id,
                 "fieldName": attribute.field.name,
                 "dataType": attribute.field.data_type,
-                "value": __get_field_value_by_type(attribute)
+                "value": prod_no
             })
-
-            # Get erp data
-            if attribute.field.is_erp:
-                erp_product_no = __get_field_value_by_type(attribute)
-                # 檢查 erp_data 是否為 None，若為 None 則表示發生錯誤
-                if erp_product_no is None:
-                    error_message = "Failed to fetch ERP data."
-                    current_app.logger.error(error_message)
-                    return make_response(jsonify({"code": 500, "msg": error_message}), 500)
-                else:
-                    erp_data += __get_erp_data(erp_product_no)
 
         result.append({
             "itemId": item.id,
@@ -478,12 +487,17 @@ def __save_image(image_data, item_id):
     return image.id
 
 
-def __get_erp_data(product_no):
-    erp_data = []
-    # Get ERP data
-    erp_data = read_erp(product_no)
+def __gen_erp_data_map(items):
+    erp_product_numbers = []
+    for item in items:
+        attributes_query = db.session.query(ItemAttribute).filter(
+            ItemAttribute.item_id == item.id)
+        for attribute in attributes_query.all():
+            if attribute.field.is_erp:
+                erp_product_numbers.append(
+                    __get_field_value_by_type(attribute))
 
-    return erp_data
+    return erp_product_numbers
 
 
 def __get_field_value_by_type(item):
