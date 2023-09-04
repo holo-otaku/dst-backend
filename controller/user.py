@@ -103,11 +103,16 @@ def read_multi():
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
 
+        # Query for all users with pagination
         users = User.query.limit(limit).offset((page - 1) * limit).all()
+
+        # Count total users
+        total_count = User.query.count()
+
         result = [{'id': user.id, 'userName': user.username,
                    'role': user.roles[0].name if user.roles else None} for user in users]
 
-        return make_response(jsonify({"code": 200, "msg": "Success", "data": result}), 200)
+        return make_response(jsonify({"code": 200, "msg": "Success", "data": result, "totalCount": total_count}), 200)
 
     except SQLAlchemyError as e:
         current_app.logger.error(e)

@@ -201,6 +201,9 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/User"
+                  totalCount:
+                    type: number
+                    example: 87
 
   /user/{user_id}:
     get:
@@ -388,6 +391,9 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Permission"
+                  totalCount:
+                    type: number
+                    example: 87
 
   /permission/{permission_id}:
     get:
@@ -522,6 +528,9 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Role"
+                  totalCount:
+                    type: number
+                    example: 87
 
     post:
       tags:
@@ -1185,7 +1194,6 @@ paths:
                     example: Success
                   data:
                     $ref: "#/components/schemas/Log"
-
 
 components:
   securitySchemes:

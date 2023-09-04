@@ -93,10 +93,12 @@ def read_multi():
         permissions = Permission.query.limit(
             limit).offset((page - 1) * limit).all()
 
+        total_count = Permission.query.count()
+
         result = [{'id': permission.id, 'name': permission.name}
                   for permission in permissions]
 
-        return make_response(jsonify({"code": 200, "msg": "Permission found", "data": result}), 200)
+        return make_response(jsonify({"code": 200, "msg": "Permission found", "data": result, "totalCount": total_count}), 200)
 
     except SQLAlchemyError as e:
         current_app.logger.error(e)

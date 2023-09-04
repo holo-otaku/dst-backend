@@ -168,10 +168,12 @@ def read_multi():
 
         roles = Role.query.limit(limit).offset((page - 1) * limit).all()
 
+        total_count = Role.query.count()
+
         result = [{'id': role.id, 'name': role.name, 'permissions': [
             {'id': permission.id, 'name': permission.name} for permission in role.permissions]} for role in roles]
 
-        return make_response(jsonify({"code": 200, "msg": "Roles found", "data": result}), 200)
+        return make_response(jsonify({"code": 200, "msg": "Roles found", "data": result, "totalCount": total_count}), 200)
 
     except SQLAlchemyError as e:
         current_app.logger.error(e)
