@@ -3,8 +3,10 @@ from models.mssql import Connect
 
 
 def read(product_numbers):
+    data_map = {}
+
     if not product_numbers:
-        return {}
+        return data_map
 
     placeholders = ",".join(["?" for _ in product_numbers])
     sql_query = f"""
@@ -21,7 +23,6 @@ def read(product_numbers):
 
         results = cursor.fetchall()
 
-        data_map = {}
         for row in results:
             data = []
             data.append({"key": "廠商編號", "value": str(row.FACT_NO)})
@@ -36,30 +37,29 @@ def read(product_numbers):
 
             data_map[row.PROD_NO] = data
 
-        # Ensure all product_numbers have a result in the data_map
-        # Ensure all product_numbers have a result in the data_map
-        for product_no in product_numbers:
-            if product_no not in data_map:
-                default_data = []
-                default_data.append({"key": "廠商編號", "value": ""})
-                default_data.append({"key": "產品編號", "value": product_no})
-                default_data.append({"key": "品名規格", "value": ""})
-                default_data.append({"key": "標準進價(進貨幣別)", "value": ""})
-                default_data.append({"key": "實際單位總成本(本地幣)", "value": ""})
-                default_data.append({"key": "建檔日期", "value": ""})
-                default_data.append({"key": "LeadTime(天)", "value": ""})
-                default_data.append({"key": "停產日期", "value": ""})
-                default_data.append({"key": "交易狀態", "value": ""})
-
-                data_map[product_no] = default_data
-
-        return data_map
-
     except Exception as e:
         current_app.logger.error(e)
-        return {}
+
     finally:
         if cursor:
             cursor.close()
         if conn:
             conn.close()
+
+    # Ensure all product_numbers have a result in the data_map
+    for product_no in product_numbers:
+        if product_no not in data_map:
+            default_data = []
+            default_data.append({"key": "廠商編號", "value": ""})
+            default_data.append({"key": "產品編號", "value": product_no})
+            default_data.append({"key": "品名規格", "value": ""})
+            default_data.append({"key": "標準進價(進貨幣別)", "value": ""})
+            default_data.append({"key": "實際單位總成本(本地幣)", "value": ""})
+            default_data.append({"key": "建檔日期", "value": ""})
+            default_data.append({"key": "LeadTime(天)", "value": ""})
+            default_data.append({"key": "停產日期", "value": ""})
+            default_data.append({"key": "交易狀態", "value": ""})
+
+            data_map[product_no] = default_data
+
+    return data_map
