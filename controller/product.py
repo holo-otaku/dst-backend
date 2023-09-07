@@ -81,14 +81,14 @@ def create(data):
 
         for item_data in data:
             series_id = item_data.get('seriesId')
-            name = item_data.get('name')
+            name = item_data.get('name', '')
             attributes = item_data.get('attributes')
 
             # Get the fields related to this series
             fields_query = db.session.query(Field).filter(
                 Field.series_id == series_id)
 
-            if not series_id or not name:
+            if not series_id:
                 return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
 
             series = db.session.get(Series, series_id)
