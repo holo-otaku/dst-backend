@@ -59,8 +59,13 @@ def read(product_id):
             "seriesName": item.series.name,
             "erp": erp_data
         }
+        response = make_response(
+            jsonify({"code": 200, "msg": "Success", "data": result}), 200)
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
 
-        return make_response(jsonify({"code": 200, "msg": "Success", "data": result}), 200)
+        return response
 
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -294,7 +299,13 @@ def read_multi(data):
             text(count_query), parameters).fetchone()
         total_count = count_result[0]
 
-        return make_response(jsonify({"code": 200, "msg": "Success", "data": data, "totalCount": total_count}), 200)
+        response = make_response(jsonify(
+            {"code": 200, "msg": "Success", "data": data, "totalCount": total_count}), 200)
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+
+        return response
 
     except SQLAlchemyError as e:
         db.session.rollback()
