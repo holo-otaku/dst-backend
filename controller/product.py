@@ -322,7 +322,7 @@ def update_multi(data):
             attributes = item_data.get('attributes')
 
             # 檢查輸入項目的完整性
-            if not item_id or not name or not attributes:
+            if not item_id or not attributes:
                 return make_response(jsonify({'code': 400, 'msg': 'Incomplete data'}), 400)
 
             # 查詢對應的 Item 記錄
@@ -363,6 +363,9 @@ def update_multi(data):
 
                 if isinstance(value, bool):
                     value = 1 if value else 0
+
+                if field.data_type.lower() == 'picture' and value:
+                    value = __save_image(value, item.id, item_attribute.value)
 
                 if item_attribute:
                     item_attribute.value = value
@@ -471,19 +474,30 @@ def __read_without_filter(series_id, page, limit):
     return make_response(jsonify({"code": 200, "msg": "Success", "data": result, "totalCount": total_count}), 200)
 
 
-def __save_image(image_data, item_id):
+def __save_image(image_data, item_id, image_id=None):
     # Extract base64 encoded image data
     _, base64_data = image_data.split(',', 1)
 
     # Decode base64 data
     image_bytes = base64.b64decode(base64_data)
 
-    # Save the image in the Image table
-    image_name = f"{item_id}_picture.png"
-    image = Image(name=image_name, data=image_bytes)
-    db.session.add(image)
-    # Ensure that the image gets an ID before using it in item_attribute value
-    db.session.flush()
+    if image_id:
+        # If image_id exists, update the existing image
+        image = Image.query.get(image_id)
+        if image:
+            image.data = image_bytes
+            db.session.commit()
+        else:
+            # Handle the case where the image_id doesn't exist
+            raise Exception(
+                "Image with the specified image_id does not exist.")
+    else:
+        # Save the image as a new record in the Image table
+        image_name = f"{item_id}_picture.png"
+        image = Image(name=image_name, data=image_bytes)
+        db.session.add(image)
+        db.session.flush()
+
     return image.id
 
 
