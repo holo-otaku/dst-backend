@@ -1,6 +1,5 @@
 from flask import current_app, jsonify, make_response, request
 from models.series import Series, Field, Item, ItemAttribute
-from models.user import User
 from models.shared import db
 from models.mapping_table import data_type_map
 from sqlalchemy.exc import SQLAlchemyError

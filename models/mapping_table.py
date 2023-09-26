@@ -3,7 +3,8 @@ data_type_map = {
     'number': (int, float),
     'boolean': bool,
     'datetime': 'datetime',
-    'picture': str
+    'picture': str,
+    'filepath': str,
     # Add other data types as needed
 }
 
