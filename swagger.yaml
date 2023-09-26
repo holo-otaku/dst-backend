@@ -1334,6 +1334,10 @@ components:
                 type: array
                 items:
                   example: 1 x 1
+                example: Series 1
+              sequence:
+                type: number
+                example: 1
 
     SeriesMulti:
       type: object
@@ -1415,6 +1419,8 @@ components:
                 type: integer
               isRequired:
                 type: integer
+              sequence:
+                type: integer
         create:
           type: array
           items:
@@ -1427,6 +1433,8 @@ components:
               isFiltered:
                 type: integer
               isRequired:
+                type: integer
+              sequence:
                 type: integer
         delete:
           type: array

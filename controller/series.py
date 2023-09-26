@@ -22,7 +22,7 @@ def create(data):
         if fields_data:
             # Check is_erp only one
             erp_count = 0
-            for field_data in fields_data:
+            for index, field_data in enumerate(fields_data):
                 field_name = field_data.get('name')
                 field_data_type = field_data.get('dataType').lower()
 
@@ -44,7 +44,8 @@ def create(data):
                     data_type=field_data_type,
                     is_filtered=field_is_filtered,
                     is_required=field_is_required,
-                    is_erp=field_is_erp
+                    is_erp=field_is_erp,
+                    sequence=index
                 )
                 series.fields.append(field)
 
@@ -97,10 +98,11 @@ def read(series_id):
                     'isFiltered': f.is_filtered,
                     'isRequired': f.is_required,
                     'isErp': f.is_erp,
-                    'values': unique_values
+                    'values': unique_values,
+                    "sequence": f.sequence,
                 })
 
-            data['fields'] = field_data
+            data['fields'] = sorted(field_data, key=lambda x: x['sequence'])
 
             return make_response(jsonify({"code": 200, "msg": "Success", "data": data}), 200)
         else:
@@ -147,12 +149,15 @@ def read_multi():
             }
 
             if show_field:
+                sorted_fields = sorted(s.fields, key=lambda x: x.sequence)
+
                 field_data = [{'id': f.id,
                                'name': f.name,
                                'dataType': f.data_type,
                                'isFiltered': f.is_filtered,
                                'isRequired': f.is_required,
-                               'isErp': f.is_erp} for f in s.fields]
+                               'isErp': f.is_erp,
+                               'sequence': f.sequence} for f in sorted_fields]
                 data['fields'] = field_data
 
             result.append(data)
@@ -192,7 +197,7 @@ def update(series_id, data):
 
         # Handle field updates
         fields_data = data.get('fields', [])
-        for field_data in fields_data:
+        for index, field_data in enumerate(fields_data):
             field_id = field_data.get('id')
             field = db.session.get(Field, field_id)
 
@@ -210,13 +215,18 @@ def update(series_id, data):
             field.is_filtered = field_data.get('isFiltered')
             field.is_required = field_data.get('isRequired')
             field.is_erp = field_data.get('isErp')
+            field.sequence = index  # Set sequence based on the order in fields_data
 
         # Handle field creation
         creates_data = data.get('create', [])
         for create_data in creates_data:
-            new_field = Field(name=create_data.get('name'), data_type=create_data.get('dataType').lower(),
-                              is_filtered=create_data.get('isFiltered'), is_required=create_data.get('isRequired'),
-                              is_erp=create_data.get('isErp'), series_id=series_id)
+            new_field = Field(name=create_data.get('name'),
+                              data_type=create_data.get('dataType').lower(),
+                              is_filtered=create_data.get('isFiltered'),
+                              is_required=create_data.get('isRequired'),
+                              is_erp=create_data.get('isErp'),
+                              series_id=series_id,
+                              sequence=create_data.get('sequence'))
             db.session.add(new_field)
             db.session.flush()  # Ensure new_field has an ID
 

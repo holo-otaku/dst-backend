@@ -1,6 +1,6 @@
 from models.shared import db
 from datetime import datetime
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Boolean
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 
@@ -28,9 +28,13 @@ class Field(db.Model):
     is_filtered = Column(Boolean, default=0, nullable=False)
     is_erp = Column(Boolean, default=0, nullable=False)
     series_id = Column(Integer, ForeignKey('series.id'))
+    sequence = Column(Integer, nullable=False, default=0)
 
     series = relationship('Series', back_populates='fields')
     item_attribute = relationship('ItemAttribute', back_populates='field')
+    __table_args__ = (UniqueConstraint(
+        'series_id', 'sequence', name='uq_series_sequence'),)
+
 
 class Item(db.Model):
     __tablename__ = 'item'
