@@ -30,7 +30,7 @@ class Field(db.Model):
     series_id = Column(Integer, ForeignKey('series.id'))
 
     series = relationship('Series', back_populates='fields')
-
+    item_attribute = relationship('ItemAttribute', back_populates='field')
 
 class Item(db.Model):
     __tablename__ = 'item'
@@ -53,4 +53,4 @@ class ItemAttribute(db.Model):
     value = Column(String(length=256))
 
     item = relationship('Item')
-    field = relationship('Field')
+    field = relationship('Field', back_populates='item_attribute')

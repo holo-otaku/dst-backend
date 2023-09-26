@@ -711,7 +711,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: "#/components/schemas/Series"
+                      $ref: "#/components/schemas/SeriesMulti"
 
     post:
       tags:
@@ -1314,19 +1314,59 @@ components:
             properties:
               dataType:
                 type: string
-                example: Series 1
+                example: string
               id:
-                type: string
-                example: Series 1
+                type: number
+                example: 87
               isFiltered:
-                type: string
-                example: Series 1
+                type: boolean
+                example: true
               isRequired:
-                type: string
-                example: Series 1
+                type: boolean
+                example: false
+              isErp:
+                type: boolean
+                example: false
               name:
                 type: string
-                example: Series 1
+                example: PORT數
+              value:
+                type: array
+                items:
+                  example: 1 x 1
+
+    SeriesMulti:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Series 1
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              dataType:
+                type: string
+                example: string
+              id:
+                type: number
+                example: 87
+              isFiltered:
+                type: boolean
+                example: true
+              isRequired:
+                type: boolean
+                example: false
+              isErp:
+                type: boolean
+                example: false
+              name:
+                type: string
+                example: PORT數
 
     SeriesCreatePayload:
       type: object
