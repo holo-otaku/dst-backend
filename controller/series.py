@@ -78,12 +78,28 @@ def read(series_id):
                     'createdBy': series.creator.username,
                     'createdAt': series.created_at.strftime("%Y-%m-%d %H:%M:%S")}
 
-            field_data = [{'id': f.id,
-                           'name': f.name,
-                           'dataType': f.data_type,
-                           'isFiltered': f.is_filtered,
-                           'isRequired': f.is_required,
-                           'isErp': f.is_erp} for f in series.fields]
+            field_data = []
+            unique_values = []
+            for f in series.fields:
+                if f.is_filtered:
+                    distinct_count = db.session.query(ItemAttribute.value).filter(
+                        ItemAttribute.field_id == f.id).distinct().count()
+                    if distinct_count <= 30:
+                        unique_values = db.session.query(ItemAttribute.value).filter(
+                            ItemAttribute.field_id == f.id).distinct().all()
+                        unique_values = [
+                            attr.value for attr in unique_values if attr.value is not None]
+
+                field_data.append({
+                    'id': f.id,
+                    'name': f.name,
+                    'dataType': f.data_type,
+                    'isFiltered': f.is_filtered,
+                    'isRequired': f.is_required,
+                    'isErp': f.is_erp,
+                    'values': unique_values
+                })
+
             data['fields'] = field_data
 
             return make_response(jsonify({"code": 200, "msg": "Success", "data": data}), 200)
