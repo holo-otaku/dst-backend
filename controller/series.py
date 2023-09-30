@@ -82,7 +82,7 @@ def read(series_id):
             field_data = []
             unique_values = []
             for f in series.fields:
-                if f.is_filtered:
+                if f.is_filtered and (f.data_type == "string" or f.data_type == "number"):
                     distinct_count = db.session.query(ItemAttribute.value).filter(
                         ItemAttribute.field_id == f.id).distinct().count()
                     if distinct_count <= 30:
