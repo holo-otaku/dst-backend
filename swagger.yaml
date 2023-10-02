@@ -856,8 +856,6 @@ paths:
                 properties:
                   seriesId:
                     type: integer
-                  name:
-                    type: string
                   attributes:
                     type: array
                     items:
@@ -892,9 +890,6 @@ paths:
                         id:
                           type: integer
                           example: 1
-                        name:
-                          type: string
-                          example: Product 1
                         seriesId:
                           type: integer
                           example: 1
@@ -1014,8 +1009,6 @@ paths:
                 properties:
                   itemId:
                     type: integer
-                  name:
-                    type: string
                   attributes:
                     type: array
                     items:
@@ -1449,9 +1442,6 @@ components:
           itemId:
             type: integer
             example: 1
-          name:
-            type: string
-            example: Product 1
           seriesId:
             type: integer
             example: 1
