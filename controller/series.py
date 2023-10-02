@@ -80,8 +80,8 @@ def read(series_id):
                     'createdAt': series.created_at.strftime("%Y-%m-%d %H:%M:%S")}
 
             field_data = []
-            unique_values = []
             for f in series.fields:
+                unique_values = []
                 if f.is_filtered and (f.data_type == "string" or f.data_type == "number"):
                     distinct_count = db.session.query(ItemAttribute.value).filter(
                         ItemAttribute.field_id == f.id).distinct().count()
