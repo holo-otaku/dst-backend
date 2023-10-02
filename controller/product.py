@@ -53,7 +53,6 @@ def read(product_id):
         # Format the output
         result = {
             "itemId": item.id,
-            "name": item.name,
             "seriesId": item.series_id,
             "attributes": attributes,
             "seriesName": item.series.name,
@@ -126,8 +125,8 @@ def create(data):
 
         db.session.commit()
 
-        result = [{'id': item.id, 'name': item.name,
-                   'seriesId': item.series_id} for item in items]
+        result = [{'id': item.id, 'seriesId': item.series_id}
+                  for item in items]
         return make_response(jsonify({"code": 201, "msg": "Success", "data": result}), 201)
 
     except SQLAlchemyError as e:
@@ -173,7 +172,6 @@ def read_multi(data):
         sql_query = """
             SELECT item.id AS item_id,
                 item.series_id AS item_series_id,
-                item.name AS item_name,
                 s.name AS series_name
             FROM item
             JOIN series AS s ON item.series_id = s.id
@@ -329,7 +327,6 @@ def update_multi(data):
         # 遍歷每個輸入項目
         for item_data in data:
             item_id = item_data.get('itemId')
-            name = item_data.get('name')
             attributes = item_data.get('attributes')
 
             # 檢查輸入項目的完整性
@@ -342,9 +339,6 @@ def update_multi(data):
             # 檢查 Item 是否存在
             if not item:
                 return make_response(jsonify({'code': 404, 'msg': 'Item not found'}), 404)
-
-            # 更新 Item 的 name
-            item.name = name
 
             # 遍歷每個屬性
             for attribute in attributes:
@@ -475,7 +469,6 @@ def __read_without_filter(series_id, page, limit):
 
         result.append({
             "itemId": item.id,
-            "name": item.name,
             "seriesId": item.series_id,
             "attributes": attributes,
             'seriesName': item.series.name,
@@ -600,10 +593,9 @@ def __check_field_type(field, value):
 
 def __check_condition(field, operation, field_name, value_name):
     condition = f"""
-    (item.id, item.series_id, item.name) IN (
+    (item.id, item.series_id) IN (
         SELECT DISTINCT item.id,
                         item.series_id,
-                        item.name
         FROM item
             JOIN item_attribute ON item.id = item_attribute.item_id
         WHERE item.series_id = :series_id
@@ -615,10 +607,9 @@ def __check_condition(field, operation, field_name, value_name):
     if operation == 'greater':
         if field.data_type.lower() == 'number':
             condition = f"""
-            (item.id, item.series_id, item.name) IN (
+            (item.id, item.series_id) IN (
                 SELECT DISTINCT item.id,
                                 item.series_id,
-                                item.name
                 FROM item
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
@@ -628,10 +619,9 @@ def __check_condition(field, operation, field_name, value_name):
             """
         elif field.data_type.lower() == 'datetime':
             condition = f"""
-            (item.id, item.series_id, item.name) IN (
+            (item.id, item.series_id) IN (
                 SELECT DISTINCT item.id,
                                 item.series_id,
-                                item.name
                 FROM item
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
@@ -643,10 +633,9 @@ def __check_condition(field, operation, field_name, value_name):
     elif operation == 'less':
         if field.data_type.lower() == 'number':
             condition = f"""
-            (item.id, item.series_id, item.name) IN (
+            (item.id, item.series_id) IN (
                 SELECT DISTINCT item.id,
                                 item.series_id,
-                                item.name
                 FROM item
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
@@ -656,10 +645,9 @@ def __check_condition(field, operation, field_name, value_name):
             """
         elif field.data_type.lower() == 'datetime':
             condition = f"""
-            (item.id, item.series_id, item.name) IN (
+            (item.id, item.series_id) IN (
                 SELECT DISTINCT item.id,
                                 item.series_id,
-                                item.name
                 FROM item
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
@@ -670,10 +658,9 @@ def __check_condition(field, operation, field_name, value_name):
 
     if field.data_type.lower() == 'string':
         condition = f"""
-                (item.id, item.series_id, item.name) IN (
+                (item.id, item.series_id) IN (
                     SELECT DISTINCT item.id,
                                     item.series_id,
-                                    item.name
                     FROM item
                         JOIN item_attribute ON item.id = item_attribute.item_id
                     WHERE item.series_id = :series_id
