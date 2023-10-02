@@ -63,7 +63,7 @@ def read_multi():
                 'createdAt': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
             })
 
-        return make_response(jsonify({"code": 200, "msg": "Logs found", "data": response_data, "total_count": total_count}), 200)
+        return make_response(jsonify({"code": 200, "msg": "Logs found", "data": response_data, "totalCount": total_count}), 200)
 
     except SQLAlchemyError as e:
         current_app.logger.error(e)
