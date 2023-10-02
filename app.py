@@ -1,26 +1,26 @@
 from flask import Flask
-
 from models.shared import db
 from models import model
-from routers.routes import routes
-from modules.logger import logger
+from routers.routes import Routes
+from modules.logger import Logger
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from controller.user import create_admin_user
 from controller.role import create_admin_role
 from controller.permission import create_default_permissions
-from middlewares.middlewares import middlewares
+from middlewares.middlewares import Middlewares
+
 app = Flask(__name__)
 app.config.from_object('config.Config')
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
-routes(app)
-logger(app)
+Routes(app)
+Logger(app)
 CORS(app)
-middlewares(app)
+Middlewares(app)
 
 if __name__ == '__main__':
 

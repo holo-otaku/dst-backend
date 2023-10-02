@@ -5,7 +5,7 @@ from models.shared import db
 from models.log import ActivityLog
 
 
-class middlewares():
+class Middlewares():
     def __init__(self, app) -> None:
         @app.after_request
         def log_response_status(response):

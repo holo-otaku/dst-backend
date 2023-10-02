@@ -3,7 +3,7 @@ from logging.handlers import TimedRotatingFileHandler
 import os
 
 
-class logger:
+class Logger:
     def __init__(self, app) -> None:
         log_dir = app.config["BASE_DIR"] + '/logs'
         if not os.path.exists(log_dir):

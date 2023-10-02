@@ -11,7 +11,7 @@ from routers.image import image
 from routers.log import log
 
 
-class routes:
+class Routes:
     def __init__(self, app) -> None:
         app.register_blueprint(swagger_ui_blueprint)
         app.register_blueprint(user, url_prefix='/user')
