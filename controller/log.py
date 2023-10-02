@@ -44,6 +44,9 @@ def read_multi():
         limit = int(request.args.get('limit', 10))
         offset = int(request.args.get('page', 1)) - 1
 
+        # Query the total count of ActivityLog
+        total_count = ActivityLog.query.count()
+
         # Query the ActivityLog table with limit, offset, order_by and join with User
         logs = db.session.query(ActivityLog, User.username).join(
             User, ActivityLog.user_id == User.id
@@ -60,7 +63,7 @@ def read_multi():
                 'createdAt': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
             })
 
-        return make_response(jsonify({"code": 200, "msg": "Roles found", "data": response_data}), 200)
+        return make_response(jsonify({"code": 200, "msg": "Logs found", "data": response_data, "total_count": total_count}), 200)
 
     except SQLAlchemyError as e:
         current_app.logger.error(e)
