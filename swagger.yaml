@@ -1495,6 +1495,9 @@ components:
           UserId:
             type: integer
             example: 1
+          UserName:
+            type: string
+            example: "Pekora"
           url:
             type: string
             example: /product/search
