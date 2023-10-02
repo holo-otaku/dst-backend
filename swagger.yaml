@@ -1482,10 +1482,10 @@ components:
       items:
         type: object
         properties:
-          UserId:
+          userId:
             type: integer
             example: 1
-          UserName:
+          userName:
             type: string
             example: "Pekora"
           url:

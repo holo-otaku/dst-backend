@@ -85,7 +85,6 @@ def create(data):
 
         for item_data in data:
             series_id = item_data.get('seriesId')
-            name = item_data.get('name', '')
             attributes = item_data.get('attributes')
 
             # Get the fields related to this series
@@ -100,7 +99,7 @@ def create(data):
             if not series:
                 return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
 
-            item = Item(series_id=series_id, name=name)
+            item = Item(series_id=series_id)
             db.session.add(item)
 
             missing_field = __check_field_required(
