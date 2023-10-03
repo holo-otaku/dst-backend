@@ -6,6 +6,7 @@ from models.mapping_table import data_type_map
 from models.image import Image
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import and_, text
+from sqlalchemy.orm import joinedload
 from datetime import datetime
 import base64
 
@@ -232,13 +233,13 @@ def read_multi(data):
         # Extract all product numbers from the result that need ERP data
         product_nos_to_fetch = set()
         for row in result:
-            item_id, item_series_id, item_name, series_name = row
+            item_id, item_series_id, series_name = row
             for field in fields.values():
-                item = db.session.query(ItemAttribute).filter(
-                    and_(ItemAttribute.item_id == item_id,
-                         ItemAttribute.field_id == field.id)
-                ).first()
                 if field.is_erp:
+                    item = db.session.query(ItemAttribute).filter(
+                        and_(ItemAttribute.item_id == item_id,
+                             ItemAttribute.field_id == field.id)
+                    ).first()
                     erp_product_no = __get_field_value_by_type(item)
                     if erp_product_no:
                         product_nos_to_fetch.add(erp_product_no)
@@ -249,22 +250,29 @@ def read_multi(data):
         # Format the output
         data = []
 
+        # Get all relevant ItemAttributes in a single query
+        item_ids = [row[0] for row in result]
+        all_attributes = db.session.query(ItemAttribute).filter(
+            and_(ItemAttribute.item_id.in_(item_ids))
+        ).all()
+
+        # Convert the list of attributes into a dictionary for easier look-up
+        attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
+
         for row in result:
             fields_data = []
-            item_id, item_series_id, item_name, series_name = row
+            item_id, item_series_id, series_name = row
             erp_data = []
             for field in fields.values():
-                item = db.session.query(ItemAttribute).filter(
-                    and_(ItemAttribute.item_id == item_id,
-                         ItemAttribute.field_id == field.id)
-                ).first()
+                item = attributes_dict.get((item_id, field.id))
+                value = __get_field_value_by_type(item)
 
-                fields_data += [
-                    {"fieldId": str(field.id),
-                     "fieldName": field.name,
-                     "dataType": field.data_type,
-                     "value": __get_field_value_by_type(item)}
-                ]
+                fields_data.append({
+                    "fieldId": str(field.id),
+                    "fieldName": field.name,
+                    "dataType": field.data_type,
+                    "value": value
+                })
 
                 # Get erp data
                 if field.is_erp and value in erp_data_map:
@@ -272,7 +280,6 @@ def read_multi(data):
 
             data.append({
                 'itemId': item_id,
-                'name': item_name,
                 'seriesId': item_series_id,
                 'seriesName': series_name,
                 'attributes': fields_data,
@@ -436,25 +443,23 @@ def delete(data):
 
 
 def __read_without_filter(series_id, page, limit):
-    # Get the items related to this series_id with pagination
-    items = db.session.query(Item).filter(
+    # Get the items related to this series_id with pagination and preload ItemAttribute
+    items = db.session.query(Item).options(joinedload(Item.attributes)).filter(
         Item.series_id == series_id).offset((page - 1) * limit).limit(limit).all()
 
-   # Get the total count of items related to this series_id
+    # Get the total count of items related to this series_id
     total_count = db.session.query(Item).filter(
         Item.series_id == series_id).count()
 
     result = []
 
+    # Generate ERP data map
     erp_data_map = read_erp(__gen_erp_data_map(items))
 
     for item in items:
-        attributes_query = db.session.query(ItemAttribute).filter(
-            ItemAttribute.item_id == item.id)
-
         attributes = []
         erp_data = []
-        for attribute in attributes_query.all():
+        for attribute in item.attributes:
             prod_no = __get_field_value_by_type(attribute)
             if attribute.field.is_erp:
                 erp_data += erp_data_map.get(prod_no, [])
@@ -475,7 +480,6 @@ def __read_without_filter(series_id, page, limit):
         })
 
     return make_response(jsonify({"code": 200, "msg": "Success", "data": result, "totalCount": total_count}), 200)
-
 
 def __save_image(image_data, item_id, image_id=None):
     # Extract base64 encoded image data
@@ -594,7 +598,7 @@ def __check_condition(field, operation, field_name, value_name):
     condition = f"""
     (item.id, item.series_id) IN (
         SELECT DISTINCT item.id,
-                        item.series_id,
+                        item.series_id
         FROM item
             JOIN item_attribute ON item.id = item_attribute.item_id
         WHERE item.series_id = :series_id
@@ -608,7 +612,7 @@ def __check_condition(field, operation, field_name, value_name):
             condition = f"""
             (item.id, item.series_id) IN (
                 SELECT DISTINCT item.id,
-                                item.series_id,
+                                item.series_id
                 FROM item
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
@@ -620,7 +624,7 @@ def __check_condition(field, operation, field_name, value_name):
             condition = f"""
             (item.id, item.series_id) IN (
                 SELECT DISTINCT item.id,
-                                item.series_id,
+                                item.series_id
                 FROM item
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
@@ -634,7 +638,7 @@ def __check_condition(field, operation, field_name, value_name):
             condition = f"""
             (item.id, item.series_id) IN (
                 SELECT DISTINCT item.id,
-                                item.series_id,
+                                item.series_id
                 FROM item
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
@@ -646,7 +650,7 @@ def __check_condition(field, operation, field_name, value_name):
             condition = f"""
             (item.id, item.series_id) IN (
                 SELECT DISTINCT item.id,
-                                item.series_id,
+                                item.series_id
                 FROM item
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
@@ -659,7 +663,7 @@ def __check_condition(field, operation, field_name, value_name):
         condition = f"""
                 (item.id, item.series_id) IN (
                     SELECT DISTINCT item.id,
-                                    item.series_id,
+                                    item.series_id
                     FROM item
                         JOIN item_attribute ON item.id = item_attribute.item_id
                     WHERE item.series_id = :series_id
