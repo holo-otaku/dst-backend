@@ -258,7 +258,7 @@ def read_multi(data):
         ).all()
 
         # Convert the list of attributes into a dictionary for easier look-up
-        attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
+        attributes_dict = {(attr.item_id, attr.field_id)                           : attr for attr in all_attributes}
 
         for row in result:
             fields_data = []
@@ -418,6 +418,10 @@ def delete(data):
                     image_id = attribute.value
                     image_to_delete = db.session.query(Image).get(image_id)
                     if image_to_delete:
+                        if os.path.exists(image_to_delete.path):
+                            os.remove(image_to_delete.path)
+
+                        # 从数据库中删除图片记录
                         db.session.delete(image_to_delete)
 
             db.session.query(ItemAttribute).filter(
