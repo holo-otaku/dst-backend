@@ -1,10 +1,11 @@
 from flask import current_app, jsonify, make_response, request
 from models.series import Series, Field, Item, ItemAttribute
-from models.user import User
+from models.image import Image
 from models.shared import db
 from models.mapping_table import data_type_map
 from sqlalchemy.exc import SQLAlchemyError
 from flask_jwt_extended import get_jwt_identity
+import os
 
 
 def create(data):
@@ -241,12 +242,30 @@ def update(series_id, data):
         # Handle field deletion
         delete_ids = data.get('delete', [])
         for delete_id in delete_ids:
+            # 获取要删除的字段
+            field_to_delete = db.session.get(Field, delete_id)
+            if not field_to_delete:
+                continue  # 如果字段不存在，跳过此次循环
+
+            # 如果字段的数据类型是 "picture"，则删除与其关联的所有图片
+            if field_to_delete.data_type == "picture":
+                # 查询所有与此字段关联的 item_attribute
+                item_attributes = db.session.query(
+                    ItemAttribute).filter_by(field_id=delete_id).all()
+
+                for item_attribute in item_attributes:
+                    image_to_delete = db.session.query(
+                        Image).get(item_attribute.value)
+                    if image_to_delete and os.path.exists(image_to_delete.path):
+                        os.remove(image_to_delete.path)
+                        db.session.delete(image_to_delete)
+
+            # 删除与此字段关联的所有 item_attribute
             db.session.query(ItemAttribute).filter_by(
                 field_id=delete_id).delete()
 
-            field_to_delete = db.session.get(Field, delete_id)
-            if field_to_delete:
-                db.session.delete(field_to_delete)
+            # 最后删除字段本身
+            db.session.delete(field_to_delete)
 
         db.session.commit()
 
