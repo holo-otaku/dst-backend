@@ -66,6 +66,7 @@ def read_multi():
                 'url': log.url,
                 'userId': log.user_id,
                 'userName': username,
+                'method': log.method,
                 'payload': formatted_payload,
                 'createdAt': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
             })

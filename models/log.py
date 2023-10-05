@@ -12,4 +12,5 @@ class ActivityLog(db.Model):
     user_id = db.Column(Integer)
     url = db.Column(Text)
     payload = db.Column(JSON)  # 使用 JSON 型別來保存 payload
+    method = db.Column(db.String(10))
     created_at = Column(DateTime, default=datetime.now)

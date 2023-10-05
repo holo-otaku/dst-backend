@@ -39,7 +39,9 @@ class Middlewares():
 
                 # Store log_data in your database
                 activity_log = ActivityLog(
-                    url=log_data['url'], user_id=log_data['user_id'])
+                    url=log_data['url'],
+                    method=request.method,
+                    user_id=log_data['user_id'])
 
                 if log_data.get('payload'):
                     activity_log.payload = log_data['payload']

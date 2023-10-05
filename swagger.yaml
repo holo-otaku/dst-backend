@@ -1491,6 +1491,9 @@ components:
           url:
             type: string
             example: /product/search
+          method:
+            type: string
+            example: GET
           payload:
             type: object
             example:
