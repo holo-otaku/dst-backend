@@ -3,6 +3,7 @@ from models.log import ActivityLog
 from models.user import User
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
+import json
 
 
 def user_logs(user_id):
@@ -54,12 +55,16 @@ def read_multi():
 
         response_data = []
         for log, username in logs:
+            payload_str = json.dumps(log.payload)
+            formatted_payload = payload_str[:47] + \
+                '...' if len(payload_str) > 50 else payload_str
+
             response_data.append({
                 'id': log.id,
                 'url': log.url,
                 'userId': log.user_id,
                 'userName': username,
-                'payload': log.payload,
+                'payload': formatted_payload,
                 'createdAt': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
             })
 
