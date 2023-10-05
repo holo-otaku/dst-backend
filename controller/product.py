@@ -263,7 +263,7 @@ def read_multi(data):
             fields_data = []
             item_id, item_series_id, series_name = row
             erp_data = []
-            for field in fields.values():
+            for field in sorted(fields.values(), key=lambda x: x.sequence):
                 item = attributes_dict.get((item_id, field.id))
                 value = __get_field_value_by_type(item)
 
@@ -271,7 +271,7 @@ def read_multi(data):
                     "fieldId": str(field.id),
                     "fieldName": field.name,
                     "dataType": field.data_type,
-                    "value": value
+                    "value": value,
                 })
 
                 # Get erp data
@@ -459,7 +459,7 @@ def __read_without_filter(series_id, page, limit):
     for item in items:
         attributes = []
         erp_data = []
-        for attribute in item.attributes:
+        for attribute in sorted(item.attributes, key=lambda x: x.field.sequence):
             prod_no = __get_field_value_by_type(attribute)
             if attribute.field.is_erp:
                 erp_data += erp_data_map.get(prod_no, [])
@@ -468,7 +468,7 @@ def __read_without_filter(series_id, page, limit):
                 "fieldId": attribute.field_id,
                 "fieldName": attribute.field.name,
                 "dataType": attribute.field.data_type,
-                "value": prod_no
+                "value": prod_no,
             })
 
         result.append({
@@ -480,6 +480,7 @@ def __read_without_filter(series_id, page, limit):
         })
 
     return make_response(jsonify({"code": 200, "msg": "Success", "data": result, "totalCount": total_count}), 200)
+
 
 def __save_image(image_data, item_id, image_id=None):
     # Extract base64 encoded image data
