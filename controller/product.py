@@ -1,3 +1,4 @@
+import os
 from flask import current_app, jsonify, make_response, request, url_for
 from controller.erp import read as read_erp
 from models.series import Series, Field, Item, ItemAttribute
@@ -489,20 +490,33 @@ def __save_image(image_data, item_id, image_id=None):
     # Decode base64 data
     image_bytes = base64.b64decode(base64_data)
 
+    # Define the directory to store the images
+    image_dir = current_app.config['IMG_PATH']
+    if not os.path.exists(image_dir):
+        os.makedirs(image_dir)
+
+    # Define the image path
+    image_name = f"{item_id}_picture.png"
+    image_path = os.path.join(image_dir, image_name)
+
+    # Save the image to the file
+    with open(image_path, 'wb') as image_file:
+        image_file.write(image_bytes)
+
     if image_id:
-        # If image_id exists, update the existing image
+        # If image_id exists, update the existing image path
         image = Image.query.get(image_id)
         if image:
-            image.data = image_bytes
+            image.path = image_path  # store the path instead of the data
             db.session.commit()
         else:
             # Handle the case where the image_id doesn't exist
             raise Exception(
                 "Image with the specified image_id does not exist.")
     else:
-        # Save the image as a new record in the Image table
-        image_name = f"{item_id}_picture.png"
-        image = Image(name=image_name, data=image_bytes)
+        # Save the image path as a new record in the Image table
+        # store the path instead of the data
+        image = Image(name=image_name[:-4], path=image_path)
         db.session.add(image)
         db.session.flush()
 

@@ -17,3 +17,4 @@ mysql/
 .DS_Store
 sqlite/
 .env
+img/

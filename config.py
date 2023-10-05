@@ -14,3 +14,5 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=30)
     DST_MSSQL = os.environ.get(
         'DST_MSSQL', 'Driver={FreeTDS};Server=ip;port=4876;UID=sa;PWD=password;Database=db')
+    IMG_PATH = os.environ.get(
+        'IMG_PATH', './img')

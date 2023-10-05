@@ -1,9 +1,10 @@
+from flask import send_from_directory
 from flask import current_app, jsonify, make_response, request, send_file, abort
 from models.image import Image
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 import uuid
-import io
+import os
 
 
 def create():
@@ -52,11 +53,11 @@ def read(image_id):
         if image is None:
             return make_response(jsonify({"code": 404, "msg": 'Image not found'}), 404)
 
-        return send_file(
-            io.BytesIO(image.data),
-            mimetype='image/jpeg',
-            as_attachment=True,
-            download_name='%s.jpg' % image_id)
+        # Extract the directory and filename from the image path
+        image_directory = os.path.dirname(image.path)
+        image_filename = os.path.basename(image.path)
+
+        return send_from_directory(directory=image_directory, path=image_filename, mimetype='image/jpeg', as_attachment=True, download_name='%s.jpg' % image_id)
 
     except SQLAlchemyError as e:
         current_app.logger.error(e)
