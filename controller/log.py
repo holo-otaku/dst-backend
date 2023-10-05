@@ -55,9 +55,11 @@ def read_multi():
 
         response_data = []
         for log, username in logs:
-            payload_str = json.dumps(log.payload)
-            formatted_payload = payload_str[:47] + \
-                '...' if len(payload_str) > 50 else payload_str
+            formatted_payload = None
+            if log.payload:
+                payload_str = json.dumps(log.payload)
+                formatted_payload = payload_str[:47] + \
+                    '...' if len(payload_str) > 50 else payload_str
 
             response_data.append({
                 'id': log.id,

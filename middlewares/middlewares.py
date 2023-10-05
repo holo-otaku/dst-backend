@@ -48,5 +48,6 @@ class Middlewares():
                 db.session.commit()
 
                 return response
-            except:
+            except Exception as e:
+                app.logger.error(e)
                 return response
