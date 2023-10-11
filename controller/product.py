@@ -258,7 +258,7 @@ def read_multi(data):
         ).all()
 
         # Convert the list of attributes into a dictionary for easier look-up
-        attributes_dict = {(attr.item_id, attr.field_id)                           : attr for attr in all_attributes}
+        attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
 
         for row in result:
             fields_data = []
@@ -421,7 +421,6 @@ def delete(data):
                         if os.path.exists(image_to_delete.path):
                             os.remove(image_to_delete.path)
 
-                        # 从数据库中删除图片记录
                         db.session.delete(image_to_delete)
 
             db.session.query(ItemAttribute).filter(
@@ -494,6 +493,11 @@ def __save_image(image_data, item_id, image_id=None):
     # Decode base64 data
     image_bytes = base64.b64decode(base64_data)
 
+    # Check if the image is PNG or JPEG
+    image_type = check_image_type(image_bytes)
+    if image_type not in ['png', 'jpeg']:
+        raise Exception("Only png or jpeg images are allowed.")
+
     # Define the directory to store the images
     image_dir = current_app.config['IMG_PATH']
     if not os.path.exists(image_dir):
@@ -525,6 +529,17 @@ def __save_image(image_data, item_id, image_id=None):
         db.session.flush()
 
     return image.id
+
+
+def check_image_type(image_bytes):
+    # PNG files start with \x89PNG
+    if image_bytes[:4] == b'\x89PNG':
+        return 'png'
+    # JPEG files start with \xFF\xD8
+    elif image_bytes[:2] == b'\xFF\xD8':
+        return 'jpeg'
+    else:
+        return 'unknown'
 
 
 def __gen_erp_data_map(items):
