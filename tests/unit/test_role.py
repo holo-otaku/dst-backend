@@ -43,7 +43,10 @@ def test_get_multiple_roles(client_and_db, access_token):
         assert isinstance(roles['permissions'], list)
 
         for permission in roles['permissions']:
-            assert isinstance(permission, str)
+            assert 'id' in permission
+            assert 'name' in permission
+            assert isinstance(permission['id'], int)
+            assert isinstance(permission['name'], str)
 
 
 def test_get_single_role(client_and_db, access_token):
@@ -64,7 +67,10 @@ def test_get_single_role(client_and_db, access_token):
     assert 'permissions' in data
     assert isinstance(data['permissions'], list)
     for permission in data['permissions']:
-        assert isinstance(permission, str)
+        assert 'id' in permission
+        assert 'name' in permission
+        assert isinstance(permission['id'], int)
+        assert isinstance(permission['name'], str)
 
 
 def test_update_role(client_and_db, access_token):

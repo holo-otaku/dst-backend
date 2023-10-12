@@ -21,12 +21,14 @@ def test_create_product(client_and_db, access_token):
         data_type='String',
         is_required=False,
         is_filtered=True,
+        sequence=0,
     )
     field2 = Field(
         name='Field 2',
         data_type='Number',
         is_required=True,
         is_filtered=False,
+        sequence=1,
     )
 
     field3 = Field(
@@ -34,6 +36,7 @@ def test_create_product(client_and_db, access_token):
         data_type='Boolean',
         is_required=True,
         is_filtered=False,
+        sequence=2,
     )
 
     field4 = Field(
@@ -41,6 +44,7 @@ def test_create_product(client_and_db, access_token):
         data_type='Picture',
         is_required=True,
         is_filtered=False,
+        sequence=3,
     )
 
     # 将 Field 实例关联到 Series 实例
@@ -70,7 +74,6 @@ def test_create_product(client_and_db, access_token):
     payload = [
         {
             "seriesId": series.id,
-            "name": "Product 1",
             "attributes": [
                 {
                     "fieldId": field1.id,
@@ -91,11 +94,10 @@ def test_create_product(client_and_db, access_token):
             ]
         }
     ]
-
     response = client.post('/product', json=payload, headers=access_token)
 
-    assert response.json['msg'] == 'Success'
     assert response.status_code == 201
+    assert response.json['msg'] == 'Success'
     assert 'data' in response.json
     assert isinstance(response.json['data'], list)
     data = response.json['data']
@@ -104,11 +106,9 @@ def test_create_product(client_and_db, access_token):
         assert isinstance(product, dict)
 
         assert 'id' in product
-        assert 'name' in product
         assert 'seriesId' in product
 
         assert isinstance(product['id'], int)
-        assert isinstance(product['name'], str)
         assert isinstance(product['seriesId'], int)
 
     global created_product_id

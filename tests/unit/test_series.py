@@ -11,6 +11,7 @@ def test_create_series(client_and_db, access_token):
         'name': 'Test Series 1',
         'fields': [
             {
+                'id': 10,
                 'name': 'Field 1',
                 'dataType': 'String',
                 'isFiltered': 1,
@@ -18,6 +19,7 @@ def test_create_series(client_and_db, access_token):
                 'isErp': 0,
             },
             {
+                'id': 11,
                 'name': 'Field 2',
                 'dataType': 'Number',
                 'isFiltered': 0,
@@ -92,6 +94,9 @@ def test_get_single_series(client_and_db, access_token):
     fields = data['fields']
     assert len(fields) == 2
     assert isinstance(fields, list)
+    global update_field_ids
+    update_field_ids = []
+
     for field in fields:
         assert 'id' in field
         assert 'name' in field
@@ -106,8 +111,11 @@ def test_get_single_series(client_and_db, access_token):
         assert isinstance(field['isRequired'], bool)
         assert isinstance(field['isErp'], bool)
 
+        update_field_ids.append(field)
 
 # Update a series
+
+
 def test_update_series(client_and_db, access_token):
     client, _ = client_and_db
     # Assume series_id is known from the previous test or retrieved from the database
@@ -115,29 +123,27 @@ def test_update_series(client_and_db, access_token):
 
     payload = {
         'name': 'Updated Series',
-        'fields': [
+        'fields': [],
+        "create": [
             {
-                'name': 'Updated Field 1',
-                'dataType': 'String',
-                'isFiltered': 1,
-                'isRequired': 1,
-                'isErp': 1,
-            },
-            {
-                'name': 'Updated Field 2',
-                'dataType': 'Number',
-                'isFiltered': 0,
-                'isRequired': 0,
-                'isErp': 0,
+                "name": "美金",
+                "dataType": "boolean",
+                "isFiltered": False,
+                "isRequired": False,
+                "isErp": False,
+                "sequence": 3,
             }
         ]
     }
 
+    for field in update_field_ids:
+        payload['fields'].append(field)
+
     response = client.patch(
         f'/series/{series_id}', json=payload, headers=access_token)
 
-    assert response.status_code == 200
     assert response.json['msg'] == 'Success'
+    assert response.status_code == 200
 
 
 # Delete a series

@@ -199,7 +199,7 @@ def update(series_id, data):
         # Handle field updates
         fields_data = data.get('fields', [])
         for index, field_data in enumerate(fields_data):
-            field_id = field_data.get('id')
+            field_id = field_data.get('id', '')
             field = db.session.get(Field, field_id)
 
             if not field:

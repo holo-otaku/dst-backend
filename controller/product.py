@@ -488,7 +488,10 @@ def __read_without_filter(series_id, page, limit):
 
 def __save_image(image_data, item_id, image_id=None):
     # Extract base64 encoded image data
-    _, base64_data = image_data.split(',', 1)
+    if ',' in image_data:
+        _, base64_data = image_data.split(',', 1)
+    else:
+        base64_data = image_data
 
     # Decode base64 data
     image_bytes = base64.b64decode(base64_data)

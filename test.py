@@ -2,8 +2,8 @@ from flask import Flask
 
 from models.shared import db
 from models import model
-from routers.routes import routes
-from modules.logger import logger
+from routers.routes import Routes
+from modules.logger import Logger
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
@@ -21,8 +21,8 @@ def create_app():
     migrate = Migrate(app, db)
     jwt = JWTManager(app)
 
-    routes(app)
-    logger(app)
+    Routes(app)
+    Logger(app)
     CORS(app)
 
     return app, db
