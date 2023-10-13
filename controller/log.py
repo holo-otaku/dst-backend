@@ -49,30 +49,21 @@ def read_multi():
         total_count = ActivityLog.query.count()
 
         # Query the ActivityLog table with limit, offset, order_by and join with User
-        logs = db.session.query(ActivityLog, User.username).join(
-            User, ActivityLog.user_id == User.id
-        ).order_by(ActivityLog.created_at.desc()).offset(offset*limit).limit(limit).all()
-
-        response_data = []
-        for log, username in logs:
-            formatted_payload = None
-            if log.payload:
-                payload_str = json.dumps(log.payload)
-                formatted_payload = payload_str[:47] + \
-                    '...' if len(payload_str) > 50 else payload_str
-
-            response_data.append({
-                'id': log.id,
-                'url': log.url,
-                'userId': log.user_id,
-                'userName': username,
-                'method': log.method,
-                'payload': formatted_payload,
-                'createdAt': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
-            })
+        logs = db.session.query(ActivityLog.url, ActivityLog.method, ActivityLog.payload, User.username, ActivityLog.created_at)\
+            .outerjoin(User, ActivityLog.user_id == User.id)\
+            .order_by(ActivityLog.created_at.desc())\
+            .offset(offset*limit)\
+            .limit(limit)\
+            .all()
+        response_data = [{
+            'url': log.url,
+            'method': log.method,
+            'payload': json.dumps(log.payload)[:47] + '...' if len(json.dumps(log.payload)) > 50 else json.dumps(log.payload),
+            'userName': log.username,
+            'createdAt': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for log in logs]
 
         return make_response(jsonify({"code": 200, "msg": "Logs found", "data": response_data, "totalCount": total_count}), 200)
-
     except SQLAlchemyError as e:
         current_app.logger.error(e)
         return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
