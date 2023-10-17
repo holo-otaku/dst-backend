@@ -216,7 +216,7 @@ def update(series_id, data):
             field.is_filtered = field_data.get('isFiltered')
             field.is_required = field_data.get('isRequired')
             field.is_erp = field_data.get('isErp')
-            field.sequence = index  # Set sequence based on the order in fields_data
+            field.sequence = field_data.get('sequence')  # Set sequence based on the order in fields_data
 
         # Handle field creation
         creates_data = data.get('create', [])
