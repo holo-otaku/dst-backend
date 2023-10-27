@@ -55,10 +55,12 @@ def read_multi():
             .offset(offset*limit)\
             .limit(limit)\
             .all()
+
         response_data = [{
             'url': log.url,
             'method': log.method,
-            'payload': json.dumps(log.payload)[:47] + '...' if len(json.dumps(log.payload)) > 50 else json.dumps(log.payload),
+            'payload': (json.dumps(log.payload)[:47] + '...' if log.payload and len(json.dumps(log.payload)) > 50
+                        else (json.dumps(log.payload) if log.payload is not None else '')),
             'userName': log.username,
             'createdAt': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
         } for log in logs]
