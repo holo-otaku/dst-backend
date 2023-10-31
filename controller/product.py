@@ -1,12 +1,12 @@
 import os
-from flask import current_app, jsonify, make_response, request, url_for
+from flask import current_app, jsonify, make_response, request
 from controller.erp import read as read_erp
 from models.series import Series, Field, Item, ItemAttribute
 from models.shared import db
 from models.mapping_table import data_type_map
 from models.image import Image
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import and_, text
+from sqlalchemy import and_, text, desc, func
 from sqlalchemy.orm import joinedload
 from datetime import datetime
 import base64
@@ -157,11 +157,24 @@ def read_multi(data):
         # Pagination parameters
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
+        sort_param = request.args.get('sort', None)
+        sort_field_id, sort_order = None, None
+        if sort_param:
+            sort_parts = sort_param.split(',')
+            if len(sort_parts) == 2:
+                sort_field_id, sort_order = int(
+                    sort_parts[0]), sort_parts[1].lower()
+            else:
+                return make_response(jsonify({"code": 400, "msg": "Invalid sort parameter"}), 400)
 
         # Extract the filter criteria from the request body
         filters = data.get('filters', [])
+
         if len(filters) == 0:
-            return __read_without_filter(series_id, page, limit)
+            if sort_param:
+                return __read_without_filter(series_id, page, limit, sort_field_id, sort_order)
+            else:
+                return __read_without_filter(series_id, page, limit)
 
         # Get the fields related to this series
         fields_query = db.session.query(Field).filter(
@@ -222,8 +235,12 @@ def read_multi(data):
 
         sql_query += " AND ".join(conditions)
         sql_query += ")"
+        if sort_field_id:
+            sql_query += f" ORDER BY (SELECT value FROM item_attribute WHERE item_id = item.id AND field_id = :sort_field_id)"
+            if sort_order == 'desc':
+                sql_query += " DESC"
+            parameters['sort_field_id'] = sort_field_id
 
-        # 添加 LIMIT 和 OFFSET 子句
         sql_query += " LIMIT :limit OFFSET :page"
         parameters["limit"] = limit
         parameters["page"] = (page - 1) * limit
@@ -258,7 +275,7 @@ def read_multi(data):
         ).all()
 
         # Convert the list of attributes into a dictionary for easier look-up
-        attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
+        attributes_dict = {(attr.item_id, attr.field_id)                           : attr for attr in all_attributes}
 
         for row in result:
             fields_data = []
@@ -446,10 +463,26 @@ def delete(data):
         db.session.close()
 
 
-def __read_without_filter(series_id, page, limit):
-    # Get the items related to this series_id with pagination and preload ItemAttribute
-    items = db.session.query(Item).options(joinedload(Item.attributes)).filter(
-        Item.series_id == series_id).offset((page - 1) * limit).limit(limit).all()
+def __read_without_filter(series_id, page, limit, sort_field_id=None, sort_order=None):
+    if sort_field_id is None or sort_order is None:
+        # Get the items related to this series_id with pagination and preload ItemAttribute
+        items = db.session.query(Item).options(joinedload(Item.attributes)).filter(
+            Item.series_id == series_id).offset((page - 1) * limit).limit(limit).all()
+    else:
+        # Query sorted item_id values with pagination
+        sorted_item_ids = db.session.query(ItemAttribute.item_id) \
+            .filter(ItemAttribute.field_id == sort_field_id) \
+            .order_by(desc(ItemAttribute.value) if sort_order == 'desc' else ItemAttribute.value) \
+            .offset((page - 1) * limit) \
+            .limit(limit) \
+            .all()
+        # Extract item_id values from the result
+        item_ids = [item_id for item_id, in sorted_item_ids]
+
+        # Query Item records corresponding to the sorted item_ids
+        items = db.session.query(Item) \
+            .filter(Item.id.in_(item_ids)) \
+            .order_by(func.field(Item.id, *item_ids)).all()
 
     # Get the total count of items related to this series_id
     total_count = db.session.query(Item).filter(
@@ -459,7 +492,6 @@ def __read_without_filter(series_id, page, limit):
 
     # Generate ERP data map
     erp_data_map = read_erp(__gen_erp_data_map(items))
-
     for item in items:
         attributes = []
         erp_data = []
@@ -474,7 +506,6 @@ def __read_without_filter(series_id, page, limit):
                 "dataType": attribute.field.data_type,
                 "value": prod_no,
             })
-
         result.append({
             "itemId": item.id,
             "seriesId": item.series_id,

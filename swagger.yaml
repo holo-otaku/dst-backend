@@ -942,9 +942,18 @@ paths:
             type: integer
         - in: query
           name: limit
-          description: Number of users per page
+          description: Number of per page
           schema:
             type: integer
+        - in: query
+          name: order
+          description: Order of Field
+          schema:
+            type: string
+            example: 11,asc
+            enum: 
+              - 11,asc
+              - 11,desc
       requestBody:
         description: Filter criteria for product search
         required: true
