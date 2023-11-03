@@ -1,5 +1,5 @@
 import os
-from flask import current_app, jsonify, make_response, request, url_for
+from flask import current_app, jsonify, make_response, request
 from controller.erp import read as read_erp
 from models.series import Series, Field, Item, ItemAttribute
 from models.shared import db
@@ -7,7 +7,6 @@ from models.mapping_table import data_type_map
 from models.image import Image
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import and_, text
-from sqlalchemy.orm import joinedload
 from datetime import datetime
 import base64
 
@@ -157,11 +156,18 @@ def read_multi(data):
         # Pagination parameters
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
+        sort_param = request.args.get('sort', None)
+        sort_field_id, sort_order = None, None
+        if sort_param:
+            sort_parts = sort_param.split(',')
+            if len(sort_parts) == 2:
+                sort_field_id, sort_order = int(
+                    sort_parts[0]), sort_parts[1].lower()
+            else:
+                return make_response(jsonify({"code": 400, "msg": "Invalid sort parameter"}), 400)
 
         # Extract the filter criteria from the request body
         filters = data.get('filters', [])
-        if len(filters) == 0:
-            return __read_without_filter(series_id, page, limit)
 
         # Get the fields related to this series
         fields_query = db.session.query(Field).filter(
@@ -177,53 +183,63 @@ def read_multi(data):
             FROM item
             JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
-                AND (
         """
 
         conditions = []
         parameters = {'series_id': series_id}
 
-        for index, filter_criteria in enumerate(filters):
-            field_id = filter_criteria['fieldId']
-            value = filter_criteria['value']
-            operation = filter_criteria.get('operation', 'equals')
+        # if there is condition
+        if len(filters) > 0:
+            sql_query += """
+                AND (
+            """
 
-            # Check if field_id exists in fields
-            if field_id not in fields:
-                return make_response(jsonify({
-                    "code": 400,
-                    "msg": f"Invalid fieldId: {field_id}"
-                }), 400)
+            for index, filter_criteria in enumerate(filters):
+                field_id = filter_criteria['fieldId']
+                value = filter_criteria['value']
+                operation = filter_criteria.get('operation', 'equals')
 
-            # Check if the value is of the correct data type
-            field = fields[field_id]
-            type_err = __check_field_type(field, value)
-            if (len(type_err) != 0):
-                return make_response(jsonify({
-                    "code": 400,
-                    "msg": type_err
-                }), 400)
+                # Check if field_id exists in fields
+                if field_id not in fields:
+                    return make_response(jsonify({
+                        "code": 400,
+                        "msg": f"Invalid fieldId: {field_id}"
+                    }), 400)
 
-            field_name = f'field_id{index}'
-            value_name = f'value{index}'
+                # Check if the value is of the correct data type
+                field = fields[field_id]
+                type_err = __check_field_type(field, value)
+                if (len(type_err) != 0):
+                    return make_response(jsonify({
+                        "code": 400,
+                        "msg": type_err
+                    }), 400)
 
-            parameters[field_name] = field_id
+                field_name = f'field_id{index}'
+                value_name = f'value{index}'
 
-            # like binding
-            if field.data_type.lower() == 'string':
-                parameters[value_name] = f"%{value}%"
-            else:
-                parameters[value_name] = value
+                parameters[field_name] = field_id
 
-            condition = __check_condition(
-                field, operation, field_name, value_name)
+                # like binding
+                if field.data_type.lower() == 'string':
+                    parameters[value_name] = f"%{value}%"
+                else:
+                    parameters[value_name] = value
 
-            conditions.append(condition)
+                condition = __check_condition(
+                    field, operation, field_name, value_name)
 
-        sql_query += " AND ".join(conditions)
-        sql_query += ")"
+                conditions.append(condition)
 
-        # 添加 LIMIT 和 OFFSET 子句
+            sql_query += " AND ".join(conditions)
+            sql_query += ")"
+
+        if sort_field_id:
+            sql_query += f" ORDER BY (SELECT value FROM item_attribute WHERE item_id = item.id AND field_id = :sort_field_id)"
+            if sort_order == 'desc':
+                sql_query += " DESC"
+            parameters['sort_field_id'] = sort_field_id
+
         sql_query += " LIMIT :limit OFFSET :page"
         parameters["limit"] = limit
         parameters["page"] = (page - 1) * limit
@@ -292,12 +308,16 @@ def read_multi(data):
             FROM item
             JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
-                AND (
         """
+        # if there is condition
+        if len(filters) > 0:
+            count_query += """
+                AND (
+            """
 
-        # Using the same conditions for the count query
-        count_query += " AND ".join(conditions)
-        count_query += ")"
+            # Using the same conditions for the count query
+            count_query += " AND ".join(conditions)
+            count_query += ")"
 
         # Execute the count query
         count_result = db.session.execute(
@@ -444,46 +464,6 @@ def delete(data):
 
     finally:
         db.session.close()
-
-
-def __read_without_filter(series_id, page, limit):
-    # Get the items related to this series_id with pagination and preload ItemAttribute
-    items = db.session.query(Item).options(joinedload(Item.attributes)).filter(
-        Item.series_id == series_id).offset((page - 1) * limit).limit(limit).all()
-
-    # Get the total count of items related to this series_id
-    total_count = db.session.query(Item).filter(
-        Item.series_id == series_id).count()
-
-    result = []
-
-    # Generate ERP data map
-    erp_data_map = read_erp(__gen_erp_data_map(items))
-
-    for item in items:
-        attributes = []
-        erp_data = []
-        for attribute in sorted(item.attributes, key=lambda x: x.field.sequence):
-            prod_no = __get_field_value_by_type(attribute)
-            if attribute.field.is_erp:
-                erp_data += erp_data_map.get(prod_no, [])
-
-            attributes.append({
-                "fieldId": attribute.field_id,
-                "fieldName": attribute.field.name,
-                "dataType": attribute.field.data_type,
-                "value": prod_no,
-            })
-
-        result.append({
-            "itemId": item.id,
-            "seriesId": item.series_id,
-            "attributes": attributes,
-            'seriesName': item.series.name,
-            'erp': erp_data
-        })
-
-    return make_response(jsonify({"code": 200, "msg": "Success", "data": result, "totalCount": total_count}), 200)
 
 
 def __save_image(image_data, item_id, image_id=None):
