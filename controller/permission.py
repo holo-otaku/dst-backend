@@ -7,17 +7,15 @@ from models.mapping_table import permissions_table
 
 def create_default_permissions():
     try:
-        if not Permission.query.first():
-            # 建立預設的權限
-            permissions = permissions_table
+        permissions = permissions_table
 
-            for permission in permissions:
-                existing_permission = Permission.query.filter_by(
-                    name=permission).first()
-                if not existing_permission:
-                    new_permission = Permission(name=permission)
-                    db.session.add(new_permission)
-                    db.session.commit()
+        for permission in permissions:
+            existing_permission = Permission.query.filter_by(
+                name=permission).first()
+            if not existing_permission:
+                new_permission = Permission(name=permission)
+                db.session.add(new_permission)
+        db.session.commit()
 
     except SQLAlchemyError as e:
         db.session.rollback()

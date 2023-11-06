@@ -6,14 +6,22 @@ from sqlalchemy.exc import SQLAlchemyError
 
 def create_admin_role():
     try:
-        if not Role.query.first():
-            admin_role = Role.query.filter_by(name='admin').first()
-            if not admin_role:
-                admin_role = Role(name='admin')
-                permissions = Permission.query.all()
-                admin_role.permissions.extend(permissions)
-                db.session.add(admin_role)
-            db.session.commit()
+        admin_role = Role.query.filter_by(name='admin').first()
+
+        permissions = Permission.query.all()
+
+        if admin_role:
+            existing_permissions = set(
+                permission.name for permission in admin_role.permissions)
+            for permission in permissions:
+                if permission.name not in existing_permissions:
+                    admin_role.permissions.append(permission)
+        else:
+            admin_role = Role(name='admin')
+            admin_role.permissions.extend(permissions)
+            db.session.add(admin_role)
+
+        db.session.commit()
 
     except SQLAlchemyError as e:
         db.session.rollback()
