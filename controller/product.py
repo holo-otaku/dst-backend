@@ -258,8 +258,7 @@ def read_multi(data):
                              ItemAttribute.field_id == field.id)
                     ).first()
                     erp_product_no = __get_field_value_by_type(item)
-                    if erp_product_no:
-                        product_nos_to_fetch.add(erp_product_no)
+                    product_nos_to_fetch.add(erp_product_no)
 
         # Fetch ERP data in a single call
         erp_data_map = read_erp(product_nos_to_fetch)
