@@ -115,7 +115,7 @@ def create(data):
                 value = attribute.get('value') if attribute else None
 
                 if field.data_type.lower() == 'picture' and value:
-                    value = __save_image(value, item.id)
+                    value = __save_image(value, item.id, field.id)
 
                 item_attribute = ItemAttribute(
                     item_id=item.id, field_id=field.id, value=value)
@@ -273,7 +273,8 @@ def read_multi(data):
         ).all()
 
         # Convert the list of attributes into a dictionary for easier look-up
-        attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
+        attributes_dict = {(attr.item_id, attr.field_id)
+                            : attr for attr in all_attributes}
 
         for row in result:
             fields_data = []
@@ -396,7 +397,8 @@ def update_multi(data):
                     value = 1 if value else 0
 
                 if field.data_type.lower() == 'picture' and value:
-                    value = __save_image(value, item.id, item_attribute.value)
+                    value = __save_image(
+                        value, item.id, field.id, item_attribute.value)
 
                 if item_attribute:
                     item_attribute.value = value
@@ -465,7 +467,7 @@ def delete(data):
         db.session.close()
 
 
-def __save_image(image_data, item_id, image_id=None):
+def __save_image(image_data, item_id, field_id, image_id=None):
     # Extract base64 encoded image data
     if ',' in image_data:
         _, base64_data = image_data.split(',', 1)
@@ -486,7 +488,7 @@ def __save_image(image_data, item_id, image_id=None):
         os.makedirs(image_dir)
 
     # Define the image path
-    image_name = f"{item_id}_picture.png"
+    image_name = f"image_{item_id}_{field_id}.png"
     image_path = os.path.join(image_dir, image_name)
 
     # Save the image to the file
