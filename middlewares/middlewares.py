@@ -28,14 +28,14 @@ class Middlewares():
                 }
 
                 # If endpoint contains 'user', skip logging payload
-                if "user" not in request.path:
-                    # Log URL, user ID, and payload (if available)
-                    payload = request.get_json(silent=True)
-
-                    if payload:
-                        log_data['payload'] = payload
-                else:
+                if "user" in request.path or "image" in request.path:
                     return response
+
+                # Log URL, user ID, and payload (if available)
+                payload = request.get_json(silent=True)
+
+                if payload:
+                    log_data['payload'] = payload
 
                 # Store log_data in your database
                 activity_log = ActivityLog(
