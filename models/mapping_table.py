@@ -13,5 +13,6 @@ permissions_table = ['user.create', 'user.read', 'user.edit', 'user.delete',
                      'series.create', 'series.read', 'series.edit', 'series.delete',
                      'product.create', 'product.read', 'product.edit', 'product.delete',
                      'image.read', 'image.create',
-                     'log.read'
+                     'log.read',
+                     'limit-field.read'
                      ]

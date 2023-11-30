@@ -33,6 +33,7 @@ def create(data):
                 field_is_filtered = field_data.get('isFiltered', False)
                 field_is_required = field_data.get('isRequired', False)
                 field_is_erp = field_data.get('isErp', False)
+                field_is_limit_field = field_data.get('isLimitField', False)
 
                 if (field_is_erp):
                     erp_count += 1
@@ -46,6 +47,7 @@ def create(data):
                     is_filtered=field_is_filtered,
                     is_required=field_is_required,
                     is_erp=field_is_erp,
+                    is_limit_field=field_is_limit_field,
                     sequence=index
                 )
                 series.fields.append(field)
@@ -100,6 +102,7 @@ def read(series_id):
                     'isRequired': f.is_required,
                     'isErp': f.is_erp,
                     'values': unique_values,
+                    'isLimitField': f.is_limit_field,
                     "sequence": f.sequence,
                 })
 
@@ -158,6 +161,7 @@ def read_multi():
                                'isFiltered': f.is_filtered,
                                'isRequired': f.is_required,
                                'isErp': f.is_erp,
+                               'isLimitField': f.is_limit_field,
                                'sequence': f.sequence} for f in sorted_fields]
                 data['fields'] = field_data
 
@@ -179,7 +183,7 @@ def read_multi():
 
 def update(series_id, data):
     try:
-        series = db.session.get(Series, series_id)
+        series = Series.query.get(series_id)
 
         if not series:
             return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
@@ -200,7 +204,7 @@ def update(series_id, data):
         fields_data = data.get('fields', [])
         for index, field_data in enumerate(fields_data):
             field_id = field_data.get('id', '')
-            field = db.session.get(Field, field_id)
+            field = Field.query.get(field_id)
 
             if not field:
                 return make_response(jsonify({"code": 404, "msg": f"Field with ID {field_id} not found"}), 404)
@@ -216,7 +220,9 @@ def update(series_id, data):
             field.is_filtered = field_data.get('isFiltered')
             field.is_required = field_data.get('isRequired')
             field.is_erp = field_data.get('isErp')
-            field.sequence = field_data.get('sequence')  # Set sequence based on the order in fields_data
+            field.is_limit_field = field_data.get('isLimitField')
+            # Set sequence based on the order in fields_data
+            field.sequence = field_data.get('sequence')
 
         # Handle field creation
         creates_data = data.get('create', [])
@@ -226,6 +232,7 @@ def update(series_id, data):
                               is_filtered=create_data.get('isFiltered'),
                               is_required=create_data.get('isRequired'),
                               is_erp=create_data.get('isErp'),
+                              is_limit_field=field_data.get('isLimitField'),
                               series_id=series_id,
                               sequence=create_data.get('sequence'))
             db.session.add(new_field)
@@ -243,7 +250,7 @@ def update(series_id, data):
         delete_ids = data.get('delete', [])
         for delete_id in delete_ids:
             # 获取要删除的字段
-            field_to_delete = db.session.get(Field, delete_id)
+            field_to_delete = Field.query.get(delete_id)
             if not field_to_delete:
                 continue  # 如果字段不存在，跳过此次循环
 
@@ -286,7 +293,7 @@ def update(series_id, data):
 
 def delete(series_id):
     try:
-        series = db.session.get(Series, series_id)
+        series = Series.query.get(series_id)
 
         if series:
             # Set series status to 0 (deleted)

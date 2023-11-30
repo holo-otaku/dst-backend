@@ -46,7 +46,7 @@ def create(data):
 
         # 檢查 permission_ids 是否存在
         for permission_id in permission_ids:
-            permission = db.session.get(Permission, permission_id)
+            permission = Permission.query.get(permission_id)
 
             if not permission:
                 return make_response(jsonify({"code": 400, "msg": f"Permission with ID {permission_id} not found"}), 400)
@@ -75,7 +75,7 @@ def create(data):
 def update(role_id, data):
     try:
         # 查询要更新的角色
-        role = db.session.get(Role, role_id)
+        role = Role.query.get(role_id)
 
         if role is None:
             return make_response(jsonify({"code": 200, "msg": 'Role not found'}), 404)
@@ -116,7 +116,7 @@ def __update_role_permissions(role_id, permission_ids):
 
 def delete(role_id):
     try:
-        role = db.session.get(Role, role_id)
+        role = Role.query.get(role_id)
 
         if role is None:
             return make_response(jsonify({"code": 200, "msg": 'Role not found'}), 404)
@@ -144,7 +144,7 @@ def delete(role_id):
 
 def read(role_id):
     try:
-        role = db.session.get(Role, role_id)
+        role = Role.query.get(role_id)
 
         if role is None:
             return make_response(jsonify({"code": 404, "msg": 'Role not found'}), 404)
