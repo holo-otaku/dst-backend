@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 def update(field_id, data):
     try:
-        field = db.session.get(Field, field_id)
+        field = Field.query.get(field_id)
 
         if not field:
             return make_response(jsonify({"code": 404, "msg": "Field not found"}), 404)

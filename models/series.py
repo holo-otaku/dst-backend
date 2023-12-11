@@ -27,6 +27,7 @@ class Field(db.Model):
     is_required = Column(Boolean, default=0, nullable=False)
     is_filtered = Column(Boolean, default=0, nullable=False)
     is_erp = Column(Boolean, default=0, nullable=False)
+    is_limit_field = Column(Boolean, default=0, nullable=False)
     series_id = Column(Integer, ForeignKey('series.id'))
     sequence = Column(Integer, nullable=False, default=0)
 

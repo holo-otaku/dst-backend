@@ -1,8 +1,7 @@
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from flask import current_app, jsonify, make_response
 from functools import wraps
-from models.user import User, Permission, Role, RolePermission, UserRole
-from models.shared import db
+from models.user import User
 
 
 def check_permission(permission):
@@ -15,7 +14,7 @@ def check_permission(permission):
             if not user_id:
                 return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
 
-            user = db.session.get(User, user_id)
+            user = User.query.get(user_id)
 
             if user and has_permission(user, permission):
                 # 有權限，執行原始函數

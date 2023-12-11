@@ -951,7 +951,7 @@ paths:
           schema:
             type: string
             example: 11,asc
-            enum: 
+            enum:
               - 11,asc
               - 11,desc
       requestBody:
@@ -1400,6 +1400,8 @@ components:
                 type: integer
               isErp:
                 type: integer
+              isLimitField:
+                type: integer
 
     SeriesUpdatePayload:
       type: object
@@ -1421,6 +1423,8 @@ components:
                 type: integer
               isRequired:
                 type: integer
+              isLimitField:
+                type: integer
               sequence:
                 type: integer
         create:
@@ -1435,6 +1439,8 @@ components:
               isFiltered:
                 type: integer
               isRequired:
+                type: integer
+              isLimitField:
                 type: integer
               sequence:
                 type: integer
