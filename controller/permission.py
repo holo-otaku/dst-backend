@@ -64,7 +64,7 @@ def create(data):
 
 def read(permission_id):
     try:
-        permission = db.session.get(Permission, permission_id)
+        permission = Permission.query.get(permission_id)
 
         if permission is None:
             return make_response(jsonify({"code": 404, "msg": 'Permission not found'}), 404)
@@ -109,7 +109,7 @@ def read_multi():
 
 def update(permission_id, data):
     try:
-        permission = db.session.get(Permission, permission_id)
+        permission = Permission.query.get(permission_id)
 
         if permission is None:
             return make_response(jsonify({"code": 404, "msg": 'Permission not found'}), 404)
@@ -137,7 +137,7 @@ def update(permission_id, data):
 
 def delete(permission_id):
     try:
-        permission = db.session.get(Permission, permission_id)
+        permission = Permission.query.get(permission_id)
 
         if permission is None:
             return make_response(jsonify({"code": 404, "msg": 'Permission not found'}), 404)

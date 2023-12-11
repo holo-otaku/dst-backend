@@ -2,6 +2,7 @@ import os
 from flask import current_app, jsonify, make_response, request
 from controller.erp import read as read_erp
 from models.series import Series, Field, Item, ItemAttribute
+from models.user import User
 from models.shared import db
 from models.mapping_table import data_type_map
 from models.image import Image
@@ -9,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import and_, text
 from datetime import datetime
 import base64
+from flask_jwt_extended import get_jwt_identity, get_jwt
 
 
 def read(product_id):
@@ -18,7 +20,7 @@ def read(product_id):
             return make_response(jsonify({"code": 400, "msg": "Product ID is required"}), 400)
 
         # Get the item related to this product_id
-        item = db.session.get(Item, product_id)
+        item = Item.query.get(product_id)
 
         # Check if product exists
         if not item:
@@ -95,7 +97,7 @@ def create(data):
             if not series_id:
                 return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
 
-            series = db.session.get(Series, series_id)
+            series = Series.query.get(series_id)
 
             if not series:
                 return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
@@ -273,8 +275,7 @@ def read_multi(data):
         ).all()
 
         # Convert the list of attributes into a dictionary for easier look-up
-        attributes_dict = {(attr.item_id, attr.field_id)
-                            : attr for attr in all_attributes}
+        attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
 
         for row in result:
             fields_data = []
@@ -283,13 +284,18 @@ def read_multi(data):
             for field in sorted(fields.values(), key=lambda x: x.sequence):
                 item = attributes_dict.get((item_id, field.id))
                 value = __get_field_value_by_type(item)
-
-                fields_data.append({
-                    "fieldId": str(field.id),
-                    "fieldName": field.name,
-                    "dataType": field.data_type,
-                    "value": value,
-                })
+                # check permission disable field
+                is_permission_ok = True
+                if field.is_limit_field:
+                    is_permission_ok = __check_field_permission(
+                        'limit-field.read')
+                if is_permission_ok:
+                    fields_data.append({
+                        "fieldId": str(field.id),
+                        "fieldName": field.name,
+                        "dataType": field.data_type,
+                        "value": value,
+                    })
 
                 # Get erp data
                 if field.is_erp and value in erp_data_map:
@@ -361,7 +367,7 @@ def update_multi(data):
                 return make_response(jsonify({'code': 400, 'msg': 'Incomplete data'}), 400)
 
             # 查詢對應的 Item 記錄
-            item = db.session.get(Item, item_id)
+            item = Item.query.get(item_id)
 
             # 檢查 Item 是否存在
             if not item:
@@ -377,7 +383,7 @@ def update_multi(data):
                     return make_response(jsonify({'code': 400, 'msg': 'Incomplete attribute data'}), 400)
 
                 # 查詢對應的 Field 記錄
-                field = db.session.get(Field, field_id)
+                field = Field.query.get(field_id)
 
                 if not field:
                     return make_response(jsonify({'code': 404, 'msg': f'field_id:{field_id} not found'}), 404)
@@ -524,19 +530,6 @@ def check_image_type(image_bytes):
         return 'jpeg'
     else:
         return 'unknown'
-
-
-def __gen_erp_data_map(items):
-    erp_product_numbers = []
-    for item in items:
-        attributes_query = db.session.query(ItemAttribute).filter(
-            ItemAttribute.item_id == item.id)
-        for attribute in attributes_query.all():
-            if attribute.field.is_erp:
-                erp_product_numbers.append(
-                    __get_field_value_by_type(attribute))
-
-    return erp_product_numbers
 
 
 def __get_field_value_by_type(item):
@@ -690,3 +683,20 @@ def __check_condition(field, operation, field_name, value_name):
                 )
                 """
     return condition
+
+
+def __check_field_permission(permission):
+    user_id = get_jwt_identity()
+
+    user = User.query.get(user_id)
+
+    if user and has_permission(permission):
+        return True
+    return False
+
+
+def has_permission(required_permission):
+    permissions = get_jwt().get("permissions", [])
+    if required_permission in permissions:
+        return True
+    return False

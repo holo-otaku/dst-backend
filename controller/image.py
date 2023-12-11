@@ -48,7 +48,7 @@ def read(image_id):
             # If the image ID is not found in the database, return a 404 Not Found response
             abort(404)
 
-        image = db.session.get(Image, image_id)
+        image = Image.query.get(image_id)
 
         if image is None:
             return make_response(jsonify({"code": 404, "msg": 'Image not found'}), 404)
