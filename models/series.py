@@ -33,8 +33,6 @@ class Field(db.Model):
 
     series = relationship('Series', back_populates='fields')
     item_attribute = relationship('ItemAttribute', back_populates='field')
-    __table_args__ = (UniqueConstraint(
-        'series_id', 'sequence', name='uq_series_sequence'),)
 
 
 class Item(db.Model):
