@@ -3,6 +3,7 @@ from flask import current_app, jsonify, make_response, request
 from controller.erp import read as read_erp
 from models.series import Series, Field, Item, ItemAttribute
 from models.user import User
+from models.archive import Archive
 from models.shared import db
 from models.mapping_table import data_type_map
 from models.image import Image
@@ -25,6 +26,9 @@ def read(product_id):
         # Check if product exists
         if not item:
             return make_response(jsonify({"code": 404, "msg": "Product not found"}), 404)
+
+        # Check if the item is archived
+        is_archived = Archive.query.filter_by(item_id=product_id).first()
 
         # Get the attributes related to this product
         attributes_query = db.session.query(ItemAttribute).filter(
@@ -59,7 +63,8 @@ def read(product_id):
             "seriesId": item.series_id,
             "attributes": attributes,
             "seriesName": item.series.name,
-            "erp": erp_data
+            "erp": erp_data,
+            "archive": bool(is_archived),
         }
         response = make_response(
             jsonify({"code": 200, "msg": "Success", "data": result}), 200)
@@ -308,6 +313,18 @@ def read_multi(data):
                 'attributes': fields_data,
                 'erp': erp_data
             })
+
+        # find archive exist
+        item_ids = [item_data['itemId'] for item_data in data]
+
+        archive_records = db.session.query(Archive.item_id).filter(
+            Archive.item_id.in_(item_ids)).all()
+
+        archive_item_ids = set(record[0] for record in archive_records)
+
+        for item_data in data:
+            item_id = item_data['itemId']
+            item_data['hasArchive'] = item_id in archive_item_ids
 
         count_query = """
             SELECT COUNT(item.id) 

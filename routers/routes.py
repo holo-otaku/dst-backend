@@ -9,6 +9,7 @@ from routers.swagger import swagger_ui_blueprint
 from routers.healthcheck import health_check
 from routers.image import image
 from routers.log import log
+from routers.archive import archive
 
 
 class Routes:
@@ -24,3 +25,4 @@ class Routes:
         app.register_blueprint(health_check, url_prefix='/health')
         app.register_blueprint(image, url_prefix='/image')
         app.register_blueprint(log, url_prefix='/log')
+        app.register_blueprint(archive, url_prefix='/archive')
