@@ -64,7 +64,7 @@ def read(product_id):
             "attributes": attributes,
             "seriesName": item.series.name,
             "erp": erp_data,
-            "archive": bool(is_archived),
+            "hasArchive": bool(is_archived),
         }
         response = make_response(
             jsonify({"code": 200, "msg": "Success", "data": result}), 200)
@@ -290,11 +290,11 @@ def read_multi(data):
                 item = attributes_dict.get((item_id, field.id))
                 value = __get_field_value_by_type(item)
                 # check permission disable field
-                is_permission_ok = True
+                is_limit_permission_ok = True
                 if field.is_limit_field:
-                    is_permission_ok = __check_field_permission(
+                    is_limit_permission_ok = __check_field_permission(
                         'limit-field.read')
-                if is_permission_ok:
+                if is_limit_permission_ok:
                     fields_data.append({
                         "fieldId": str(field.id),
                         "fieldName": field.name,
@@ -334,18 +334,31 @@ def read_multi(data):
         """
         # if there is condition
         if len(filters) > 0:
-            count_query += """
-                AND (
-            """
-
-            # Using the same conditions for the count query
-            count_query += " AND ".join(conditions)
-            count_query += ")"
+            count_query += __create_count_query(count_query, conditions)
 
         # Execute the count query
         count_result = db.session.execute(
             text(count_query), parameters).fetchone()
         total_count = count_result[0]
+
+        # check archive.update permission not exist delete item with archive false
+        is_archive_permission_ok = __check_field_permission("archive.update")
+
+        if not is_archive_permission_ok:
+            # archive.update not exist
+            removed_count = 0  # record remove count
+
+            for item_data in data.copy():
+                item_id = item_data['itemId']
+                has_archive = item_id in archive_item_ids
+
+                if has_archive:
+                    # if 'hasArchive' True，delete from data
+                    data.remove(item_data)
+                    removed_count += 1
+
+            # 从 total_count 中减去被删除的数量
+            total_count -= removed_count
 
         response = make_response(jsonify(
             {"code": 200, "msg": "Success", "data": data, "totalCount": total_count}), 200)
@@ -710,6 +723,17 @@ def __check_field_permission(permission):
     if user and has_permission(permission):
         return True
     return False
+
+
+def __create_count_query(count_query, conditions):
+    count_query += """
+            AND (
+        """
+    # Using the same conditions for the count query
+    count_query += " AND ".join(conditions)
+    count_query += ")"
+
+    return count_query
 
 
 def has_permission(required_permission):
