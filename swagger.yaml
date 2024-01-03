@@ -1200,11 +1200,33 @@ paths:
                     $ref: "#/components/schemas/Log"
 
   /archive/{item_id}:
-    patch:
+    post:
       tags:
         - Archive
       summary: Archive operation
-      description: Archive operation
+      description: Add Archive
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: Success
+
+    delete:
+      tags:
+        - Archive
+      summary: Archive operation
+      description: Delete Archive
       security:
         - bearerAuth: []
       responses:
