@@ -280,7 +280,8 @@ def read_multi(data):
         ).all()
 
         # Convert the list of attributes into a dictionary for easier look-up
-        attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
+        attributes_dict = {(attr.item_id, attr.field_id)
+                            : attr for attr in all_attributes}
 
         for row in result:
             fields_data = []
@@ -342,7 +343,7 @@ def read_multi(data):
         total_count = count_result[0]
 
         # check archive.update permission not exist delete item with archive false
-        is_archive_permission_ok = __check_field_permission("archive.update")
+        is_archive_permission_ok = __check_field_permission("archive.create")
 
         if not is_archive_permission_ok:
             # archive.update not exist
@@ -470,6 +471,14 @@ def delete(data):
             Item).filter(Item.id.in_(item_ids)).all()
 
         for item in items_to_delete:
+            # Check if the item exists in the 'archive' table
+            archive_item = db.session.query(
+                Archive).filter_by(item_id=item.id).first()
+
+            # If it exists in the 'archive' table, delete it
+            if archive_item:
+                db.session.delete(archive_item)
+
             for attribute in item.attributes:
                 if attribute.field.data_type == 'picture':
                     image_id = attribute.value
