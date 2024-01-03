@@ -1199,7 +1199,7 @@ paths:
                   data:
                     $ref: "#/components/schemas/Log"
 
-  /archive/{item_id}:
+  /archive:
     post:
       tags:
         - Archive
@@ -1207,6 +1207,16 @@ paths:
       description: Add Archive
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                itemId:
+                  type: integer
+                  example: 87
       responses:
         "200":
           description: Success
