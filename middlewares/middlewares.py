@@ -11,16 +11,16 @@ class Middlewares():
         def log_response_status(response):
             try:
                 # Skip logging for login and refresh endpoints
-                if any(endpoint in request.path for endpoint in ["login", "refresh", "log", "health"]):
+                skip_logging_endpoints = ["login", "refresh", "log", "health"]
+                if any(endpoint in request.path for endpoint in skip_logging_endpoints):
                     return response
 
+                # Check if JWT is required for this request
+                if not any(endpoint in request.path for endpoint in ["no_jwt_required"]):
+                    verify_jwt_in_request()  # Only verify JWT if required
+
                 # Attempt to get user identity
-                user_id = None
-                try:
-                    verify_jwt_in_request()  # Checks if JWT exists in the request
-                    user_id = get_jwt_identity()
-                except NoAuthorizationError:  # This exception is raised if JWT is missing
-                    pass
+                user_id = get_jwt_identity() if verify_jwt_in_request() else None
 
                 log_data = {
                     'url': request.path,

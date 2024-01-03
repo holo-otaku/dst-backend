@@ -36,6 +36,8 @@ tags:
     description: Operations related to field management
   - name: Log
     description: Operations related to log management
+  - name: Archive
+    description: Operations related to Archive management
 paths:
   /health:
     get:
@@ -1197,6 +1199,50 @@ paths:
                   data:
                     $ref: "#/components/schemas/Log"
 
+  /archive/{item_id}:
+    post:
+      tags:
+        - Archive
+      summary: Archive operation
+      description: Add Archive
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: Success
+
+    delete:
+      tags:
+        - Archive
+      summary: Archive operation
+      description: Delete Archive
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: Success
 components:
   securitySchemes:
     bearerAuth:
@@ -1460,6 +1506,9 @@ components:
           seriesId:
             type: integer
             example: 1
+          hasArchive:
+            type: boolean
+            example: false
           attributes:
             type: array
             items:
