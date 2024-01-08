@@ -52,7 +52,7 @@ def read(product_numbers):
             default_data.append({"key": "品名規格", "value": ""})
             default_data.append({"key": "標準進價(進貨幣別)", "value": ""})
             default_data.append({"key": "實際單位總成本(本地幣)", "value": ""})
-            default_data.append({"key": "進貨幣別欄位", "value": str(row.DOLR_TI)})
+            default_data.append({"key": "進貨幣別欄位", "value": ""})
             default_data.append({"key": "建檔日期", "value": ""})
             default_data.append({"key": "LeadTime(天)", "value": ""})
             default_data.append({"key": "停產日期", "value": ""})
