@@ -1081,50 +1081,6 @@ paths:
                     type: string
                     example: Items deleted
 
-  /field/{field_id}:
-    patch:
-      tags:
-        - Field
-      summary: Edit field
-      description: Edit field with the given data.
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          required: true
-          name: field_id
-          description: ID of the field to retrieve
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                isFiltered:
-                  type: boolean
-                isRequired:
-                  type: boolean
-                isErp:
-                  type: boolean
-
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  code:
-                    type: integer
-                    example: 200
-                  msg:
-                    type: string
-                    example: Success
-
   /log:
     get:
       tags:

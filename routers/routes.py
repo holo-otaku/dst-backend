@@ -2,7 +2,6 @@ from routers.user import user
 from routers.role import role
 from routers.permission import permission
 from routers.series import series
-from routers.field import field
 from routers.product import products
 from routers.jwt import jwt
 from routers.swagger import swagger_ui_blueprint
@@ -19,7 +18,6 @@ class Routes:
         app.register_blueprint(role, url_prefix='/role')
         app.register_blueprint(permission, url_prefix='/permission')
         app.register_blueprint(series, url_prefix='/series')
-        app.register_blueprint(field, url_prefix='/field')
         app.register_blueprint(products, url_prefix='/product')
         app.register_blueprint(jwt)
         app.register_blueprint(health_check, url_prefix='/health')
