@@ -11,7 +11,7 @@ class Middlewares():
         def log_response_status(response):
             try:
                 # Skip logging for login and refresh endpoints
-                skip_logging_endpoints = ["login", "refresh", "log", "health"]
+                skip_logging_endpoints = ["login", "refresh", "log", "health", "image"]
                 if any(endpoint in request.path for endpoint in skip_logging_endpoints):
                     return response
 
