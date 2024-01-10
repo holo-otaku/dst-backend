@@ -618,7 +618,7 @@ def __check_condition(field, operation, field_name, value_name):
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
                     AND item_attribute.field_id = :{field_name}
-                    AND CAST(item_attribute.value AS DATETIME) >= :{value_name}
+                    AND CAST(item_attribute.value AS DATE) >= :{value_name}
             )
             """
 
@@ -644,7 +644,7 @@ def __check_condition(field, operation, field_name, value_name):
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
                     AND item_attribute.field_id = :{field_name}
-                    AND CAST(item_attribute.value AS DATETIME) <= :{value_name}
+                    AND CAST(item_attribute.value AS DATE) <= :{value_name}
             )
             """
 

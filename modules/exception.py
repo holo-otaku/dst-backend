@@ -11,11 +11,15 @@ def handle_exceptions(func):
             return result
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.error(traceback.print_exc())
-            return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+            error_message = str(e)
+            traceback_str = traceback.format_exc()
+            current_app.logger.error(traceback_str)
+            return make_response(jsonify({"code": 500, "msg": error_message}), 500)
         except Exception as e:
-            current_app.logger.error(traceback.print_exc())
-            return make_response(jsonify({"code": 500, "msg": str(e)}), 500)
+            error_message = str(e)
+            traceback_str = traceback.format_exc()
+            current_app.logger.error(traceback_str)
+            return make_response(jsonify({"code": 500, "msg": error_message}), 500)
         finally:
             db.session.close()
     return wrapper
