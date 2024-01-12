@@ -6,9 +6,7 @@ from models.series import Series, Field, Item, ItemAttribute
 created_product_id = None
 
 
-def test_create_product(client_and_db, access_token):
-    client, db = client_and_db
-
+def create_item(db, image_base64=""):
     # 创建 Series 实例
     series = Series(
         name='Test Series',
@@ -21,6 +19,8 @@ def test_create_product(client_and_db, access_token):
         data_type='String',
         is_required=False,
         is_filtered=True,
+        is_erp=False,
+        is_limit_field=False,
         sequence=0,
     )
     field2 = Field(
@@ -28,6 +28,8 @@ def test_create_product(client_and_db, access_token):
         data_type='Number',
         is_required=True,
         is_filtered=False,
+        is_erp=False,
+        is_limit_field=False,
         sequence=1,
     )
 
@@ -36,6 +38,8 @@ def test_create_product(client_and_db, access_token):
         data_type='Boolean',
         is_required=True,
         is_filtered=False,
+        is_erp=False,
+        is_limit_field=False,
         sequence=2,
     )
 
@@ -44,6 +48,8 @@ def test_create_product(client_and_db, access_token):
         data_type='Picture',
         is_required=True,
         is_filtered=False,
+        is_erp=False,
+        is_limit_field=False,
         sequence=3,
     )
 
@@ -56,20 +62,11 @@ def test_create_product(client_and_db, access_token):
     db.session.add(field2)
     db.session.add(field3)
     db.session.add(field4)
+
+    db.session.flush()
+    series_id = series.id
+
     db.session.commit()
-
-    # Sample image file path (replace with your actual image file path)
-    image_file_path = './tests/test.png'
-
-    # Get the absolute path of the image file
-    image_file_path = os.path.abspath(image_file_path)
-
-    # Read the image file as bytes
-    with open(image_file_path, 'rb') as image_file:
-        image_bytes = image_file.read()
-
-    # Encode the image bytes as a base64 string
-    image_base64 = base64.b64encode(image_bytes).decode()
 
     payload = [
         {
@@ -94,6 +91,28 @@ def test_create_product(client_and_db, access_token):
             ]
         }
     ]
+
+    return payload, series_id
+
+
+def test_create_product(client_and_db, access_token):
+    client, db = client_and_db
+
+    # Sample image file path (replace with your actual image file path)
+    image_file_path = './tests/test.png'
+
+    # Get the absolute path of the image file
+    image_file_path = os.path.abspath(image_file_path)
+
+    # Read the image file as bytes
+    with open(image_file_path, 'rb') as image_file:
+        image_bytes = image_file.read()
+
+    # Encode the image bytes as a base64 string
+    image_base64 = base64.b64encode(image_bytes).decode()
+
+    payload, _ = create_item(db, image_base64)
+
     response = client.post('/product', json=payload, headers=access_token)
 
     assert response.status_code == 201
@@ -136,36 +155,9 @@ def test_show_products(client_and_db, access_token):
 
         assert isinstance(attribute['fieldId'], int)
         assert isinstance(attribute['value'], str)
-# Search products in a series
 
-
-# def test_search_products(client_and_db, access_token):
-#     client, _ = client_and_db
-
-#     series_id = 1
-#     payload = [
-#         {
-#             "fieldId": 1,
-#             "value": "Value 1",
-#             "operation": "equals"
-#         },
-#         {
-#             "fieldId": 2,
-#             "value": 5,
-#         }
-#     ]
-
-#     response = client.post(
-#         f'/product/{series_id}/search', json=payload, headers=access_token)
-
-#     assert response.status_code == 200
-#     assert response.json['msg'] == 'Success'
-#     assert 'data' in response.json
-#     assert isinstance(response.json['data'], list)
 
 # Edit products
-
-
 def test_edit_products(client_and_db, access_token):
     client, _ = client_and_db
 
@@ -190,9 +182,8 @@ def test_edit_products(client_and_db, access_token):
     assert response.status_code == 200
     assert response.json['msg'] == 'ItemAttributes updated'
 
+
 # Delete products
-
-
 def test_delete_products(client_and_db, access_token):
     client, _ = client_and_db
 
