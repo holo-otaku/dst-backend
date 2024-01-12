@@ -33,7 +33,7 @@ def create(data):
     if not username or not password or not role_id:
         return make_response(jsonify({"code": 200, "msg": "Incomplete data"}), 400)
 
-    role = Role.query.get(role_id)
+    role = db.session.get(Role, role_id)
 
     if role is None:
         return make_response(jsonify({"code": 200, "msg": "Invalid role"}), 400)
@@ -52,7 +52,8 @@ def create(data):
 
 @handle_exceptions
 def read(user_id):
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
+
 
     if user is None:
         return make_response(jsonify({'code': 200, 'msg': 'User not found'}), 404)
@@ -85,7 +86,8 @@ def read_multi():
 
 @handle_exceptions
 def update(user_id, data):
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
+
     if user is None:
         return jsonify({'error': 'User not found'}), 404
 
@@ -99,7 +101,7 @@ def update(user_id, data):
         user.set_password(password)
 
     if role_id is not None:
-        role = Role.query.get(role_id)
+        role = db.session.get(Role, role_id)
 
         if role is None:
             return make_response(jsonify({"code": 400, "msg": "Invalid role"}), 400)
@@ -119,7 +121,8 @@ def update(user_id, data):
 
 @handle_exceptions
 def delete(user_id):
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
+
     if user is None:
         return make_response(jsonify({"code": 200, "msg": 'User not found'}), 404)
 

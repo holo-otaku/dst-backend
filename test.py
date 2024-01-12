@@ -10,6 +10,7 @@ from flask_cors import CORS
 from controller.user import create_admin_user
 from controller.role import create_admin_role
 from controller.permission import create_default_permissions
+from middlewares.middlewares import Middlewares
 
 
 def create_app():
@@ -24,6 +25,7 @@ def create_app():
     Routes(app)
     Logger(app)
     CORS(app)
+    Middlewares(app)
 
     return app, db
 
