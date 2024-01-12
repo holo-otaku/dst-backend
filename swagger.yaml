@@ -32,8 +32,6 @@ tags:
     description: Operations related to series management
   - name: Products
     description: Operations related to product management
-  - name: Field
-    description: Operations related to field management
   - name: Log
     description: Operations related to log management
   - name: Archive
@@ -1187,7 +1185,7 @@ paths:
                   msg:
                     type: string
                     example: Success
-
+  /archive/{itemId}:
     delete:
       tags:
         - Archive
