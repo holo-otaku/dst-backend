@@ -22,7 +22,7 @@ def read(product_id):
         return make_response(jsonify({"code": 400, "msg": "Product ID is required"}), 400)
 
     # Get the item related to this product_id
-    item = Item.query.get(product_id)
+    item = db.session.get(Item, product_id)
 
     # Check if product exists
     if not item:
@@ -91,7 +91,7 @@ def create(data):
         if not series_id:
             return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
 
-        series = Series.query.get(series_id)
+        series = db.session.get(Series, series_id)
 
         if not series:
             return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
@@ -257,7 +257,8 @@ def read_multi(data):
     ).all()
 
     # Convert the list of attributes into a dictionary for easier look-up
-    attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
+    attributes_dict = {(attr.item_id, attr.field_id)
+                        : attr for attr in all_attributes}
 
     for row in result:
         fields_data = []
@@ -362,7 +363,7 @@ def update_multi(data):
             return make_response(jsonify({'code': 400, 'msg': 'Incomplete data'}), 400)
 
         # 查詢對應的 Item 記錄
-        item = Item.query.get(item_id)
+        item = db.session.get(Item, item_id)
 
         # 檢查 Item 是否存在
         if not item:
@@ -378,8 +379,7 @@ def update_multi(data):
                 return make_response(jsonify({'code': 400, 'msg': 'Incomplete attribute data'}), 400)
 
             # 查詢對應的 Field 記錄
-            field = Field.query.get(field_id)
-
+            field = db.session.get(Field, field_id)
             if not field:
                 return make_response(jsonify({'code': 404, 'msg': f'field_id:{field_id} not found'}), 404)
 
@@ -666,7 +666,7 @@ def __check_condition(field, operation, field_name, value_name):
 def __check_field_permission(permission):
     user_id = get_jwt_identity()
 
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
 
     if user and has_permission(permission):
         return True

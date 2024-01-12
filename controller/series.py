@@ -150,8 +150,7 @@ def read_multi():
 
 @handle_exceptions
 def update(series_id, data):
-    series = Series.query.get(series_id)
-
+    series = db.session.get(Series, series_id)
     if not series:
         return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
 
@@ -171,7 +170,7 @@ def update(series_id, data):
     fields_data = data.get('fields', [])
     for index, field_data in enumerate(fields_data):
         field_id = field_data.get('id', '')
-        field = Field.query.get(field_id)
+        field = db.session.get(Field, field_id)
 
         if not field:
             return make_response(jsonify({"code": 404, "msg": f"Field with ID {field_id} not found"}), 404)
@@ -248,8 +247,7 @@ def update(series_id, data):
 
 @handle_exceptions
 def delete(series_id):
-    series = Series.query.get(series_id)
-
+    series = db.session.get(Series, series_id)
     if series:
         # Set series status to 0 (deleted)
         series.status = 0
