@@ -312,7 +312,7 @@ def read_multi(data):
         """
     # if there is condition
     if len(filters) > 0:
-        count_query += __create_count_query(count_query, conditions)
+        count_query = __create_count_query(count_query, conditions)
 
     # Execute the count query
     count_result = db.session.execute(
