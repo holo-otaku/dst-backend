@@ -10,7 +10,7 @@ def read(product_numbers):
 
     placeholders = ",".join(["?" for _ in product_numbers])
     sql_query = f"""
-        SELECT PROD_NAME, PROD_C, PROD_CT, DOLR_TI, KEYI_D, LEAD_TIME, FIZO_D, PROD_STAT
+        SELECT PROD_NAME, PROD_NO, PROD_C, PROD_CT, DOLR_TI, KEYI_D, LEAD_TIME, FIZO_D, PROD_STAT
         FROM PROD
         WHERE PROD_NO IN ({placeholders})
     """
