@@ -359,7 +359,7 @@ def update_multi(data):
         attributes = item_data.get('attributes')
 
         # 檢查輸入項目的完整性
-        if not item_id or not attributes:
+        if not item_id:
             return make_response(jsonify({'code': 400, 'msg': 'Incomplete data'}), 400)
 
         # 查詢對應的 Item 記錄
