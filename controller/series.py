@@ -109,7 +109,7 @@ def read_multi():
     keyword = str(request.args.get('keyword', ''))
 
     # Initialize the base query
-    base_query = Series.query.filter_by(status=1)
+    base_query = Series.query.filter_by(status=1).order_by(Series.name)
 
     if keyword:
         base_query = base_query.filter(Series.name.ilike(f"%{keyword}%"))
