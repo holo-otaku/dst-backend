@@ -54,7 +54,6 @@ def create(data):
 def read(user_id):
     user = db.session.get(User, user_id)
 
-
     if user is None:
         return make_response(jsonify({'code': 200, 'msg': 'User not found'}), 404)
 
@@ -97,7 +96,8 @@ def update(user_id, data):
 
     if username is not None:
         user.username = username
-    if password is not None:
+
+    if password is not None and password != "":
         user.set_password(password)
 
     if role_id is not None:
