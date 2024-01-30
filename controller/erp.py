@@ -10,7 +10,7 @@ def read(product_numbers):
 
     placeholders = ",".join(["?" for _ in product_numbers])
     sql_query = f"""
-        SELECT PROD_NAME, PROD_NO, PROD_C, PROD_CT, DOLR_TI, KEYI_D, LEAD_TIME, FIZO_D, PROD_STAT
+        SELECT PROD_NO, PROD_C, PROD_CT, DOLR_TI, KEYI_D, LEAD_TIME, FIZO_D, PROD_STAT
         FROM PROD
         WHERE PROD_NO IN ({placeholders})
     """
@@ -25,7 +25,6 @@ def read(product_numbers):
 
         for row in results:
             data = []
-            data.append({"key": "品名規格", "value": str(row.PROD_NAME)})
             data.append({"key": "標準進價(進貨幣別)", "value": str(row.PROD_C)})
             data.append({"key": "實際單位總成本(本地幣)", "value": str(row.PROD_CT)})
             data.append({"key": "進貨幣別欄位", "value": str(row.DOLR_TI)})
@@ -49,7 +48,6 @@ def read(product_numbers):
     for product_no in product_numbers:
         if product_no not in data_map:
             default_data = []
-            default_data.append({"key": "品名規格", "value": ""})
             default_data.append({"key": "標準進價(進貨幣別)", "value": ""})
             default_data.append({"key": "實際單位總成本(本地幣)", "value": ""})
             default_data.append({"key": "進貨幣別欄位", "value": ""})
