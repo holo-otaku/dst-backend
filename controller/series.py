@@ -10,9 +10,8 @@ from modules.exception import handle_exceptions
 
 
 @handle_exceptions
-def create(data):
+def create(data, created_by):
     name = data.get('name')
-    created_by = get_jwt_identity()
 
     if not name or not created_by:
         return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
@@ -63,43 +62,44 @@ def create(data):
 
 @handle_exceptions
 def read(series_id):
-    series = Series.query.filter_by(id=series_id, status=1).first()
+    series = db.session.query(Series).filter(
+        Series.id == series_id, Series.status == 1).first()
 
-    if series:
-        data = {'id': series.id,
-                'name': series.name,
-                'createdBy': series.creator.username,
-                'createdAt': series.created_at.strftime("%Y-%m-%d %H:%M:%S")}
-
-        field_data = []
-        for f in series.fields:
-            unique_values = []
-            if f.is_filtered and (f.data_type == "string" or f.data_type == "number"):
-                distinct_count = db.session.query(ItemAttribute.value).filter(
-                    ItemAttribute.field_id == f.id).distinct().count()
-                if distinct_count <= 30:
-                    unique_values = db.session.query(ItemAttribute.value).filter(
-                        ItemAttribute.field_id == f.id).distinct().all()
-                    unique_values = [
-                        attr.value for attr in unique_values if attr.value is not None]
-
-            field_data.append({
-                'id': f.id,
-                'name': f.name,
-                'dataType': f.data_type,
-                'isFiltered': f.is_filtered,
-                'isRequired': f.is_required,
-                'isErp': f.is_erp,
-                'values': unique_values,
-                'isLimitField': f.is_limit_field,
-                "sequence": f.sequence,
-            })
-
-        data['fields'] = sorted(field_data, key=lambda x: x['sequence'])
-
-        return make_response(jsonify({"code": 200, "msg": "Success", "data": data}), 200)
-    else:
+    if not series:
         return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
+
+    data = {'id': series.id,
+            'name': series.name,
+            'createdBy': series.creator.username,
+            'createdAt': series.created_at.strftime("%Y-%m-%d %H:%M:%S")}
+
+    field_data = []
+    for f in series.fields:
+        unique_values = []
+        if f.is_filtered and (f.data_type == "string" or f.data_type == "number"):
+            distinct_count = db.session.query(ItemAttribute.value).filter(
+                ItemAttribute.field_id == f.id).distinct().count()
+            if distinct_count <= 30:
+                unique_values = db.session.query(ItemAttribute.value).filter(
+                    ItemAttribute.field_id == f.id).distinct().all()
+                unique_values = [
+                    attr.value for attr in unique_values if attr.value is not None]
+
+        field_data.append({
+            'id': f.id,
+            'name': f.name,
+            'dataType': f.data_type,
+            'isFiltered': f.is_filtered,
+            'isRequired': f.is_required,
+            'isErp': f.is_erp,
+            'values': unique_values,
+            'isLimitField': f.is_limit_field,
+            "sequence": f.sequence,
+        })
+
+    data['fields'] = sorted(field_data, key=lambda x: x['sequence'])
+
+    return make_response(jsonify({"code": 200, "msg": "Success", "data": data}), 200)
 
 
 @handle_exceptions
@@ -107,9 +107,11 @@ def read_multi():
     page = int(request.args.get('page', 1))
     limit = int(request.args.get('limit', 10))
     keyword = str(request.args.get('keyword', ''))
+    show_field = bool(int(request.args.get('showField', False)))
 
     # Initialize the base query
-    base_query = Series.query.filter_by(status=1).order_by(Series.name)
+    base_query = db.session.query(Series).filter_by(
+        status=1).order_by(Series.name)
 
     if keyword:
         base_query = base_query.filter(Series.name.ilike(f"%{keyword}%"))
@@ -121,7 +123,6 @@ def read_multi():
     series = base_query.paginate(page=page, per_page=limit).items
 
     result = []
-    show_field = bool(int(request.args.get('showField', False)))
     for s in series:
         data = {
             'id': s.id,
@@ -248,11 +249,12 @@ def update(series_id, data):
 @handle_exceptions
 def delete(series_id):
     series = db.session.get(Series, series_id)
-    if series:
-        # Set series status to 0 (deleted)
-        series.status = 0
 
-        db.session.commit()
-        return make_response(jsonify({"code": 200, "msg": "Series deleted"}), 200)
-    else:
+    if not series:
         return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
+
+    # Set series status to 0 (deleted)
+    series.status = 0
+
+    db.session.commit()
+    return make_response(jsonify({"code": 200, "msg": "Series deleted"}), 200)
