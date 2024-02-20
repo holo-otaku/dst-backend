@@ -1,15 +1,7 @@
 from unittest.mock import patch, MagicMock, PropertyMock
 from controller.user import create, read, read_multi, update, delete
 from models.user import User, Role
-import pytest
-from flask import Flask
-
-
-@pytest.fixture
-def app():
-    app = Flask(__name__)
-    app.config['TESTING'] = True
-    return app
+from .client import app
 
 
 @patch('models.shared.db.session.commit', autospec=True)
