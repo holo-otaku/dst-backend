@@ -29,7 +29,8 @@ def read(product_id):
         return make_response(jsonify({"code": 404, "msg": "Product not found"}), 404)
 
     # Check if the item is archived
-    is_archived = Archive.query.filter_by(item_id=product_id).first()
+    is_archived = db.session.query(
+        Archive).filter_by(item_id=product_id).first()
 
     # Get the attributes related to this product
     attributes_query = db.session.query(ItemAttribute).filter(
@@ -133,7 +134,7 @@ def read_multi(data):
     if not series_id:
         return make_response(jsonify({"code": 404, "msg": "SeriesId not found"}), 404)
 
-    series = Series.query.filter_by(id=series_id, status=1).first()
+    series = db.session.query(Series).filter_by(id=series_id, status=1).first()
     if not series:
         return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
 
@@ -154,10 +155,8 @@ def read_multi(data):
     filters = data.get('filters', [])
 
     # Get the fields related to this series
-    fields_query = db.session.query(Field).filter(
-        Field.series_id == series_id)
-
-    fields = {field.id: field for field in fields_query.all()}
+    fields = {field.id: field for field in db.session.query(
+        Field).filter(Field.series_id == series_id)}
 
     # Create a SQL query to find the items
     sql_query = """
@@ -257,8 +256,7 @@ def read_multi(data):
     ).all()
 
     # Convert the list of attributes into a dictionary for easier look-up
-    attributes_dict = {(attr.item_id, attr.field_id)
-                        : attr for attr in all_attributes}
+    attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
 
     for row in result:
         fields_data = []
