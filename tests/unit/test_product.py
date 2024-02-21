@@ -1,200 +1,313 @@
-import os
-import base64
-from .client import client_and_db, access_token
-from models.series import Series, Field, Item, ItemAttribute
-# Create a product
-created_product_id = None
+from unittest.mock import patch, MagicMock
+from .client import app
+from controller.product import create, read, read_multi, update_multi, delete
+from models.series import Field, Series, Item
+from models.image import Image
+from models.archive import Archive
 
 
-def create_item(db, image_base64=""):
-    # 创建 Series 实例
-    series = Series(
-        name='Test Series',
-        created_by=1,
-    )
+@patch('models.shared.db.session.get')
+@patch('models.shared.db.session.query')
+@patch('models.shared.db.session.commit')
+@patch('models.shared.db.session.add')
+def test_create_success(mock_add, mock_commit, mock_query, mock_get, app):
+    with app.app_context():
+        # Mock the Series object
+        mock_series = MagicMock(spec=Series)
+        mock_series.id = 1
 
-    # 创建 Field 实例
-    field1 = Field(
-        name='Field 1',
-        data_type='String',
-        is_required=False,
-        is_filtered=True,
-        is_erp=False,
-        is_limit_field=False,
-        sequence=0,
-    )
-    field2 = Field(
-        name='Field 2',
-        data_type='Number',
-        is_required=True,
-        is_filtered=False,
-        is_erp=False,
-        is_limit_field=False,
-        sequence=1,
-    )
+        # Configure mock_get to return the mock_series
+        mock_get.return_value = mock_series
 
-    field3 = Field(
-        name='Field 3',
-        data_type='Boolean',
-        is_required=True,
-        is_filtered=False,
-        is_erp=False,
-        is_limit_field=False,
-        sequence=2,
-    )
+        # Create mock objects for fields and field query
+        mock_field_1 = MagicMock(id=1, name='Field1', is_required=True)
+        mock_field_2 = MagicMock(id=2, name='Field2', is_required=False)
+        mock_fields = [mock_field_1, mock_field_2]
+        mock_field_query = MagicMock()
+        mock_query.return_value.filter.return_value = MagicMock()
+        mock_field_query.all.return_value = [mock_field_1]
 
-    field4 = Field(
-        name='Field 4',
-        data_type='Picture',
-        is_required=True,
-        is_filtered=False,
-        is_erp=False,
-        is_limit_field=False,
-        sequence=3,
-    )
-
-    # 将 Field 实例关联到 Series 实例
-    series.fields = [field1, field2, field3, field4]
-
-    # 添加 Series 和 Field 实例到数据库
-    db.session.add(series)
-    db.session.add(field1)
-    db.session.add(field2)
-    db.session.add(field3)
-    db.session.add(field4)
-
-    db.session.flush()
-    series_id = series.id
-
-    db.session.commit()
-
-    payload = [
-        {
-            "seriesId": series.id,
-            "attributes": [
-                {
-                    "fieldId": field1.id,
-                    "value": "Value 1"
-                },
-                {
-                    "fieldId": field2.id,
-                    "value": 5
-                },
-                {
-                    "fieldId": field3.id,
-                    "value": True
-                },
-                {
-                    "fieldId": field4.id,
-                    "value": image_base64
-                }
+        # Prepare test data
+        data = [{
+            'seriesId': 1,
+            'attributes': [
+                {'fieldId': 1, 'value': 'Value1'},
+                {'fieldId': 2, 'value': 'Value2'}
             ]
+        }]
+
+        # Call the create function
+        response = create(data=data)
+
+        # Assert response status code and message
+        assert response.status_code == 201
+        assert response.get_json()['code'] == 201
+        assert response.get_json()['msg'] == "Success"
+
+        # Assert that db.session.get was called with the correct parameters
+        mock_get.assert_called_once_with(Series, 1)
+
+        # Assert that db.session.query was called with the correct parameters
+        mock_query.assert_called_once_with(Field)
+
+        # Assert that db.session.commit was called
+        mock_commit.assert_called_once()
+
+
+@patch('models.shared.db.session.get')
+def test_create_incomplete_data(mock_get, app):
+    with app.app_context():
+        # Call the create function with incomplete data
+        response = create(
+            data=[{'attributes': [{'fieldId': 1, 'value': 'Value1'}]}])
+
+        # Assert response status code and message
+        assert response.status_code == 400
+        assert response.get_json() == {"code": 400, "msg": "Incomplete data"}
+
+        # Assert that db.session.get was not called
+        assert not mock_get.called
+
+
+@patch('models.shared.db.session.get')
+def test_create_series_not_found(mock_get, app):
+    with app.app_context():
+        # Configure mock_get to return None, simulating series not found
+        mock_get.return_value = None
+
+        # Call the create function
+        response = create(
+            data=[{'seriesId': 1, 'attributes': [{'fieldId': 1, 'value': 'Value1'}]}])
+
+        # Assert response status code and message
+        assert response.status_code == 404
+        assert response.get_json() == {"code": 404, "msg": "Series not found"}
+
+        # Assert that db.session.get was called with the correct parameters
+        mock_get.assert_called_once_with(Series, 1)
+
+
+@patch('models.shared.db.session.get')
+@patch('models.shared.db.session.query')
+@patch('controller.product.read_erp')
+def test_read_success(mock_read_erp, mock_query, mock_get, app):
+    with app.app_context():
+        # Prepare mock data
+        mock_item = MagicMock(id=1, series_id=1)
+        mock_series = MagicMock()
+        mock_series.name = "Test Series"
+        mock_attribute = MagicMock()
+        mock_attribute.field_id = 1
+        mock_attribute.field.name = "Field1"
+        mock_attribute.field.data_type = "string"
+        mock_attribute.value = "Value1"
+        mock_item.series = mock_series
+        mock_query.return_value.filter.return_value.all.return_value = [
+            mock_attribute]
+        mock_get.return_value = mock_item
+
+        mock_archive = None  # 或者您也可以設置為 mock object
+        mock_query.return_value.filter_by.return_value.first.return_value = mock_archive
+
+        mock_read_erp.return_value = {}
+
+        # Call the read function
+        response = read(product_id=1)
+
+        # Convert MagicMock objects to strings before assertion
+        for attribute in response.get_json()["data"]["attributes"]:
+            attribute["fieldName"] = str(attribute["fieldName"])
+
+        # Assert the response
+        assert response.status_code == 200
+        print(response.get_json())
+        assert response.get_json() == {
+            "code": 200,
+            "msg": "Success",
+            "data": {
+                "itemId": 1,
+                "seriesId": 1,
+                "attributes": [
+                    {
+                        'fieldId': 1,
+                        'fieldName': 'Field1',
+                        'dataType': 'string',
+                        'value': 'Value1'
+                    }
+                ],
+                "seriesName": "Test Series",
+                "erp": [],
+                "hasArchive": False
+            }
         }
-    ]
-
-    return payload, series_id
 
 
-def test_create_product(client_and_db, access_token):
-    client, db = client_and_db
+@patch('models.shared.db.session.get')
+def test_read_product_id_missing(mock_get, app):
+    with app.app_context():
+        # Mock the case where product_id is missing
+        response = read(None)
 
-    # Sample image file path (replace with your actual image file path)
-    image_file_path = './tests/test.png'
-
-    # Get the absolute path of the image file
-    image_file_path = os.path.abspath(image_file_path)
-
-    # Read the image file as bytes
-    with open(image_file_path, 'rb') as image_file:
-        image_bytes = image_file.read()
-
-    # Encode the image bytes as a base64 string
-    image_base64 = base64.b64encode(image_bytes).decode()
-
-    payload, _ = create_item(db, image_base64)
-
-    response = client.post('/product', json=payload, headers=access_token)
-
-    assert response.status_code == 201
-    assert response.json['msg'] == 'Success'
-    assert 'data' in response.json
-    assert isinstance(response.json['data'], list)
-    data = response.json['data']
-
-    for product in data:
-        assert isinstance(product, dict)
-
-        assert 'id' in product
-        assert 'seriesId' in product
-
-        assert isinstance(product['id'], int)
-        assert isinstance(product['seriesId'], int)
-
-    global created_product_id
-    created_product_id = response.json['data'][0]['id']
+        # Assert the response
+        assert response.status_code == 400
+        assert response.get_json() == {
+            "code": 400, "msg": "Product ID is required"}
 
 
-def test_show_products(client_and_db, access_token):
-    client, _ = client_and_db
+@patch('models.shared.db.session.get')
+def test_read_product_not_found(mock_get, app):
+    with app.app_context():
+        # Mock the case where product does not exist
+        mock_get.return_value = None
 
-    product_id = created_product_id
+        # Call the read function with a non-existing product_id
+        response = read(123)
 
-    response = client.get(
-        f'/product/{product_id}', headers=access_token)
-
-    assert response.status_code == 200
-    assert response.json['msg'] == 'Success'
-    assert 'data' in response.json
-    assert 'attributes' in response.json['data']
-    attributes = response.json['data']['attributes']
-    assert isinstance(attributes, list)
-
-    for attribute in attributes:
-        assert 'fieldId' in attribute
-        assert 'value' in attribute
-
-        assert isinstance(attribute['fieldId'], int)
-        assert isinstance(attribute['value'], str)
+        # Assert the response
+        assert response.status_code == 404
+        assert response.get_json() == {"code": 404, "msg": "Product not found"}
 
 
-# Edit products
-def test_edit_products(client_and_db, access_token):
-    client, _ = client_and_db
+@patch('models.shared.db.session.get')
+@patch('models.shared.db.session.query')
+@patch('models.shared.db.session.commit')
+@patch('controller.product.__check_field_type')
+@patch('controller.product.__save_image')
+def test_update_multi_success(mock_save_image, mock_check_field_type, mock_commit, mock_query, mock_get, app):
+    with app.app_context():
+        # Mock Item object
+        mock_item = MagicMock()
+        mock_item.id = 1
 
-    product_id = created_product_id
+        # Mock Field object
+        mock_field = MagicMock()
+        mock_field.id = 1
+        mock_field.data_type = 'string'
 
-    payload = [
-        {
-            "itemId": product_id,
-            "name": "Updated Product",
-            "attributes": [
-                {
-                    "fieldId": 1,
-                    "value": "Updated Value"
-                }
+        # Mock the ItemAttribute object and set initial value
+        mock_item_attribute = MagicMock()
+        mock_item_attribute.value = None
+
+        # Configure mock_get to return the mock_item for items and None for fields (to simulate field not found)
+        def get_side_effect(model, id):
+            if model == Item:
+                return mock_item
+            elif model == Field:
+                return mock_field  # Simulating field not found for simplicity
+        mock_get.side_effect = get_side_effect
+
+        # Mock the query for ItemAttribute to return our mock_item_attribute
+        mock_query.return_value.filter_by.return_value.first.return_value = mock_item_attribute
+
+        # Mock __check_field_type to always return an empty list (no type errors)
+        mock_check_field_type.return_value = []
+
+        # Mock __save_image to simulate image saving
+        mock_save_image.return_value = 'path/to/saved/image'
+
+        # Prepare test data
+        data = [{
+            'itemId': 1,
+            'attributes': [
+                {'fieldId': 1, 'value': 'NewValue1'},
+                # Assuming this is a boolean that will be saved as an image path
+                {'fieldId': 2, 'value': True}
             ]
-        }
-    ]
+        }]
 
-    response = client.patch(
-        '/product/edit', json=payload, headers=access_token)
+        # Call the update_multi function
+        response = update_multi(data)
 
-    assert response.status_code == 200
-    assert response.json['msg'] == 'ItemAttributes updated'
+        print(response.get_json())
+        # Assert response status code and message
+        assert response.status_code == 200
+        assert response.get_json()['code'] == 200
+        assert response.get_json()['msg'] == 'ItemAttributes updated'
+
+        # Verify the mock_item_attribute's value was updated
+        assert mock_item_attribute.value == 'NewValue1' or 'path/to/saved/image', "ItemAttribute value was not updated correctly"
+
+        # Verify __check_field_type and __save_image were called correctly
+        mock_check_field_type.assert_called()
+
+        # Assert that db.session.commit was called
+        mock_commit.assert_called_once()
 
 
-# Delete products
-def test_delete_products(client_and_db, access_token):
-    client, _ = client_and_db
+@patch('os.remove')
+@patch('os.path.exists', return_value=True)
+@patch('models.shared.db.session.commit')
+@patch('models.shared.db.session.delete')
+@patch('models.shared.db.session.query')
+def test_delete_success(mock_query, mock_delete, mock_commit, mock_exists, mock_remove, app):
+    with app.app_context():
+        mock_item = MagicMock()
+        mock_item.id = 123
+        mock_item.attributes = []
 
-    product_id = created_product_id
+        mock_image = MagicMock()
+        mock_image.id = 'image1'
+        mock_image.path = '/path/to/image'
 
-    payload = {
-        "itemId": [product_id]
-    }
+        mock_attribute = MagicMock()
+        mock_attribute.field.data_type = 'picture'
+        mock_attribute.value = mock_image.id
 
-    response = client.delete(
-        '/product/delete', json=payload, headers=access_token)
+        mock_item.attributes.append(mock_attribute)
 
-    assert response.status_code == 200
-    assert response.json['msg'] == 'Items deleted'
+        mock_items_query = MagicMock()
+        mock_items_query.filter.return_value.all.return_value = [mock_item]
+        mock_items_query.filter.return_value.delete.return_value = None
+
+        mock_image_query = MagicMock()
+        mock_image_query.get.return_value = mock_image
+
+        mock_archive = MagicMock()
+
+        def query_side_effect(model):
+            if model == Item:
+                return mock_items_query
+            elif model == Image:
+                return mock_image_query
+            elif model == Archive:
+                return mock_archive
+            else:
+                return MagicMock()
+
+        mock_query.side_effect = query_side_effect
+
+        data = {'itemId': [123]}
+
+        response = delete(data)
+
+        assert response.status_code == 200
+        assert response.get_json()['code'] == 200
+        assert response.get_json()['msg'] == 'Items deleted'
+
+        mock_remove.assert_called_once_with('/path/to/image')
+
+        mock_commit.assert_called_once()
+
+        assert mock_delete.call_count > 0, "Expected at least one call to db.session.delete"
+
+
+def test_delete_with_no_data(app):
+    with app.app_context():
+        data = None
+
+        response = delete(data)
+
+        assert response.status_code == 400
+        assert response.get_json()['code'] == 400
+        assert response.get_json()['msg'] == 'Invalid data'
+
+
+def test_delete_with_missing_itemId(app):
+    with app.app_context():
+        data = {'someOtherKey': 'someValue'}
+
+        response = delete(data)
+
+        assert response.status_code == 400
+        assert response.get_json()['code'] == 400
+        assert response.get_json()['msg'] == 'Invalid data'

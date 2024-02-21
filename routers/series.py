@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 from controller.series import create, read, read_multi, update, delete
 from controller.access import check_permission
+from flask_jwt_extended import get_jwt_identity
 
 series = Blueprint("series", __name__)
 
@@ -23,8 +24,9 @@ def get_series(series_id):
 @check_permission('series.create')
 def create_series():
     data = request.get_json()
+    created_by = get_jwt_identity()
 
-    return create(data)
+    return create(data, created_by)
 
 
 @series.route("<int:series_id>", methods=["PATCH"])
