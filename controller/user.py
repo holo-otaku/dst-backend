@@ -72,10 +72,11 @@ def read_multi():
     limit = int(request.args.get('limit', 10))
 
     # Query for all users with pagination
-    users = User.query.limit(limit).offset((page - 1) * limit).all()
+    users = db.session.query(User).limit(
+        limit).offset((page - 1) * limit).all()
 
     # Count total users
-    total_count = User.query.count()
+    total_count = db.session.query(User).count()
 
     result = [{'id': user.id, 'userName': user.username,
                'role': user.roles[0].name if user.roles else None} for user in users]
@@ -88,7 +89,7 @@ def update(user_id, data):
     user = db.session.get(User, user_id)
 
     if user is None:
-        return jsonify({'error': 'User not found'}), 404
+        return make_response(jsonify({"code": 400, 'msg': 'User not found'}), 404)
 
     username = data.get('username')
     password = data.get('password')
