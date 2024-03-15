@@ -374,7 +374,7 @@ def __check_field_required(fields_query, filters, is_required_var):
 
 def __is_datetime(string):
     try:
-        datetime.strptime(string, "%Y-%m-%d")
+        datetime.strptime(string, "%Y/%m/%d")
         return True
     except ValueError:
         return False
