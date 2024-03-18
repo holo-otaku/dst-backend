@@ -414,7 +414,7 @@ def __check_field_type(field, value):
                 type_err.append(
                     f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
 
-        else:
+        elif (correct_type == 'number'):
             if not isinstance(value, correct_type):
                 type_err.append(
                     f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
