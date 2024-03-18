@@ -111,6 +111,14 @@ def create(data):
                 (a for a in attributes if a.get('fieldId') == field.id), None)
             value = attribute.get('value') if attribute else None
 
+            # Check if the value is of the correct data type
+            type_err = __check_field_type(field, value)
+            if (len(type_err) != 0):
+                return make_response(jsonify({
+                    "code": 400,
+                    "msg": type_err
+                }), 400)
+
             if field.data_type.lower() == 'picture' and value:
                 value = __save_image(value, item.id, field.id)
 
