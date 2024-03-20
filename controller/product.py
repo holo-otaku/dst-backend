@@ -13,6 +13,7 @@ from datetime import datetime
 import base64
 from flask_jwt_extended import get_jwt_identity, get_jwt
 from modules.exception import handle_exceptions
+import imghdr
 
 
 @handle_exceptions
@@ -402,10 +403,10 @@ def __check_field_type(field, value):
 
         if data_type == 'picture':
             # Check if the value is a valid base64-encoded string
-            try:
-                # This will raise an exception if the value is not a valid base64 string
-                base64.b64decode(value)
-            except base64.binascii.Error:
+            encoded_data = value.split(",")[1]
+            decoded_data = base64.b64decode(encoded_data)
+            image_format = imghdr.what(None, decoded_data)
+            if image_format is None:
                 type_err.append(
                     f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}."
                 )
@@ -623,8 +624,7 @@ def __combine_data_result(items, fields, erp_data_map):
     ).all()
 
     # Convert the list of attributes into a dictionary for easier look-up
-    attributes_dict = {(attr.item_id, attr.field_id)
-                        : attr for attr in all_attributes}
+    attributes_dict = {(attr.item_id, attr.field_id)                       : attr for attr in all_attributes}
 
     for row in items:
         fields_data = []
