@@ -13,7 +13,7 @@ from datetime import datetime
 import base64
 from flask_jwt_extended import get_jwt_identity, get_jwt
 from modules.exception import handle_exceptions
-from PIL import Image as pil_image
+from PIL import Image as PILImage
 import io
 
 
@@ -302,11 +302,6 @@ def __save_image(image_data, item_id, field_id, image_id=None):
     # Decode base64 data
     image_bytes = base64.b64decode(base64_data)
 
-    # Check if the image is PNG or JPEG
-    image_type = check_image_type(image_bytes)
-    if image_type not in ['png', 'jpeg']:
-        raise Exception("Only png or jpeg images are allowed.")
-
     # Define the directory to store the images
     image_dir = current_app.config['IMG_PATH']
     if not os.path.exists(image_dir):
@@ -338,17 +333,6 @@ def __save_image(image_data, item_id, field_id, image_id=None):
         db.session.flush()
 
     return image.id
-
-
-def check_image_type(image_bytes):
-    # PNG files start with \x89PNG
-    if image_bytes[:4] == b'\x89PNG':
-        return 'png'
-    # JPEG files start with \xFF\xD8
-    elif image_bytes[:2] == b'\xFF\xD8':
-        return 'jpeg'
-    else:
-        return 'unknown'
 
 
 def __get_field_value_by_type(item):
@@ -403,20 +387,15 @@ def __check_field_type(field, value):
         correct_type = data_type_map[data_type]
 
         if data_type == 'picture':
-            try:
-                # Check if the value is a valid base64-encoded string
-                encoded_data = value.split(",")[1]
-                decoded_data = base64.b64decode(encoded_data)
-
-                img = pil_image.open(io.BytesIO(decoded_data))
-                if img.format.lower() not in ['jpeg', 'jpg', 'png']:
-                    type_err.append(
-                        f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}."
-                    )
-            except Exception as e:
+            # Check if the value is a valid base64-encoded string
+            encoded_data = value.split(",")[1]
+            decoded_data = base64.b64decode(encoded_data)
+            img = PILImage.open(io.BytesIO(decoded_data))
+            if img.format.lower() not in ['jpeg', 'jpg', 'png']:
                 type_err.append(
                     f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}."
                 )
+
         elif (data_type == 'datetime'):
             if (not __is_datetime(value)):
                 type_err.append(
@@ -630,8 +609,7 @@ def __combine_data_result(items, fields, erp_data_map):
     ).all()
 
     # Convert the list of attributes into a dictionary for easier look-up
-    attributes_dict = {(attr.item_id, attr.field_id)
-                        : attr for attr in all_attributes}
+    attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
 
     for row in items:
         fields_data = []
