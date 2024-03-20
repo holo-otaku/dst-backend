@@ -397,27 +397,33 @@ def __check_field_type(field, value):
                 f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
 
         # Check if the value is of the correct data type
-        correct_type = data_type_map[field.data_type.lower()]
+        data_type = field.data_type.lower()
+        correct_type = data_type_map[data_type]
 
-        if correct_type == 'picture':
+        if data_type == 'picture':
             # Check if the value is a valid base64-encoded string
             try:
                 # This will raise an exception if the value is not a valid base64 string
                 base64.b64decode(value)
             except base64.binascii.Error:
                 type_err.append(
-                    f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}."
+                    f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}."
                 )
 
-        elif (correct_type == 'datetime'):
+        elif (data_type == 'datetime'):
             if (not __is_datetime(value)):
                 type_err.append(
-                    f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
+                    f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}.")
 
-        elif (correct_type == 'number'):
+        elif (data_type == 'number'):
             if not isinstance(value, correct_type):
                 type_err.append(
-                    f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}.")
+                    f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}.")
+
+        elif (data_type == 'string'):
+            if not isinstance(value, correct_type):
+                type_err.append(
+                    f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}.")
 
     return type_err
 
