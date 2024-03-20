@@ -30,6 +30,7 @@ flask-swagger-ui = "*"
 pytest = "*"
 faker = "*"
 python-dotenv = "*"
+pillow = "*"
 
 [dev-packages]
 

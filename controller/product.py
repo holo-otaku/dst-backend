@@ -13,7 +13,8 @@ from datetime import datetime
 import base64
 from flask_jwt_extended import get_jwt_identity, get_jwt
 from modules.exception import handle_exceptions
-import imghdr
+from PIL import Image as pil_image
+import io
 
 
 @handle_exceptions
@@ -402,15 +403,20 @@ def __check_field_type(field, value):
         correct_type = data_type_map[data_type]
 
         if data_type == 'picture':
-            # Check if the value is a valid base64-encoded string
-            encoded_data = value.split(",")[1]
-            decoded_data = base64.b64decode(encoded_data)
-            image_format = imghdr.what(None, decoded_data)
-            if image_format is None:
+            try:
+                # Check if the value is a valid base64-encoded string
+                encoded_data = value.split(",")[1]
+                decoded_data = base64.b64decode(encoded_data)
+
+                img = pil_image.open(io.BytesIO(decoded_data))
+                if img.format.lower() not in ['jpeg', 'jpg', 'png']:
+                    type_err.append(
+                        f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}."
+                    )
+            except Exception as e:
                 type_err.append(
                     f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}."
                 )
-
         elif (data_type == 'datetime'):
             if (not __is_datetime(value)):
                 type_err.append(
@@ -624,7 +630,8 @@ def __combine_data_result(items, fields, erp_data_map):
     ).all()
 
     # Convert the list of attributes into a dictionary for easier look-up
-    attributes_dict = {(attr.item_id, attr.field_id)                       : attr for attr in all_attributes}
+    attributes_dict = {(attr.item_id, attr.field_id)
+                        : attr for attr in all_attributes}
 
     for row in items:
         fields_data = []
