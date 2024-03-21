@@ -343,7 +343,7 @@ def __get_field_value_by_type(item):
     data_type = item.field.data_type
 
     if (data_type == "number"):
-        value = float(value)
+        value = str(value)
     elif (data_type == "boolean"):
         value = bool(int(value))
     elif (data_type == "picture"):
