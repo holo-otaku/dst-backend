@@ -245,7 +245,8 @@ def update_multi(data):
                     value = __save_image(
                         value, item.id, field.id, item_attribute.value)
                 else:
-                    value = __delete_image(item_attribute.value)
+                    if item_attribute.value:
+                        __delete_image(item_attribute.value)
 
             if item_attribute:
                 item_attribute.value = value
@@ -344,8 +345,6 @@ def __delete_image(image_id):
 
         if os.path.exists(image_path):
             os.remove(image_path)
-
-        return ""
     else:
         raise Exception(
             "Image with the specified image_id does not exist.")
