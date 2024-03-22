@@ -3,6 +3,9 @@ from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from models.shared import db
 from models.log import ActivityLog
+import json
+import zlib
+import sys
 
 
 class Middlewares():
@@ -11,7 +14,8 @@ class Middlewares():
         def log_response_status(response):
             try:
                 # Skip logging for login and refresh endpoints
-                skip_logging_endpoints = ["login", "refresh", "log", "health", "image"]
+                skip_logging_endpoints = [
+                    "login", "refresh", "log", "health", "image"]
                 if any(endpoint in request.path for endpoint in skip_logging_endpoints):
                     return response
 
@@ -44,7 +48,8 @@ class Middlewares():
                     user_id=log_data['user_id'])
 
                 if log_data.get('payload'):
-                    activity_log.payload = log_data['payload']
+                    activity_log.payload = self.__compress_json(
+                        log_data['payload'])
 
                 db.session.add(activity_log)
                 db.session.commit()
@@ -53,3 +58,10 @@ class Middlewares():
             except Exception as e:
                 app.logger.error(e)
                 return response
+
+    def __compress_json(self, payload):  # 将方法定义为实例方法，并添加 self 参数
+        json_str = json.dumps(payload)
+        size_in_bytes = sys.getsizeof(json_str)
+        if size_in_bytes > 100 * 1024:  # 超过100KB
+            return {"payload": "too large"}
+        return payload
