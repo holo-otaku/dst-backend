@@ -238,9 +238,12 @@ def update_multi(data):
             if isinstance(value, bool):
                 value = 1 if value else 0
 
-            if field.data_type.lower() == 'picture' and value:
-                value = __save_image(
-                    value, item.id, field.id, item_attribute.value)
+            if field.data_type.lower() == 'picture':
+                if value:
+                    value = __save_image(
+                        value, item.id, field.id, item_attribute.value)
+                else:
+                    value = __delete_image(item_attribute.value)
 
             if item_attribute:
                 item_attribute.value = value
@@ -299,21 +302,15 @@ def __save_image(image_data, item_id, field_id, image_id=None):
     else:
         base64_data = image_data
 
-    # Decode base64 data
-    image_bytes = base64.b64decode(base64_data)
+    image_name, image_path = __img_path_and_name(item_id, field_id)
+    # image exist
+    if base64_data and base64_data != "":
+        # Decode base64 data
+        image_bytes = base64.b64decode(base64_data)
 
-    # Define the directory to store the images
-    image_dir = current_app.config['IMG_PATH']
-    if not os.path.exists(image_dir):
-        os.makedirs(image_dir)
-
-    # Define the image path
-    image_name = f"image_{item_id}_{field_id}.png"
-    image_path = os.path.join(image_dir, image_name)
-
-    # Save the image to the file
-    with open(image_path, 'wb') as image_file:
-        image_file.write(image_bytes)
+        # Save the image to the file
+        with open(image_path, 'wb') as image_file:
+            image_file.write(image_bytes)
 
     if image_id:
         # If image_id exists, update the existing image path
@@ -333,6 +330,36 @@ def __save_image(image_data, item_id, field_id, image_id=None):
         db.session.flush()
 
     return image.id
+
+
+def __delete_image(image_id):
+    image = Image.query.get(image_id)
+    if image:
+        image_path = image.path
+
+        db.session.delete(image)
+        db.session.commit()
+
+        if os.path.exists(image_path):
+            os.remove(image_path)
+
+        return ""
+    else:
+        raise Exception(
+            "Image with the specified image_id does not exist.")
+
+
+def __img_path_and_name(item_id, field_id):
+    # Define the directory to store the images
+    image_dir = current_app.config['IMG_PATH']
+    if not os.path.exists(image_dir):
+        os.makedirs(image_dir)
+
+    # Define the image path
+    image_name = f"image_{item_id}_{field_id}.png"
+    image_path = os.path.join(image_dir, image_name)
+
+    return image_name, image_path
 
 
 def __get_field_value_by_type(item):
@@ -609,7 +636,7 @@ def __combine_data_result(items, fields, erp_data_map):
     ).all()
 
     # Convert the list of attributes into a dictionary for easier look-up
-    attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
+    attributes_dict = {(attr.item_id, attr.field_id)                       : attr for attr in all_attributes}
 
     for row in items:
         fields_data = []
