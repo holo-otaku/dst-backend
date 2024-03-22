@@ -313,7 +313,7 @@ def __save_image(image_data, item_id, field_id, image_id=None):
 
     if image_id:
         # If image_id exists, update the existing image path
-        image = Image.query.get(image_id)
+        image = db.session.get(Image, image_id)
         if image:
             image.path = image_path  # store the path instead of the data
             db.session.commit()
@@ -332,12 +332,11 @@ def __save_image(image_data, item_id, field_id, image_id=None):
 
 
 def __delete_image(image_id):
-    image = Image.query.get(image_id)
+    image = db.session.get(Image, image_id)
     if image:
         image_path = image.path
 
         db.session.delete(image)
-        db.session.commit()
 
         if os.path.exists(image_path):
             os.remove(image_path)
@@ -633,7 +632,8 @@ def __combine_data_result(items, fields, erp_data_map):
     ).all()
 
     # Convert the list of attributes into a dictionary for easier look-up
-    attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
+    attributes_dict = {(attr.item_id, attr.field_id)
+                        : attr for attr in all_attributes}
 
     for row in items:
         fields_data = []

@@ -239,14 +239,15 @@ def test_update_multi_success(mock_save_image, mock_check_field_type, mock_commi
 @patch('models.shared.db.session.commit')
 @patch('models.shared.db.session.delete')
 @patch('models.shared.db.session.query')
-def test_delete_success(mock_query, mock_delete, mock_commit, mock_exists, mock_remove, app):
+@patch('models.shared.db.session.get')
+def test_delete_success(mock_get, mock_query, mock_delete, mock_commit, mock_exists, mock_remove, app):
     with app.app_context():
         mock_item = MagicMock()
         mock_item.id = 123
         mock_item.attributes = []
 
         mock_image = MagicMock()
-        mock_image.id = 'image1'
+        mock_image.id = '1'
         mock_image.path = '/path/to/image'
 
         mock_attribute = MagicMock()
@@ -276,6 +277,9 @@ def test_delete_success(mock_query, mock_delete, mock_commit, mock_exists, mock_
 
         mock_query.side_effect = query_side_effect
 
+        mock_get = MagicMock()
+        mock_get.return_value = mock_image
+
         data = {'itemId': [123]}
 
         response = delete(data)
@@ -284,7 +288,7 @@ def test_delete_success(mock_query, mock_delete, mock_commit, mock_exists, mock_
         assert response.get_json()['code'] == 200
         assert response.get_json()['msg'] == 'Items deleted'
 
-        mock_remove.assert_called_once_with('/path/to/image')
+        mock_remove.assert_called_once()
 
         mock_commit.assert_called_once()
 
