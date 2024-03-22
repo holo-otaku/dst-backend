@@ -280,12 +280,8 @@ def delete(data):
         for attribute in item.attributes:
             if attribute.field.data_type == 'picture':
                 image_id = attribute.value
-                image_to_delete = db.session.query(Image).get(image_id)
-                if image_to_delete:
-                    if os.path.exists(image_to_delete.path):
-                        os.remove(image_to_delete.path)
-
-                    db.session.delete(image_to_delete)
+                if image_id:
+                    __delete_image(image_id)
 
         db.session.query(ItemAttribute).filter(
             ItemAttribute.item_id == item.id).delete(synchronize_session=False)
@@ -637,7 +633,7 @@ def __combine_data_result(items, fields, erp_data_map):
     ).all()
 
     # Convert the list of attributes into a dictionary for easier look-up
-    attributes_dict = {(attr.item_id, attr.field_id)                       : attr for attr in all_attributes}
+    attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
 
     for row in items:
         fields_data = []
