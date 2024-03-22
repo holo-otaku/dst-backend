@@ -210,6 +210,8 @@ def update_multi(data):
         if not item:
             return make_response(jsonify({'code': 404, 'msg': 'Item not found'}), 404)
 
+        item.updated_at = datetime.now()
+
         # 遍歷每個屬性
         for attribute in attributes:
             field_id = attribute.get('fieldId')
@@ -238,9 +240,13 @@ def update_multi(data):
             if isinstance(value, bool):
                 value = 1 if value else 0
 
-            if field.data_type.lower() == 'picture' and value:
-                value = __save_image(
-                    value, item.id, field.id, item_attribute.value)
+            if field.data_type.lower() == 'picture':
+                if value:
+                    value = __save_image(
+                        value, item.id, field.id, item_attribute.value)
+                else:
+                    if item_attribute.value:
+                        __delete_image(item_attribute.value)
 
             if item_attribute:
                 item_attribute.value = value
@@ -274,12 +280,8 @@ def delete(data):
         for attribute in item.attributes:
             if attribute.field.data_type == 'picture':
                 image_id = attribute.value
-                image_to_delete = db.session.query(Image).get(image_id)
-                if image_to_delete:
-                    if os.path.exists(image_to_delete.path):
-                        os.remove(image_to_delete.path)
-
-                    db.session.delete(image_to_delete)
+                if image_id:
+                    __delete_image(image_id)
 
         db.session.query(ItemAttribute).filter(
             ItemAttribute.item_id == item.id).delete(synchronize_session=False)
@@ -299,21 +301,15 @@ def __save_image(image_data, item_id, field_id, image_id=None):
     else:
         base64_data = image_data
 
-    # Decode base64 data
-    image_bytes = base64.b64decode(base64_data)
+    image_name, image_path = __img_path_and_name(item_id, field_id)
+    # image exist
+    if base64_data and base64_data != "":
+        # Decode base64 data
+        image_bytes = base64.b64decode(base64_data)
 
-    # Define the directory to store the images
-    image_dir = current_app.config['IMG_PATH']
-    if not os.path.exists(image_dir):
-        os.makedirs(image_dir)
-
-    # Define the image path
-    image_name = f"image_{item_id}_{field_id}.png"
-    image_path = os.path.join(image_dir, image_name)
-
-    # Save the image to the file
-    with open(image_path, 'wb') as image_file:
-        image_file.write(image_bytes)
+        # Save the image to the file
+        with open(image_path, 'wb') as image_file:
+            image_file.write(image_bytes)
 
     if image_id:
         # If image_id exists, update the existing image path
@@ -333,6 +329,34 @@ def __save_image(image_data, item_id, field_id, image_id=None):
         db.session.flush()
 
     return image.id
+
+
+def __delete_image(image_id):
+    image = Image.query.get(image_id)
+    if image:
+        image_path = image.path
+
+        db.session.delete(image)
+        db.session.commit()
+
+        if os.path.exists(image_path):
+            os.remove(image_path)
+    else:
+        raise Exception(
+            "Image with the specified image_id does not exist.")
+
+
+def __img_path_and_name(item_id, field_id):
+    # Define the directory to store the images
+    image_dir = current_app.config['IMG_PATH']
+    if not os.path.exists(image_dir):
+        os.makedirs(image_dir)
+
+    # Define the image path
+    image_name = f"image_{item_id}_{field_id}.png"
+    image_path = os.path.join(image_dir, image_name)
+
+    return image_name, image_path
 
 
 def __get_field_value_by_type(item):
