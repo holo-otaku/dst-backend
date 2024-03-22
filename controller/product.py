@@ -210,6 +210,8 @@ def update_multi(data):
         if not item:
             return make_response(jsonify({'code': 404, 'msg': 'Item not found'}), 404)
 
+        item.updated_at = datetime.now()
+
         # 遍歷每個屬性
         for attribute in attributes:
             field_id = attribute.get('fieldId')
