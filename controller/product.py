@@ -168,6 +168,25 @@ def read_multi(data):
     fields = {field.id: field for field in db.session.query(
         Field).filter(Field.series_id == series_id)}
 
+    for index, filter_criteria in enumerate(filters):
+        field_id = filter_criteria['fieldId']
+        field = fields[field_id]
+        value = filter_criteria['value']
+
+        # Check if field_id exists in fields
+        if field_id not in fields:
+            return make_response(jsonify({
+                "code": 400,
+                "msg": f"Invalid fieldId: {field_id}"
+            }), 400)
+
+        type_err = __check_field_type(field, value)
+        if (len(type_err) != 0):
+            return make_response(jsonify({
+                "code": 400,
+                "msg": type_err
+            }), 400)
+
     items, conditions, parameters = __get_items(series_id, filters, fields,
                                                 sort_field_id, sort_order, limit, page)
 
@@ -425,12 +444,16 @@ def __check_field_type(field, value):
                     f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}.")
 
         elif (data_type == 'number'):
-            if not isinstance(value, correct_type):
+            try:
+                value = float(value)
+            except:
                 type_err.append(
                     f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}.")
 
         elif (data_type == 'string'):
-            if not isinstance(value, correct_type):
+            try:
+                value = str(value)
+            except:
                 type_err.append(
                     f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}.")
 
@@ -569,22 +592,7 @@ def __get_items(series_id, filters, fields, sort_field_id, sort_order, limit, pa
             field_id = filter_criteria['fieldId']
             value = filter_criteria['value']
             operation = filter_criteria.get('operation', 'equals')
-
-            # Check if field_id exists in fields
-            if field_id not in fields:
-                return make_response(jsonify({
-                    "code": 400,
-                    "msg": f"Invalid fieldId: {field_id}"
-                }), 400)
-
-            # Check if the value is of the correct data type
             field = fields[field_id]
-            type_err = __check_field_type(field, value)
-            if (len(type_err) != 0):
-                return make_response(jsonify({
-                    "code": 400,
-                    "msg": type_err
-                }), 400)
 
             field_name = f'field_id{index}'
             value_name = f'value{index}'
@@ -632,8 +640,7 @@ def __combine_data_result(items, fields, erp_data_map):
     ).all()
 
     # Convert the list of attributes into a dictionary for easier look-up
-    attributes_dict = {(attr.item_id, attr.field_id)
-                        : attr for attr in all_attributes}
+    attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
 
     for row in items:
         fields_data = []
