@@ -100,6 +100,8 @@ def update(user_id, data):
 
     if password is not None and password != "":
         user.set_password(password)
+    else:
+        raise Exception("Invalid password: %s" % password)
 
     if role_id is not None:
         role = db.session.get(Role, role_id)
