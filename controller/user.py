@@ -100,6 +100,8 @@ def update(user_id, data):
 
     if password is not None and password != "":
         user.set_password(password)
+    else:
+        return make_response(jsonify({"code": 400, "msg": "Invalid password: %s" % password}), 400)
 
     if role_id is not None:
         role = db.session.get(Role, role_id)

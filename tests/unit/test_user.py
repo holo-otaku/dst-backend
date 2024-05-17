@@ -241,7 +241,7 @@ def test_update_user_invalid_role(mock_db_get, app):
         mock_db_get.side_effect = lambda model, id: mock_user if model.__name__ == "User" else None
 
         user_id = 1  # Existing user ID
-        update_data = {'roleId': 999}  # Invalid role ID
+        update_data = {'roleId': 999, 'password': "123"}  # Invalid role ID
 
         # Call the update function
         response = update(user_id, update_data)
@@ -250,6 +250,27 @@ def test_update_user_invalid_role(mock_db_get, app):
         # Assertions for invalid role scenario
         assert response.status_code == 400
         assert data == {"code": 400, "msg": "Invalid role"}
+
+
+@patch('models.shared.db.session.get')
+def test_update_user_invalid_password(mock_db_get, app):
+    with app.app_context():
+        # Mock user exists, but role does not
+        mock_user = MagicMock()
+        mock_user.id = 1
+        mock_user.username = "ExistingUsername"
+        mock_db_get.side_effect = lambda model, id: mock_user if model.__name__ == "User" else None
+
+        user_id = 1  # Existing user ID
+        update_data = {'roleId': 1, 'password': ""}
+
+        # Call the update function
+        response = update(user_id, update_data)
+        data = response.get_json()
+
+        # Assertions for invalid role scenario
+        assert response.status_code == 400
+        assert data == {"code": 400, "msg": "Invalid password: "}
 
 
 # Test case for successful user deletion
