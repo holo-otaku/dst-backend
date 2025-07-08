@@ -998,7 +998,78 @@ paths:
                     example: 87
                   data:
                     $ref: "#/components/schemas/Product"
-
+  
+  /product/export:
+    post:
+      tags:
+        - Products
+      summary: Export products in a series to Excel
+      description: Export the filtered products of a specific series to an Excel file.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: order
+          description: Order by field
+          schema:
+            type: string
+            example: 11,asc
+      requestBody:
+        description: Filter criteria for product export
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seriesId:
+                  type: number
+                filter:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      fieldId:
+                        type: integer
+                      value:
+                        type: string
+                      operation:
+                        type: string
+                        enum:
+                          - equals
+                          - greater
+                          - less
+      responses:
+        "200":
+          description: Excel download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  msg:
+                    type: string
+        "404":
+          description: Series not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  msg:
+                    type: string
+  
   /product/edit:
     patch:
       tags:
