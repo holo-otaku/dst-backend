@@ -216,7 +216,8 @@ def update_multi(data):
     # 遍歷每個輸入項目
     for item_data in data:
         item_id = item_data.get("itemId")
-        attributes = item_data.get("attributes")
+        is_deleted = item_data.get("isDeleted")
+        attributes = item_data.get("attributes", [])
 
         # 檢查輸入項目的完整性
         if not item_id:
@@ -228,6 +229,9 @@ def update_multi(data):
         # 檢查 Item 是否存在
         if not item:
             return make_response(jsonify({"code": 404, "msg": "Item not found"}), 404)
+
+        if is_deleted in [0, 1]:
+            item.is_deleted = is_deleted
 
         item.updated_at = datetime.now()
 
@@ -290,26 +294,7 @@ def delete(data):
     items_to_delete = db.session.query(Item).filter(Item.id.in_(item_ids)).all()
 
     for item in items_to_delete:
-        # Check if the item exists in the 'archive' table
-        archive_item = db.session.query(Archive).filter_by(item_id=item.id).first()
-
-        # If it exists in the 'archive' table, delete it
-        if archive_item:
-            db.session.delete(archive_item)
-
-        for attribute in item.attributes:
-            if attribute.field.data_type == "picture":
-                image_id = attribute.value
-                if image_id:
-                    __delete_image(image_id)
-
-        db.session.query(ItemAttribute).filter(ItemAttribute.item_id == item.id).delete(
-            synchronize_session=False
-        )
-
-    db.session.query(Item).filter(Item.id.in_(item_ids)).delete(
-        synchronize_session=False
-    )
+        item.is_deleted = 1
 
     db.session.commit()
 
@@ -325,6 +310,10 @@ def __get_series_data(data, for_export=False):
     series_id = data.get("seriesId")
     if not series_id:
         raise ValueError("SeriesId not found")
+
+    is_deleted = data.get("isDeleted", 0)
+    if is_deleted not in [0, 1]:
+        raise ValueError("Input body error")
 
     series = db.session.query(Series).filter_by(id=series_id, status=1).first()
     if not series:
@@ -362,11 +351,20 @@ def __get_series_data(data, for_export=False):
 
     # 查詢資料
     items, conditions, parameters = __get_items(
-        series_id, filters, fields, sort_field_id, sort_order, limit, page
+        series_id,
+        filters,
+        fields,
+        sort_field_id,
+        sort_order,
+        limit,
+        page,
+        is_deleted,
     )
     erp_data_map = __read_erp(items, fields)
     data = __combine_data_result(items, fields, erp_data_map)
-    total_count = __count_total_count(data, filters, conditions, parameters)
+    total_count = __count_total_count(
+        data, filters, conditions, parameters, is_deleted
+    )
 
     return data, total_count, fields
 
@@ -627,7 +625,16 @@ def has_permission(required_permission):
     return False
 
 
-def __get_items(series_id, filters, fields, sort_field_id, sort_order, limit, page):
+def __get_items(
+    series_id,
+    filters,
+    fields,
+    sort_field_id,
+    sort_order,
+    limit,
+    page,
+    is_deleted=0,
+):
     # Create a SQL query to find the items
     sql_query = """
             SELECT item.id AS item_id,
@@ -636,10 +643,11 @@ def __get_items(series_id, filters, fields, sort_field_id, sort_order, limit, pa
             FROM item
             JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
+            AND item.is_deleted = :is_deleted
         """
 
     conditions = []
-    parameters = {"series_id": series_id}
+    parameters = {"series_id": series_id, "is_deleted": is_deleted}
 
     # if there is condition
     if len(filters) > 0:
@@ -740,7 +748,7 @@ def __combine_data_result(items, fields, erp_data_map):
     return data
 
 
-def __count_total_count(data, filters, conditions, parameters):
+def __count_total_count(data, filters, conditions, parameters, status_filter=1):
     # find archive exist
     item_ids = [item_data["itemId"] for item_data in data]
 
@@ -759,6 +767,7 @@ def __count_total_count(data, filters, conditions, parameters):
             FROM item
             JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
+            AND item.is_deleted = :is_deleted
         """
     # if there is condition
     if len(filters) > 0:

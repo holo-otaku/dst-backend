@@ -42,6 +42,7 @@ class Item(db.Model):
     series_id = Column(Integer, ForeignKey('series.id'))
     created_at = Column(DateTime, default=datetime.now, nullable=False)
     updated_at = Column(DateTime, default=datetime.now, nullable=False)
+    is_deleted = Column(Boolean, default=0, nullable=False)
 
     attributes = relationship('ItemAttribute', back_populates='item')
     series = relationship('Series')
