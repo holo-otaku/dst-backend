@@ -979,6 +979,12 @@ paths:
                           - equals
                           - greater
                           - less
+                status:
+                  type: number
+                  enum:
+                    - 0
+                    - 1
+
       responses:
         "200":
           description: Success
@@ -998,7 +1004,7 @@ paths:
                     example: 87
                   data:
                     $ref: "#/components/schemas/Product"
-  
+
   /product/export:
     post:
       tags:
@@ -1069,7 +1075,7 @@ paths:
                     type: integer
                   msg:
                     type: string
-  
+
   /product/edit:
     patch:
       tags:
@@ -1101,6 +1107,11 @@ paths:
                             - type: string
                             - type: number
                             - type: boolean
+                  status:
+                    type: number
+                    enum:
+                      - 0
+                      - 1
       responses:
         "200":
           description: Success
