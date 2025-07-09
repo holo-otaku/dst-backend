@@ -216,8 +216,7 @@ def update_multi(data):
     # 遍歷每個輸入項目
     for item_data in data:
         item_id = item_data.get("itemId")
-        status = item_data.get("status", 1)
-        status_filter = int(status) if not status else 1
+        status = item_data.get("status")
         attributes = item_data.get("attributes", [])
 
         # 檢查輸入項目的完整性
@@ -231,7 +230,9 @@ def update_multi(data):
         if not item:
             return make_response(jsonify({"code": 404, "msg": "Item not found"}), 404)
 
-        item.status = status_filter
+        if status in [0, 1]:
+            item.status = status
+
         item.updated_at = datetime.now()
 
         # 遍歷每個屬性
