@@ -1240,7 +1240,7 @@ paths:
       tags:
         - Archive
       summary: Archive operation
-      description: Add Archive
+      description: Add multiple Archives
       security:
         - bearerAuth: []
       requestBody:
@@ -1250,9 +1250,11 @@ paths:
             schema:
               type: object
               properties:
-                itemId:
-                  type: integer
-                  example: 87
+                itemIds:
+                  type: array
+                  items:
+                    type: integer
+                  example: [87, 88, 89]
       responses:
         "200":
           description: Success
@@ -1266,15 +1268,35 @@ paths:
                     example: 200
                   msg:
                     type: string
-                    example: Success
-  /archive/{itemId}:
+                    example: Archived 2 items, skipped 1 duplicates
+                  data:
+                    type: object
+                    properties:
+                      skipped:
+                        type: array
+                        items:
+                          type: integer
+                        example: [88]
+
     delete:
       tags:
         - Archive
-      summary: Archive operation
-      description: Delete Archive
+      summary: Delete multiple Archives
+      description: Delete archive records by multiple itemIds
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                itemIds:
+                  type: array
+                  items:
+                    type: integer
+                  example: [87, 88, 89]
       responses:
         "200":
           description: Success
@@ -1288,7 +1310,21 @@ paths:
                     example: 200
                   msg:
                     type: string
-                    example: Success
+                    example: Deleted 2 items, 1 not found
+                  data:
+                    type: object
+                    properties:
+                      deleted:
+                        type: array
+                        items:
+                          type: integer
+                        example: [87, 88]
+                      notFound:
+                        type: array
+                        items:
+                          type: integer
+                        example: [89]
+
 components:
   securitySchemes:
     bearerAuth:
