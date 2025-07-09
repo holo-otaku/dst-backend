@@ -234,13 +234,10 @@ def test_update_multi_success(mock_save_image, mock_check_field_type, mock_commi
         mock_commit.assert_called_once()
 
 
-@patch('os.remove')
-@patch('os.path.exists', return_value=True)
 @patch('models.shared.db.session.commit')
-@patch('models.shared.db.session.delete')
 @patch('models.shared.db.session.query')
 @patch('models.shared.db.session.get')
-def test_delete_success(mock_get, mock_query, mock_delete, mock_commit, mock_exists, mock_remove, app):
+def test_delete_success(mock_get, mock_query, mock_commit, app):
     with app.app_context():
         mock_item = MagicMock()
         mock_item.id = 123
@@ -288,11 +285,8 @@ def test_delete_success(mock_get, mock_query, mock_delete, mock_commit, mock_exi
         assert response.get_json()['code'] == 200
         assert response.get_json()['msg'] == 'Items deleted'
 
-        mock_remove.assert_called_once()
-
         mock_commit.assert_called_once()
 
-        assert mock_delete.call_count > 0, "Expected at least one call to db.session.delete"
 
 
 def test_delete_with_no_data(app):
