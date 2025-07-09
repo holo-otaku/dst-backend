@@ -216,7 +216,7 @@ def update_multi(data):
     # 遍歷每個輸入項目
     for item_data in data:
         item_id = item_data.get("itemId")
-        status = item_data.get("status")
+        is_deleted = item_data.get("isDeleted")
         attributes = item_data.get("attributes", [])
 
         # 檢查輸入項目的完整性
@@ -230,8 +230,8 @@ def update_multi(data):
         if not item:
             return make_response(jsonify({"code": 404, "msg": "Item not found"}), 404)
 
-        if status in [0, 1]:
-            item.status = status
+        if is_deleted in [0, 1]:
+            item.is_deleted = is_deleted
 
         item.updated_at = datetime.now()
 
@@ -294,8 +294,7 @@ def delete(data):
     items_to_delete = db.session.query(Item).filter(Item.id.in_(item_ids)).all()
 
     for item in items_to_delete:
-        # status = 0
-        item.status = 0
+        item.is_deleted = 1
 
     db.session.commit()
 
@@ -312,8 +311,9 @@ def __get_series_data(data, for_export=False):
     if not series_id:
         raise ValueError("SeriesId not found")
 
-    status = data.get("status", 1)
-    status_filter = int(status) if not status else 1
+    is_deleted = data.get("isDeleted", 0)
+    if is_deleted not in [0, 1]:
+        raise ValueError("Input body error")
 
     series = db.session.query(Series).filter_by(id=series_id, status=1).first()
     if not series:
@@ -358,12 +358,12 @@ def __get_series_data(data, for_export=False):
         sort_order,
         limit,
         page,
-        status_filter,
+        is_deleted,
     )
     erp_data_map = __read_erp(items, fields)
     data = __combine_data_result(items, fields, erp_data_map)
     total_count = __count_total_count(
-        data, filters, conditions, parameters, status_filter
+        data, filters, conditions, parameters, is_deleted
     )
 
     return data, total_count, fields
@@ -633,7 +633,7 @@ def __get_items(
     sort_order,
     limit,
     page,
-    status=1,
+    is_deleted=0,
 ):
     # Create a SQL query to find the items
     sql_query = """
@@ -643,11 +643,11 @@ def __get_items(
             FROM item
             JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
-            AND item.status = :status
+            AND item.is_deleted = :is_deleted
         """
 
     conditions = []
-    parameters = {"series_id": series_id, "status": status}
+    parameters = {"series_id": series_id, "is_deleted": is_deleted}
 
     # if there is condition
     if len(filters) > 0:
@@ -767,7 +767,7 @@ def __count_total_count(data, filters, conditions, parameters, status_filter=1):
             FROM item
             JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
-            AND item.status = :status
+            AND item.is_deleted = :is_deleted
         """
     # if there is condition
     if len(filters) > 0:
