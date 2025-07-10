@@ -894,6 +894,81 @@ paths:
                           type: integer
                           example: 1
 
+  /product/copy:
+    post:
+      tags:
+        - Products
+      summary: Copy products by itemIds
+      description: Copy one or more existing items by their IDs, duplicating attributes and handling picture fields accordingly.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                itemIds:
+                  type: array
+                  items:
+                    type: integer
+              required:
+                - itemIds
+              example:
+                itemIds: [1, 2, 3]
+      responses:
+        "201":
+          description: Items copied successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 201
+                  msg:
+                    type: string
+                    example: Success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 101
+                        seriesId:
+                          type: integer
+                          example: 1
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 400
+                  msg:
+                    type: string
+                    example: itemIds must be a list
+        "404":
+          description: One of the source items not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 404
+                  msg:
+                    type: string
+                    example: Item 123 not found
+
   /product/{product_id}:
     get:
       tags:

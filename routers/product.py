@@ -6,6 +6,7 @@ from controller.product import (
     update_multi,
     read_multi,
     export_excel,
+    create_from_items,
 )
 from controller.access import check_permission
 
@@ -18,6 +19,14 @@ def create_product():
     data = request.get_json()
 
     return create(data)
+
+
+@products.route("/copy", methods=["POST"])
+@check_permission("product.create")
+def copy_product():
+    data = request.get_json()
+
+    return create_from_items(data)
 
 
 @products.route("/search", methods=["POST"])
