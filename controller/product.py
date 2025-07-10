@@ -151,6 +151,48 @@ def create(data):
 
 
 @handle_exceptions
+def create_from_items(data):
+    item_ids = data.get("itemIds", [])
+    if not item_ids or not isinstance(item_ids, list):
+        return make_response(
+            jsonify({"code": 400, "msg": "itemIds must be a list"}), 400
+        )
+
+    new_items = []
+
+    for item_id in item_ids:
+        item = db.session.get(Item, item_id)
+        if not item:
+            return make_response(
+                jsonify({"code": 404, "msg": f"Item {item_id} not found"}), 404
+            )
+
+        # 建立新 Item
+        new_item = Item(series_id=item.series_id)
+        db.session.add(new_item)
+        db.session.flush()  # 取得 new_item.id
+
+        # 複製對應的 attributes
+        attributes = db.session.query(ItemAttribute).filter_by(item_id=item_id).all()
+        for attr in attributes:
+            new_value = attr.value
+            # 如果是圖片類型，需要另外處理圖片複製
+            if attr.field.data_type == "picture" and attr.value:
+                new_value = __save_image(attr.value, new_item.id, attr.field_id)
+
+            new_attr = ItemAttribute(
+                item_id=new_item.id, field_id=attr.field_id, value=new_value
+            )
+            db.session.add(new_attr)
+
+        new_items.append(new_item)
+
+    db.session.commit()
+    result = [{"id": item.id, "seriesId": item.series_id} for item in new_items]
+    return make_response(jsonify({"code": 201, "msg": "Success", "data": result}), 201)
+
+
+@handle_exceptions
 def read_multi(data):
     try:
         data, total_count, _ = __get_series_data(data, for_export=False)
