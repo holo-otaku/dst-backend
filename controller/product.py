@@ -357,6 +357,10 @@ def __get_series_data(data, for_export=False):
     if is_deleted not in [0, 1]:
         raise ValueError("Input body error")
 
+    is_archived = data.get("isArchived")
+    if is_archived is not None and is_archived not in [0, 1]:
+        raise ValueError("isArchived must be 0 or 1")
+
     series = db.session.query(Series).filter_by(id=series_id, status=1).first()
     if not series:
         raise ValueError("Series not found")
@@ -401,11 +405,12 @@ def __get_series_data(data, for_export=False):
         limit,
         page,
         is_deleted,
+        is_archived,
     )
     erp_data_map = __read_erp(items, fields)
     data = __combine_data_result(items, fields, erp_data_map)
     total_count = __count_total_count(
-        data, filters, conditions, parameters, is_deleted
+        data, filters, conditions, parameters, is_deleted, is_archived
     )
 
     return data, total_count, fields
@@ -676,6 +681,7 @@ def __get_items(
     limit,
     page,
     is_deleted=0,
+    is_archived=None,
 ):
     # Create a SQL query to find the items
     sql_query = """
@@ -690,6 +696,12 @@ def __get_items(
 
     conditions = []
     parameters = {"series_id": series_id, "is_deleted": is_deleted}
+
+    if is_archived is not None:
+        if is_archived == 1:
+            sql_query += " AND item.id IN (SELECT item_id FROM archive)"
+        else:
+            sql_query += " AND item.id NOT IN (SELECT item_id FROM archive)"
 
     # if there is condition
     if len(filters) > 0:
@@ -790,7 +802,9 @@ def __combine_data_result(items, fields, erp_data_map):
     return data
 
 
-def __count_total_count(data, filters, conditions, parameters, status_filter=1):
+def __count_total_count(
+    data, filters, conditions, parameters, status_filter=1, is_archived=None
+):
     # find archive exist
     item_ids = [item_data["itemId"] for item_data in data]
 
@@ -811,6 +825,13 @@ def __count_total_count(data, filters, conditions, parameters, status_filter=1):
             WHERE item.series_id = :series_id
             AND item.is_deleted = :is_deleted
         """
+
+    if is_archived is not None:
+        if is_archived == 1:
+            count_query += " AND item.id IN (SELECT item_id FROM archive)"
+        else:
+            count_query += " AND item.id NOT IN (SELECT item_id FROM archive)"
+
     # if there is condition
     if len(filters) > 0:
         count_query = __create_count_query(count_query, conditions)
