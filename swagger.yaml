@@ -1059,6 +1059,11 @@ paths:
                   enum:
                     - 0
                     - 1
+                isArchived:
+                  type: number
+                  enum:
+                    - 0
+                    - 1
 
       responses:
         "200":
