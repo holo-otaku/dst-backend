@@ -38,29 +38,44 @@ def read(product_id):
     # Check if the item is archived
     is_archived = db.session.query(Archive).filter_by(item_id=product_id).first()
 
+    # Get all fields for this series
+    series_fields = db.session.query(Field).filter(
+        Field.series_id == item.series_id
+    ).order_by(Field.sequence).all()
+
     # Get the attributes related to this product
     attributes_query = db.session.query(ItemAttribute).filter(
         ItemAttribute.item_id == product_id
     )
+    
+    # Create a dictionary for quick lookup of existing attributes
+    existing_attributes = {attr.field_id: attr for attr in attributes_query.all()}
 
     attributes = []
     erp_product_nos = set()  # Collect all ERP product numbers
 
-    for attribute in attributes_query.all():
-        attributes += [
-            {
-                "fieldId": attribute.field_id,
-                "fieldName": attribute.field.name,
-                "dataType": attribute.field.data_type,
-                "value": __get_field_value_by_type(attribute),
-            }
-        ]
+    # Process all fields, including those without values in ItemAttribute
+    for field in series_fields:
+        attribute = existing_attributes.get(field.id)
+        
+        # Check permission for limited fields
+        is_limit_permission_ok = True
+        if field.is_limit_field:
+            is_limit_permission_ok = __check_field_permission("limit-field.read")
+        
+        if is_limit_permission_ok:
+            attributes.append({
+                "fieldId": field.id,
+                "fieldName": field.name,
+                "dataType": field.data_type,
+                "value": __get_field_value_by_type(attribute) if attribute else None,
+            })
 
-        # Collect erp product numbers
-        if attribute.field.search_erp:
-            erp_product_no = __get_field_value_by_type(attribute)
-            if erp_product_no:
-                erp_product_nos.add(erp_product_no)
+            # Collect erp product numbers
+            if field.search_erp and attribute:
+                erp_product_no = __get_field_value_by_type(attribute)
+                if erp_product_no:
+                    erp_product_nos.add(erp_product_no)
 
     # Fetch ERP data in bulk
     erp_data_map = read_erp(erp_product_nos)
