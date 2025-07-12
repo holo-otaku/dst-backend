@@ -777,7 +777,7 @@ def __combine_data_result(items, fields, erp_data_map):
             is_limit_permission_ok = True
             if field.is_limit_field:
                 is_limit_permission_ok = __check_field_permission("limit-field.read")
-            if is_limit_permission_ok:
+            if is_limit_permission_ok and not field.is_erp:
                 fields_data.append(
                     {
                         "fieldId": str(field.id),
