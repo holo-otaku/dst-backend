@@ -1405,6 +1405,77 @@ paths:
                           type: integer
                         example: [89]
 
+  /field/item_attribute/search:
+    get:
+      tags:
+        - Field
+      summary: Search ItemAttribute by field_id and value
+      description: Retrieve a list of ItemAttributes matching the given field_id and fuzzy search value.
+      parameters:
+        - in: query
+          name: field_id
+          description: ID of the field to search within
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: search_value
+          description: Value to fuzzy search for within ItemAttribute values
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: Success
+                  data:
+                    type: array
+                    items:
+                      type: string
+                      example: "sample_value"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 400
+                  msg:
+                    type: string
+                    example: Missing field_id or search_value
+                  data:
+                    type: array
+                    items: {}
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 500
+                  msg:
+                    type: string
+                    example: Internal server error message
+                  data:
+                    type: array
+                    items: {}
+
 components:
   securitySchemes:
     bearerAuth:
