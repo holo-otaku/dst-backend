@@ -870,7 +870,7 @@ def __read_erp(items, fields):
     for row in items:
         item_id, item_series_id, series_name = row
         for field in fields.values():
-            if field.is_erp:
+            if field.search_erp:
                 item = (
                     db.session.query(ItemAttribute)
                     .filter(
