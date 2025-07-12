@@ -57,7 +57,7 @@ def read(product_id):
         ]
 
         # Collect erp product numbers
-        if attribute.field.is_erp:
+        if attribute.field.search_erp:
             erp_product_no = __get_field_value_by_type(attribute)
             if erp_product_no:
                 erp_product_nos.add(erp_product_no)
@@ -764,6 +764,8 @@ def __combine_data_result(items, fields, erp_data_map):
     # Convert the list of attributes into a dictionary for easier look-up
     attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
 
+    
+
     for row in items:
         fields_data = []
         item_id, item_series_id, series_name = row
@@ -786,7 +788,7 @@ def __combine_data_result(items, fields, erp_data_map):
                 )
 
             # Get erp data
-            if field.is_erp and value in erp_data_map:
+            if field.search_erp and value in erp_data_map:
                 erp_data += erp_data_map[value]
 
         data.append(

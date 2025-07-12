@@ -109,15 +109,16 @@ def test_read_success(mock_read_erp, mock_query, mock_get, app):
         mock_attribute.field_id = 1
         mock_attribute.field.name = "Field1"
         mock_attribute.field.data_type = "string"
+        mock_attribute.field.search_erp = True
         mock_attribute.value = "Value1"
         mock_item.series = mock_series
         mock_query.return_value.filter.return_value.all.return_value = [mock_attribute]
         mock_get.return_value = mock_item
 
-        mock_archive = None  # 或者您也可以設置為 mock object
-        mock_query.return_value.filter_by.return_value.first.return_value = mock_archive
+        mock_attribute.field.search_erp = True
+        mock_read_erp.return_value = {"Value1": [{"fieldName": "ERP_Field_1", "value": "ERP_Value_1"}]}
 
-        mock_read_erp.return_value = {}
+        mock_query.return_value.filter_by.return_value.first.return_value = None
 
         # Call the read function
         response = read(product_id=1)
@@ -144,7 +145,7 @@ def test_read_success(mock_read_erp, mock_query, mock_get, app):
                     }
                 ],
                 "seriesName": "Test Series",
-                "erp": [],
+                "erp": [{"fieldName": "ERP_Field_1", "value": "ERP_Value_1"}],
                 "hasArchive": False,
             },
         }

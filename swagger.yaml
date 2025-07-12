@@ -1537,6 +1537,9 @@ components:
               isErp:
                 type: boolean
                 example: false
+              searchErp:
+                type: boolean
+                example: false
               name:
                 type: string
                 example: PORT數
@@ -1578,6 +1581,9 @@ components:
               isErp:
                 type: boolean
                 example: false
+              searchErp:
+                type: boolean
+                example: false
               name:
                 type: string
                 example: PORT數
@@ -1610,6 +1616,8 @@ components:
                 type: integer
               isLimitField:
                 type: integer
+              searchErp:
+                type: integer
 
     SeriesUpdatePayload:
       type: object
@@ -1633,6 +1641,8 @@ components:
                 type: integer
               isLimitField:
                 type: integer
+              searchErp:
+                type: integer
               sequence:
                 type: integer
         create:
@@ -1649,6 +1659,8 @@ components:
               isRequired:
                 type: integer
               isLimitField:
+                type: integer
+              searchErp:
                 type: integer
               sequence:
                 type: integer
