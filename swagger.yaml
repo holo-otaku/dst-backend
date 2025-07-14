@@ -1421,7 +1421,7 @@ paths:
         - in: query
           name: search_value
           description: Value to fuzzy search for within ItemAttribute values
-          required: true
+          required: false
           schema:
             type: string
       responses:

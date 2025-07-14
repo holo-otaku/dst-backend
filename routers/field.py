@@ -35,8 +35,8 @@ def search_item_attribute():
     field_id = request.args.get('field_id', type=int)
     search_value = request.args.get('search_value', type=str)
 
-    if not field_id or not search_value:
-        return jsonify({'code': 400, 'msg': 'Missing field_id or search_value', 'data': []}), 400
+    if not field_id:
+        return jsonify({'code': 400, 'msg': 'Missing field_id', 'data': []}), 400
 
     results = search_item_attribute_by_field_id_and_value(field_id, search_value)
     return jsonify(results)
