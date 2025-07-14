@@ -1405,7 +1405,7 @@ paths:
                           type: integer
                         example: [89]
 
-  /field/item_attribute/search:
+  /field/search:
     get:
       tags:
         - Field
