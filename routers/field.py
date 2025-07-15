@@ -1,10 +1,11 @@
 from flask import Blueprint, request, jsonify
 from controller.field import search_item_attribute_by_field_id_and_value
+from controller.access import check_permission
 
 field = Blueprint("field", __name__)
 
-
 @field.route("/search", methods=["GET"])
+@check_permission("product.create")
 def search_item_attribute():
     """
     @api {get} /field/search 搜尋 ItemAttribute

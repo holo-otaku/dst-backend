@@ -8,6 +8,7 @@ from models.shared import db
 from models.mapping_table import data_type_map
 from models.image import Image
 from sqlalchemy.exc import SQLAlchemyError
+from utils.permissions import check_field_permission, has_permission
 from sqlalchemy import and_, text
 from datetime import datetime
 import base64
@@ -61,7 +62,7 @@ def read(product_id):
         # Check permission for limited fields
         is_limit_permission_ok = True
         if field.is_limit_field:
-            is_limit_permission_ok = __check_field_permission("limit-field.read")
+            is_limit_permission_ok = check_field_permission("limit-field.read")
         
         if is_limit_permission_ok:
             attributes.append({
@@ -660,16 +661,6 @@ def __check_condition(field, operation, field_name, value_name):
     return condition
 
 
-def __check_field_permission(permission):
-    user_id = get_jwt_identity()
-
-    user = db.session.get(User, user_id)
-
-    if user and has_permission(permission):
-        return True
-    return False
-
-
 def __create_count_query(count_query, conditions):
     count_query += """
             AND (
@@ -679,13 +670,6 @@ def __create_count_query(count_query, conditions):
     count_query += ")"
 
     return count_query
-
-
-def has_permission(required_permission):
-    permissions = get_jwt().get("permissions", [])
-    if required_permission in permissions:
-        return True
-    return False
 
 
 def __get_items(
@@ -792,7 +776,7 @@ def __combine_data_result(items, fields, erp_data_map):
             # check permission disable field
             is_limit_permission_ok = True
             if field.is_limit_field:
-                is_limit_permission_ok = __check_field_permission("limit-field.read")
+                is_limit_permission_ok = check_field_permission("limit-field.read")
             if is_limit_permission_ok and not field.is_erp:
                 fields_data.append(
                     {
@@ -859,7 +843,7 @@ def __count_total_count(
     total_count = count_result[0]
 
     # check archive.update permission not exist delete item with archive false
-    is_archive_permission_ok = __check_field_permission("archive.create")
+    is_archive_permission_ok = check_field_permission("archive.create")
 
     if not is_archive_permission_ok:
         # archive.update not exist
