@@ -253,24 +253,75 @@ def test_update_user_invalid_role(mock_db_get, app):
 
 
 @patch('models.shared.db.session.get')
-def test_update_user_invalid_password(mock_db_get, app):
+def test_update_user_only_role_id(mock_db_get, app):
+    """Test updating only roleId without providing password"""
     with app.app_context():
-        # Mock user exists, but role does not
+        # Mock user exists
         mock_user = MagicMock()
         mock_user.id = 1
         mock_user.username = "ExistingUsername"
-        mock_db_get.side_effect = lambda model, id: mock_user if model.__name__ == "User" else None
+        mock_user.roles = []
+        mock_user.set_password = MagicMock()
+        
+        # Mock role exists
+        mock_role = MagicMock()
+        mock_role.id = 2
+        role_name_property = PropertyMock(return_value='NewRole')
+        type(mock_role).name = role_name_property
 
-        user_id = 1  # Existing user ID
-        update_data = {'roleId': 1, 'password': ""}
+        def db_get_side_effect(model, id):
+            if model == User and id == 1:
+                return mock_user
+            elif model == Role and id == 2:
+                return mock_role
+            return None
+
+        mock_db_get.side_effect = db_get_side_effect
+
+        user_id = 1
+        update_data = {'roleId': 2}  # Only update roleId, no password
 
         # Call the update function
         response = update(user_id, update_data)
         data = response.get_json()
 
-        # Assertions for invalid role scenario
-        assert response.status_code == 400
-        assert data == {"code": 400, "msg": "Invalid password: "}
+        # Assertions - should succeed
+        assert response.status_code == 200
+        assert data['code'] == 200
+        assert data['msg'] == "Success"
+        
+        # Verify that set_password was NOT called since no password was provided
+        mock_user.set_password.assert_not_called()
+
+
+@patch('models.shared.db.session.get')
+def test_update_user_empty_password_no_role(mock_db_get, app):
+    """Test that providing empty password with no other updates should work"""
+    with app.app_context():
+        # Mock user exists
+        mock_user = MagicMock()
+        mock_user.id = 1
+        mock_user.username = "ExistingUsername"
+        mock_user.roles = [MagicMock()]
+        mock_user.roles[0].name = "ExistingRole"
+        mock_user.set_password = MagicMock()
+        
+        mock_db_get.return_value = mock_user
+
+        user_id = 1
+        update_data = {'password': ""}  # Empty password, no other updates
+
+        # Call the update function
+        response = update(user_id, update_data)
+        data = response.get_json()
+
+        # Should succeed but not update password
+        assert response.status_code == 200
+        assert data['code'] == 200
+        assert data['msg'] == "Success"
+        
+        # Verify that set_password was NOT called since password was empty
+        mock_user.set_password.assert_not_called()
 
 
 # Test case for successful user deletion
