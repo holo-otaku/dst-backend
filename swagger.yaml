@@ -1614,11 +1614,6 @@ components:
               name:
                 type: string
                 example: PORT數
-              value:
-                type: array
-                items:
-                  example: 1 x 1
-                example: Series 1
               sequence:
                 type: number
                 example: 1

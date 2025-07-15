@@ -92,25 +92,6 @@ def read(series_id):
         if f.is_erp:
             continue
 
-        unique_values = []
-        if f.is_filtered and (f.data_type == "string" or f.data_type == "number"):
-            distinct_count = (
-                db.session.query(ItemAttribute.value)
-                .filter(ItemAttribute.field_id == f.id)
-                .distinct()
-                .count()
-            )
-            if distinct_count <= 30:
-                unique_values = (
-                    db.session.query(ItemAttribute.value)
-                    .filter(ItemAttribute.field_id == f.id)
-                    .distinct()
-                    .all()
-                )
-                unique_values = [
-                    str(attr.value) for attr in unique_values if attr.value is not None
-                ]
-
         if f.search_erp:
             has_search_erp = True
 
@@ -123,7 +104,6 @@ def read(series_id):
                 "isRequired": bool(f.is_required),
                 "searchErp": bool(f.search_erp),
                 "isErp": bool(f.is_erp),
-                "values": [str(v) for v in unique_values],
                 "isLimitField": bool(f.is_limit_field),
                 "sequence": int(f.sequence),
             }
@@ -154,7 +134,6 @@ def read(series_id):
                         "isRequired": bool(f.is_required),
                         "searchErp": bool(f.search_erp),
                         "isErp": bool(f.is_erp),
-                        "values": [],
                         "isLimitField": bool(f.is_limit_field),
                         "sequence": int(f.sequence),
                     }
@@ -170,7 +149,6 @@ def read(series_id):
                         "isRequired": False,
                         "searchErp": False,
                         "isErp": True,
-                        "values": [],
                         "isLimitField": False,  # Default for non-saved ERP fields
                         "sequence": 999,  # High sequence to appear at the end
                     }

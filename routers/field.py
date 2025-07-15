@@ -1,12 +1,13 @@
 from flask import Blueprint, request, jsonify
 from controller.field import search_item_attribute_by_field_id_and_value
 
-field = Blueprint('field', __name__)
+field = Blueprint("field", __name__)
 
-@field.route('/search', methods=['GET'])
+
+@field.route("/search", methods=["GET"])
 def search_item_attribute():
     """
-    @api {get} /field/item_attribute/search 搜尋 ItemAttribute
+    @api {get} /field/search 搜尋 ItemAttribute
     @apiName SearchItemAttribute
     @apiGroup Field
     @apiParam {Number} field_id 欄位 ID
@@ -32,11 +33,8 @@ def search_item_attribute():
             "data": []
         }
     """
-    field_id = request.args.get('field_id', type=int)
-    search_value = request.args.get('search_value', type=str)
-
-    if not field_id:
-        return jsonify({'code': 400, 'msg': 'Missing field_id', 'data': []}), 400
+    field_id = request.args.get("field_id", type=int)
+    search_value = request.args.get("search_value", type=str)
 
     results = search_item_attribute_by_field_id_and_value(field_id, search_value)
     return jsonify(results)
