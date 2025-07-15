@@ -4,119 +4,202 @@ from .client import app
 
 
 @patch("controller.field.db.session.query")
-def test_search_item_attribute_success(mock_query, app):
+@patch("controller.field.check_field_permission")
+def test_search_item_attribute_success_with_archive_permission(mock_check_permission, mock_query, app):
     """
-    Test case for successful search.
+    測試當用戶有 archive.create 權限時的成功搜尋
     """
     with app.app_context():
-        # Mock the query results - results are tuples since we're using distinct
-        mock_query.return_value.filter.return_value.limit.return_value.all.return_value = [
+        # Mock 權限檢查 - 用戶有 archive 權限
+        mock_check_permission.return_value = True
+        
+        # Mock 查詢結果 - 當有權限時，不會過濾 archive，所以查詢鏈較短
+        mock_query_chain = mock_query.return_value.join.return_value.filter.return_value.filter.return_value.limit.return_value
+        mock_query_chain.all.return_value = [
             ("test_value_1",),
             ("test_value_2",),
+            ("archived_value_1",),
         ]
 
-        # Call the function
+        # 調用函數
         result = search_item_attribute_by_field_id_and_value(
             field_id=1, search_value="test"
         )
 
-        # Assert the result
+        # 驗證結果 - 應該包含所有值包括已歸檔的
         assert result["code"] == 200
         assert result["msg"] == "Success"
-        assert result["data"] == ["test_value_1", "test_value_2"]
+        assert result["data"] == ["test_value_1", "test_value_2", "archived_value_1"]
+        
+        # 驗證權限檢查
+        mock_check_permission.assert_called_once_with("archive.create")
+
+
+@patch("controller.field.db.session.query")
+@patch("controller.field.check_field_permission")
+def test_search_item_attribute_no_archive_permission(mock_check_permission, mock_query, app):
+    """
+    測試當用戶沒有 archive.create 權限時 - 應該過濾掉已歸檔的項目
+    """
+    with app.app_context():
+        # Mock 權限檢查 - 沒有 archive 權限
+        mock_check_permission.return_value = False
+        
+        # Mock 查詢結果 - 應該排除已歸檔的項目
+        mock_query_chain = mock_query.return_value.join.return_value.filter.return_value.filter.return_value.limit.return_value
+        mock_query_chain.all.return_value = [
+            ("non_archived_value_1",),
+            ("non_archived_value_2",),
+        ]
+
+        # 調用函數
+        result = search_item_attribute_by_field_id_and_value(field_id=1)
+
+        # 驗證結果 - 應該只包含非歸檔的值
+        assert result["code"] == 200
+        assert result["msg"] == "Success"
+        assert result["data"] == ["non_archived_value_1", "non_archived_value_2"]
+        
+        # 驗證權限檢查
+        mock_check_permission.assert_called_once_with("archive.create")
 
 
 def test_search_item_attribute_missing_field_id():
     """
-    Test case for when field_id is missing.
+    測試當 field_id 缺失時的錯誤處理
     """
-    # Call the function with no field_id - using type: ignore for testing purposes
+    # 調用函數但不提供 field_id
     result = search_item_attribute_by_field_id_and_value(field_id=None)  # type: ignore
 
-    # Assert the error response
+    # 驗證錯誤回應
     assert result["code"] == 400
     assert result["msg"] == "Missing field_id"
     assert result["data"] == []
 
 
 @patch("controller.field.db.session.query")
-def test_search_item_attribute_no_search_value(mock_query, app):
+@patch("controller.field.check_field_permission")
+def test_search_item_attribute_no_search_value(mock_check_permission, mock_query, app):
     """
-    Test case for when search_value is not provided.
+    測試當沒有提供 search_value 時的搜尋
     """
     with app.app_context():
-        # Mock the query results - results are tuples since we're using distinct
-        mock_query.return_value.filter.return_value.limit.return_value.all.return_value = [
+        # Mock 權限檢查
+        mock_check_permission.return_value = True
+        
+        # Mock 查詢鏈
+        mock_query_chain = mock_query.return_value.join.return_value.filter.return_value.limit.return_value
+        mock_query_chain.all.return_value = [
             ("value_a",),
             ("value_b",),
         ]
 
-        # Call the function
+        # 調用函數
         result = search_item_attribute_by_field_id_and_value(field_id=2)
 
-        # Assert the result
+        # 驗證結果
         assert result["code"] == 200
         assert result["msg"] == "Success"
         assert result["data"] == ["value_a", "value_b"]
 
 
-@patch("controller.field.db.session.query")
-def test_search_item_attribute_exception(mock_query, app):
+@patch("controller.field.check_field_permission")
+def test_search_item_attribute_exception(mock_check_permission, app):
     """
-    Test case for when a database exception occurs.
+    測試當發生資料庫異常時的錯誤處理
     """
     with app.app_context():
-        # Configure the mock to raise an exception
-        mock_query.side_effect = Exception("Database error")
+        # Mock 權限檢查引發異常
+        mock_check_permission.side_effect = Exception("Database error")
 
-        # Call the function
+        # 調用函數
         result = search_item_attribute_by_field_id_and_value(field_id=1)
 
-        # Assert the error response
+        # 驗證錯誤回應
         assert result["code"] == 500
         assert "Database error" in result["msg"]
         assert result["data"] == []
 
 
 @patch("controller.field.db.session.query")
-def test_search_item_attribute_with_duplicates_removed(mock_query, app):
+@patch("controller.field.check_field_permission")
+def test_search_item_attribute_with_duplicates_removed(mock_check_permission, mock_query, app):
     """
-    Test case to ensure duplicates are properly removed using distinct.
+    測試確保使用 distinct 正確去除重複項
     """
     with app.app_context():
-        # Mock query results with what would be duplicate values
-        mock_query.return_value.filter.return_value.limit.return_value.all.return_value = [
+        # Mock 權限檢查
+        mock_check_permission.return_value = True
+        
+        # Mock 查詢鏈
+        mock_query_chain = mock_query.return_value.join.return_value.filter.return_value.filter.return_value.limit.return_value
+        mock_query_chain.all.return_value = [
             ("unique_value_1",),
             ("unique_value_2",),
             ("unique_value_3",),
         ]
 
-        # Call the function
+        # 調用函數
         result = search_item_attribute_by_field_id_and_value(
             field_id=1, search_value="unique"
         )
 
-        # Assert the result - should only contain unique values
+        # 驗證結果 - 應該只包含唯一值
         assert result["code"] == 200
         assert result["msg"] == "Success"
         assert result["data"] == ["unique_value_1", "unique_value_2", "unique_value_3"]
-        assert len(result["data"]) == len(set(result["data"]))  # Ensure no duplicates
 
 
 @patch("controller.field.db.session.query")
-def test_search_item_attribute_limit_results(mock_query, app):
+@patch("controller.field.check_field_permission")
+def test_search_item_attribute_limit_results(mock_check_permission, mock_query, app):
     """
-    Test case to ensure results are limited to 100.
+    測試確保結果限制為 100 筆
     """
     with app.app_context():
-        # Mock query that would return many results
-        mock_results = [(f"value_{i}",) for i in range(150)]  # 150 results
-        mock_query.return_value.filter.return_value.limit.return_value.all.return_value = mock_results[:100]  # But limited to 100
+        # Mock 權限檢查
+        mock_check_permission.return_value = True
+        
+        # Mock 查詢鏈
+        mock_query_chain = mock_query.return_value.join.return_value.filter.return_value.limit.return_value
+        mock_results = [(f"value_{i}",) for i in range(100)]  # 100 筆結果
+        mock_query_chain.all.return_value = mock_results
 
-        # Call the function
+        # 調用函數
         result = search_item_attribute_by_field_id_and_value(field_id=1)
 
-        # Assert the result is limited
+        # 驗證結果限制
         assert result["code"] == 200
         assert result["msg"] == "Success"
         assert len(result["data"]) == 100
+
+
+@patch("controller.field.db.session.query")
+@patch("controller.field.check_field_permission")
+def test_search_item_attribute_with_search_value_filter(mock_check_permission, mock_query, app):
+    """
+    測試當提供 search_value 時的模糊搜尋功能
+    """
+    with app.app_context():
+        # Mock 權限檢查
+        mock_check_permission.return_value = True
+        
+        # Mock 查詢鏈
+        mock_query_chain = mock_query.return_value.join.return_value.filter.return_value.filter.return_value.limit.return_value
+        mock_query_chain.all.return_value = [
+            ("test_match_1",),
+            ("test_match_2",),
+        ]
+
+        # 調用函數
+        result = search_item_attribute_by_field_id_and_value(
+            field_id=1, search_value="match"
+        )
+
+        # 驗證結果
+        assert result["code"] == 200
+        assert result["msg"] == "Success"
+        assert result["data"] == ["test_match_1", "test_match_2"]
+        
+        # 驗證權限檢查
+        mock_check_permission.assert_called_once_with("archive.create")
