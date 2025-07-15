@@ -999,7 +999,7 @@ paths:
                     type: string
                     example: Success
                   data:
-                    $ref: "#/components/schemas/Product"
+                    $ref: "#/components/schemas/SingleProduct"
 
   /product/search:
     post:
@@ -1734,6 +1734,41 @@ components:
           type: array
           items:
             type: integer
+
+    SingleProduct:
+      type: object
+      properties:
+        itemId:
+          type: integer
+          example: 1
+        seriesId:
+          type: integer
+          example: 1
+        seriesName:
+          type: string
+          example: "Test Series"
+        hasArchive:
+          type: boolean
+          example: false
+        isDeleted:
+          type: boolean
+          example: false
+          description: "Indicates whether the product has been deleted"
+        attributes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attribute"
+        erp:
+          type: array
+          items:
+            type: object
+            properties:
+              fieldName:
+                type: string
+                example: "廠商編號"
+              value:
+                type: string
+                example: "Field Value"
 
     Product:
       type: array
