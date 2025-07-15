@@ -1,5 +1,6 @@
 from models.series import ItemAttribute
-from sqlalchemy import or_
+from sqlalchemy import or_, distinct
+from models.shared import db
 
 
 def search_item_attribute_by_field_id_and_value(
@@ -13,18 +14,24 @@ def search_item_attribute_by_field_id_and_value(
         return {"code": 400, "msg": "Missing field_id", "data": []}
 
     try:
-        query = ItemAttribute.query.filter(ItemAttribute.field_id == field_id)
-
+        # 使用 SQL 的 DISTINCT 直接在資料庫層面去重，避免載入大量重複資料
         if search_value:
-            query = query.filter(
-                or_(
-                    ItemAttribute.value.ilike(f"%{search_value}%"),
-                )
-            )
-
-        # 使用 distinct() 確保不重複，並限制返回結果數量
-        query = query.distinct(ItemAttribute.value).limit(100)
-        results = query.all()
-        return {"code": 200, "msg": "Success", "data": [item.value for item in results]}
+            # 有搜尋條件時
+            results = db.session.query(distinct(ItemAttribute.value)).filter(
+                ItemAttribute.field_id == field_id,
+                ItemAttribute.value.ilike(f"%{search_value}%"),
+                ItemAttribute.value.is_not(None)
+            ).limit(100).all()
+        else:
+            # 沒有搜尋條件時，取該 field_id 的所有不重複值
+            results = db.session.query(distinct(ItemAttribute.value)).filter(
+                ItemAttribute.field_id == field_id,
+                ItemAttribute.value.is_not(None)
+            ).limit(100).all()
+        
+        # results 是 tuple 的 list，需要提取第一個元素
+        unique_values = [result[0] for result in results]
+        
+        return {"code": 200, "msg": "Success", "data": unique_values}
     except Exception as e:
         return {"code": 500, "msg": str(e), "data": []}
