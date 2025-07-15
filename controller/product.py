@@ -526,11 +526,58 @@ def __check_field_required(fields_query, filters, is_required_var):
 
 
 def __is_datetime(string):
-    try:
-        datetime.strptime(string, "%Y/%m/%d")
-        return True
-    except ValueError:
-        return False
+    """
+    檢查字串是否為有效的日期格式
+    支援多種日期格式：
+    - %Y/%m/%d (2025/01/07)
+    - %m/%d/%y (01/07/25)
+    - %m/%d/%Y (01/07/2025)
+    - %Y-%m-%d (2025-01-07)
+    - %d/%m/%Y (07/01/2025)
+    """
+    date_formats = [
+        "%Y/%m/%d",  # 2025/01/07
+        "%m/%d/%y",  # 01/07/25
+        "%m/%d/%Y",  # 01/07/2025
+        "%Y-%m-%d",  # 2025-01-07
+        "%d/%m/%Y",  # 07/01/2025
+        "%d-%m-%Y",  # 07-01-2025
+    ]
+    
+    for date_format in date_formats:
+        try:
+            datetime.strptime(string, date_format)
+            return True
+        except ValueError:
+            continue
+    
+    return False
+
+
+def __normalize_date(date_string):
+    """
+    將不同格式的日期字串標準化為 YYYY-MM-DD 格式
+    """
+    if not date_string:
+        return None
+        
+    date_formats = [
+        "%Y/%m/%d",  # 2025/01/07
+        "%m/%d/%y",  # 01/07/25
+        "%m/%d/%Y",  # 01/07/2025
+        "%Y-%m-%d",  # 2025-01-07
+        "%d/%m/%Y",  # 07/01/2025
+        "%d-%m-%Y",  # 07-01-2025
+    ]
+    
+    for date_format in date_formats:
+        try:
+            parsed_date = datetime.strptime(date_string, date_format)
+            return parsed_date.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    
+    return None
 
 
 def __check_field_type(field, value):
@@ -616,7 +663,7 @@ def __check_condition(field, operation, field_name, value_name):
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
                     AND item_attribute.field_id = :{field_name}
-                    AND CAST(item_attribute.value AS DATE) >= :{value_name}
+                    AND DATE(item_attribute.value) >= DATE(:{value_name})
             )
             """
 
@@ -642,9 +689,22 @@ def __check_condition(field, operation, field_name, value_name):
                     JOIN item_attribute ON item.id = item_attribute.item_id
                 WHERE item.series_id = :series_id
                     AND item_attribute.field_id = :{field_name}
-                    AND CAST(item_attribute.value AS DATE) <= :{value_name}
+                    AND DATE(item_attribute.value) <= DATE(:{value_name})
             )
             """
+    elif operation in ["equals", "equal"] and field.data_type.lower() == "datetime":
+        # 對於日期相等比較，使用 DATE() 函數確保只比較日期部分
+        condition = f"""
+        (item.id, item.series_id) IN (
+            SELECT DISTINCT item.id,
+                            item.series_id
+            FROM item
+                JOIN item_attribute ON item.id = item_attribute.item_id
+            WHERE item.series_id = :series_id
+                AND item_attribute.field_id = :{field_name}
+                AND DATE(item_attribute.value) = DATE(:{value_name})
+        )
+        """
 
     if field.data_type.lower() == "string":
         condition = f"""
@@ -720,9 +780,17 @@ def __get_items(
 
             parameters[field_name] = field_id
 
-            # like binding
+            # 處理不同資料型別的值綁定
             if field.data_type.lower() == "string":
                 parameters[value_name] = f"%{value}%"
+            elif field.data_type.lower() == "datetime":
+                # 標準化日期格式為 YYYY-MM-DD
+                normalized_date = __normalize_date(value)
+                if normalized_date:
+                    parameters[value_name] = normalized_date
+                else:
+                    # 如果日期格式無效，使用原始值（可能會導致查詢失敗，但會有適當的錯誤處理）
+                    parameters[value_name] = value
             else:
                 parameters[value_name] = value
 
