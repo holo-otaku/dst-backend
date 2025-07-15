@@ -99,36 +99,59 @@ def test_create_series_not_found(mock_get, app):
 @patch("models.shared.db.session.get")
 @patch("models.shared.db.session.query")
 @patch("controller.product.read_erp")
-def test_read_success(mock_read_erp, mock_query, mock_get, app):
+@patch("controller.product.has_permission")
+def test_read_success(mock_has_permission, mock_read_erp, mock_query, mock_get, app):
     with app.app_context():
         # Prepare mock data
         mock_item = MagicMock(id=1, series_id=1)
         mock_series = MagicMock()
         mock_series.name = "Test Series"
+        mock_item.series = mock_series
+
+        # Mock field
+        mock_field = MagicMock()
+        mock_field.id = 1
+        mock_field.name = "Field1"
+        mock_field.data_type = "string"
+        mock_field.search_erp = True
+        mock_field.is_limit_field = False
+        mock_field.series_id = 1
+
+        # Mock attribute
         mock_attribute = MagicMock()
         mock_attribute.field_id = 1
-        mock_attribute.field.name = "Field1"
-        mock_attribute.field.data_type = "string"
+        mock_attribute.field = mock_field
         mock_attribute.value = "Value1"
-        mock_item.series = mock_series
-        mock_query.return_value.filter.return_value.all.return_value = [mock_attribute]
+
+        # Configure mocks
         mock_get.return_value = mock_item
+        mock_has_permission.return_value = True
 
-        mock_archive = None  # 或者您也可以設置為 mock object
-        mock_query.return_value.filter_by.return_value.first.return_value = mock_archive
+        # Mock the query calls
+        def mock_query_side_effect(model):
+            if model == Field:
+                field_query = MagicMock()
+                field_query.filter.return_value.order_by.return_value.all.return_value = [mock_field]
+                return field_query
+            elif model == ItemAttribute:
+                attribute_query = MagicMock()
+                attribute_query.filter.return_value.all.return_value = [mock_attribute]
+                return attribute_query
+            elif model == Archive:
+                archive_query = MagicMock()
+                archive_query.filter_by.return_value.first.return_value = None
+                return archive_query
+            return MagicMock()
 
-        mock_read_erp.return_value = {}
+        mock_query.side_effect = mock_query_side_effect
+
+        mock_read_erp.return_value = {"Value1": [{"fieldName": "ERP_Field_1", "value": "ERP_Value_1"}]}
 
         # Call the read function
         response = read(product_id=1)
 
-        # Convert MagicMock objects to strings before assertion
-        for attribute in response.get_json()["data"]["attributes"]:
-            attribute["fieldName"] = str(attribute["fieldName"])
-
         # Assert the response
         assert response.status_code == 200
-        print(response.get_json())
         assert response.get_json() == {
             "code": 200,
             "msg": "Success",
@@ -144,7 +167,7 @@ def test_read_success(mock_read_erp, mock_query, mock_get, app):
                     }
                 ],
                 "seriesName": "Test Series",
-                "erp": [],
+                "erp": [{"fieldName": "ERP_Field_1", "value": "ERP_Value_1"}],
                 "hasArchive": False,
             },
         }

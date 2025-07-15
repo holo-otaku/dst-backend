@@ -1,6 +1,20 @@
 from flask import current_app
 from models.mssql import Connect
 
+def get_erp_fields_metadata():
+    """
+    Returns a list of ERP field metadata (name, data_type).
+    """
+    return [
+        {"name": "標準進價(進貨幣別)", "dataType": "string"},
+        {"name": "實際單位總成本(本地幣)", "dataType": "string"},
+        {"name": "進貨幣別欄位", "dataType": "string"},
+        {"name": "建檔日期", "dataType": "datetime"},
+        {"name": "LeadTime(天)", "dataType": "string"},
+        {"name": "停產日期", "dataType": "datetime"},
+        {"name": "交易狀態", "dataType": "string"},
+    ]
+
 
 def read(product_numbers):
     data_map = {}

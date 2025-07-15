@@ -9,6 +9,7 @@ from routers.healthcheck import health_check
 from routers.image import image
 from routers.log import log
 from routers.archive import archive
+from routers.field import field
 
 
 class Routes:
@@ -24,3 +25,4 @@ class Routes:
         app.register_blueprint(image, url_prefix='/image')
         app.register_blueprint(log, url_prefix='/log')
         app.register_blueprint(archive, url_prefix='/archive')
+        app.register_blueprint(field, url_prefix='/field')
