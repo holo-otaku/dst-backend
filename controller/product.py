@@ -93,6 +93,7 @@ def read(product_id):
         "seriesName": item.series.name,
         "erp": erp_data,
         "hasArchive": bool(is_archived),
+        "isDeleted": bool(item.is_deleted),
     }
     response = make_response(
         jsonify({"code": 200, "msg": "Success", "data": result}), 200

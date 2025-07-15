@@ -103,7 +103,7 @@ def test_create_series_not_found(mock_get, app):
 def test_read_success(mock_has_permission, mock_read_erp, mock_query, mock_get, app):
     with app.app_context():
         # Prepare mock data
-        mock_item = MagicMock(id=1, series_id=1)
+        mock_item = MagicMock(id=1, series_id=1, is_deleted=False)
         mock_series = MagicMock()
         mock_series.name = "Test Series"
         mock_item.series = mock_series
@@ -169,6 +169,7 @@ def test_read_success(mock_has_permission, mock_read_erp, mock_query, mock_get, 
                 "seriesName": "Test Series",
                 "erp": [{"fieldName": "ERP_Field_1", "value": "ERP_Value_1"}],
                 "hasArchive": False,
+                "isDeleted": False,
             },
         }
 
@@ -436,3 +437,68 @@ def test_copy_with_invalid_input(app):
         response3 = create_from_items({"itemIds": []})
         assert response3.status_code == 400
         assert response3.get_json() == {"code": 400, "msg": "itemIds must be a list"}
+
+
+@patch("models.shared.db.session.get")
+@patch("models.shared.db.session.query")
+@patch("controller.product.read_erp")
+@patch("controller.product.has_permission")
+def test_read_deleted_product(mock_has_permission, mock_read_erp, mock_query, mock_get, app):
+    """
+    Test reading a deleted product returns isDeleted: true
+    """
+    with app.app_context():
+        # Prepare mock data for deleted item
+        mock_item = MagicMock(id=1, series_id=1, is_deleted=True)
+        mock_series = MagicMock()
+        mock_series.name = "Test Series"
+        mock_item.series = mock_series
+
+        # Mock field
+        mock_field = MagicMock()
+        mock_field.id = 1
+        mock_field.name = "Field1"
+        mock_field.data_type = "string"
+        mock_field.search_erp = False
+        mock_field.is_limit_field = False
+        mock_field.series_id = 1
+
+        # Mock attribute
+        mock_attribute = MagicMock()
+        mock_attribute.field_id = 1
+        mock_attribute.field = mock_field
+        mock_attribute.value = "Value1"
+
+        # Configure mocks
+        mock_get.return_value = mock_item
+        mock_has_permission.return_value = True
+
+        # Mock the query calls
+        def mock_query_side_effect(model):
+            if model == Field:
+                field_query = MagicMock()
+                field_query.filter.return_value.order_by.return_value.all.return_value = [mock_field]
+                return field_query
+            elif model == ItemAttribute:
+                attribute_query = MagicMock()
+                attribute_query.filter.return_value.all.return_value = [mock_attribute]
+                return attribute_query
+            elif model == Archive:
+                archive_query = MagicMock()
+                archive_query.filter_by.return_value.first.return_value = None
+                return archive_query
+            return MagicMock()
+
+        mock_query.side_effect = mock_query_side_effect
+        mock_read_erp.return_value = {}
+
+        # Call the read function
+        response = read(product_id=1)
+
+        # Assert the response
+        assert response.status_code == 200
+        response_data = response.get_json()
+        assert response_data["code"] == 200
+        assert response_data["msg"] == "Success"
+        assert response_data["data"]["isDeleted"] == True
+        assert response_data["data"]["itemId"] == 1
