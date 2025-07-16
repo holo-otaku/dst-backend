@@ -79,7 +79,7 @@ def read(product_id):
                     erp_product_nos.add(erp_product_no)
 
     # Fetch ERP data in bulk
-    erp_data_map = read_erp(erp_product_nos)
+    erp_data_map = read_erp(erp_product_nos, item.series_id)
 
     # Extract ERP data
     erp_data = []
@@ -424,7 +424,7 @@ def __get_series_data(data, for_export=False):
         is_deleted,
         is_archived,
     )
-    erp_data_map = __read_erp(items, fields)
+    erp_data_map = __read_erp(items, fields, series_id)
     data = __combine_data_result(items, fields, erp_data_map)
     total_count = __count_total_count(
         data, filters, conditions, parameters, is_deleted, is_archived
@@ -598,7 +598,7 @@ def __check_field_type(field, value):
             encoded_data = value.split(",")[1]
             decoded_data = base64.b64decode(encoded_data)
             img = PILImage.open(io.BytesIO(decoded_data))
-            if img.format.lower() not in ["jpeg", "jpg", "png"]:
+            if img.format is None or img.format.lower() not in ["jpeg", "jpg", "png"]:
                 type_err.append(
                     f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}."
                 )
@@ -932,7 +932,7 @@ def __count_total_count(
     return total_count
 
 
-def __read_erp(items, fields):
+def __read_erp(items, fields, series_id):
     # Extract all product numbers from the result that need ERP data
     product_nos_to_fetch = set()
     for row in items:
@@ -953,4 +953,4 @@ def __read_erp(items, fields):
                 product_nos_to_fetch.add(erp_product_no)
 
     # Fetch ERP data in a single call
-    return read_erp(product_nos_to_fetch)
+    return read_erp(product_nos_to_fetch, series_id)
