@@ -235,6 +235,14 @@ def export_excel(data):
 
         # 取得欄位名稱（以第一筆 attributes 為基準）
         field_names = [attr["fieldName"] for attr in rows[0]["attributes"]]
+        
+        # 取得 ERP 欄位名稱（如果有的話）
+        erp_field_names = []
+        if rows[0].get("erp"):
+            erp_field_names = [erp_field["key"] for erp_field in rows[0]["erp"]]
+        
+        # 合併所有欄位名稱
+        all_field_names = field_names + erp_field_names
 
         # 建立 Excel 檔案在記憶體中
         output = BytesIO()
@@ -242,24 +250,42 @@ def export_excel(data):
         worksheet = workbook.add_worksheet("Products")
 
         # 寫入表頭
-        for col, name in enumerate(field_names):
+        for col, name in enumerate(all_field_names):
             worksheet.write(0, col, name)
 
         # 寫入每列資料
         for row_idx, row in enumerate(rows, start=1):
+            col_idx = 0
+            
+            # 寫入一般欄位資料
             attr_list = row.get("attributes", [])
-            for col_idx, attr in enumerate(attr_list):
+            for attr in attr_list:
                 value = attr.get("value", "")
                 worksheet.write(row_idx, col_idx, value)
+                col_idx += 1
+            
+            # 寫入 ERP 欄位資料
+            erp_list = row.get("erp", [])
+            for erp_field in erp_list:
+                value = erp_field.get("value", "")
+                worksheet.write(row_idx, col_idx, value)
+                col_idx += 1
 
         workbook.close()
         output.seek(0)
+
+        # 使用 UTC+8 時間生成檔名
+        from datetime import datetime, timezone, timedelta
+        utc_plus_8 = timezone(timedelta(hours=8))
+        current_time = datetime.now(utc_plus_8)
+        timestamp = current_time.strftime("%Y%m%d_%H%M%S")
+        filename = f"products_export_{timestamp}.xlsx"
 
         return send_file(
             output,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             as_attachment=True,
-            download_name="products_export.xlsx",
+            download_name=filename,
         )
 
     except ValueError as e:
