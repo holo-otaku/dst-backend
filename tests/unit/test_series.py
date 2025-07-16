@@ -135,9 +135,6 @@ def test_read_series_success(session_query_mock, mock_get_erp_fields_metadata, a
         response = read(series_id=1)
         json_data = response.get_json()
 
-        # 可以 debug 印出 field list
-        print("Returned fields:", json_data["data"]["fields"])
-
         assert response.status_code == 200
         assert json_data["code"] == 200
         assert json_data["msg"] == "Success"

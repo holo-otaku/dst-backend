@@ -313,6 +313,89 @@ paths:
                     type: string
                     example: User deleted
 
+  /user/{user_id}/force-logout:
+    post:
+      tags:
+        - User
+      summary: Force logout a specific user
+      description: Force logout a specific user by incrementing their token version, invalidating all their current tokens.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          required: true
+          name: user_id
+          description: ID of the user to force logout
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: User has been forced to logout
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: integer
+                        example: 1
+                      tokenVersion:
+                        type: integer
+                        example: 2
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 404
+                  msg:
+                    type: string
+                    example: User not found
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+
+  /user/force-logout-all:
+    post:
+      tags:
+        - User
+      summary: Force logout all users
+      description: Force logout all users by incrementing their token versions, invalidating all current tokens system-wide.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: All 5 users have been forced to logout
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+
   /permission:
     post:
       tags:
@@ -602,7 +685,7 @@ paths:
       tags:
         - Role
       summary: Update a role
-      description: Update a specific role by ID with the given data.
+      description: Update a specific role by ID with the given data. When role permissions are updated, all users with this role will have their token versions incremented, forcing them to re-login with the new permissions.
       security:
         - bearerAuth: []
       parameters:

@@ -3,6 +3,7 @@ from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from models.shared import db
 from models.log import ActivityLog
+from middlewares.token_version import TokenVersionMiddleware
 import json
 import zlib
 import sys
@@ -10,6 +11,9 @@ import sys
 
 class Middlewares():
     def __init__(self, app) -> None:
+        # 啟用 token 版本檢查 middleware
+        TokenVersionMiddleware(app)
+        
         @app.after_request
         def log_response_status(response):
             try:

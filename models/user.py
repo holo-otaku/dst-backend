@@ -10,6 +10,7 @@ class User(db.Model):
     id = Column(Integer, primary_key=True)
     username = Column(String(50), unique=True, nullable=False)
     password = Column(String(256), nullable=False)  # 增加密碼欄位長度
+    token_version = Column(Integer, nullable=False, default=1)  # 用於強制登出的版本控制
 
     roles = relationship('Role', secondary='user_role', backref='users')
     created_at = Column(DateTime, default=datetime.now, nullable=False)
