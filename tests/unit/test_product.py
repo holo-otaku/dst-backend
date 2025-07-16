@@ -256,7 +256,6 @@ def test_update_multi_success(
         # Call the update_multi function
         response = update_multi(data)
 
-        print(response.get_json())
         # Assert response status code and message
         assert response.status_code == 200
         assert response.get_json()["code"] == 200

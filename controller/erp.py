@@ -99,7 +99,6 @@ def _filter_erp_fields_by_permission(data_map, series_id):
         if field.is_limit_field:
             has_permission = check_field_permission("limit-field.read")
         erp_fields_permission[field.name] = has_permission
-    print(erp_fields_permission)
     # 過濾每個產品的 ERP 欄位
     filtered_data_map = {}
     for product_no, field_data_list in data_map.items():
