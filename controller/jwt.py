@@ -48,4 +48,8 @@ def __create_access_token(user):
             permissions.append(permission.name)
 
     return create_access_token(identity=user.id,
-                               additional_claims={"userName": user.username, "permissions": permissions})
+                               additional_claims={
+                                   "userName": user.username, 
+                                   "permissions": permissions,
+                                   "tokenVersion": user.token_version
+                               })

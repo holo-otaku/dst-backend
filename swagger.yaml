@@ -313,6 +313,89 @@ paths:
                     type: string
                     example: User deleted
 
+  /user/{user_id}/force-logout:
+    post:
+      tags:
+        - User
+      summary: Force logout a specific user
+      description: Force logout a specific user by incrementing their token version, invalidating all their current tokens.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          required: true
+          name: user_id
+          description: ID of the user to force logout
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: User has been forced to logout
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: integer
+                        example: 1
+                      tokenVersion:
+                        type: integer
+                        example: 2
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 404
+                  msg:
+                    type: string
+                    example: User not found
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+
+  /user/force-logout-all:
+    post:
+      tags:
+        - User
+      summary: Force logout all users
+      description: Force logout all users by incrementing their token versions, invalidating all current tokens system-wide.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: All 5 users have been forced to logout
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+
   /permission:
     post:
       tags:
@@ -602,7 +685,7 @@ paths:
       tags:
         - Role
       summary: Update a role
-      description: Update a specific role by ID with the given data.
+      description: Update a specific role by ID with the given data. When role permissions are updated, all users with this role will have their token versions incremented, forcing them to re-login with the new permissions.
       security:
         - bearerAuth: []
       parameters:
@@ -894,6 +977,81 @@ paths:
                           type: integer
                           example: 1
 
+  /product/copy:
+    post:
+      tags:
+        - Products
+      summary: Copy products by itemIds
+      description: Copy one or more existing items by their IDs, duplicating attributes and handling picture fields accordingly.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                itemIds:
+                  type: array
+                  items:
+                    type: integer
+              required:
+                - itemIds
+              example:
+                itemIds: [1, 2, 3]
+      responses:
+        "201":
+          description: Items copied successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 201
+                  msg:
+                    type: string
+                    example: Success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 101
+                        seriesId:
+                          type: integer
+                          example: 1
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 400
+                  msg:
+                    type: string
+                    example: itemIds must be a list
+        "404":
+          description: One of the source items not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 404
+                  msg:
+                    type: string
+                    example: Item 123 not found
+
   /product/{product_id}:
     get:
       tags:
@@ -924,7 +1082,7 @@ paths:
                     type: string
                     example: Success
                   data:
-                    $ref: "#/components/schemas/Product"
+                    $ref: "#/components/schemas/SingleProduct"
 
   /product/search:
     post:
@@ -979,6 +1137,17 @@ paths:
                           - equals
                           - greater
                           - less
+                isDeleted:
+                  type: number
+                  enum:
+                    - 0
+                    - 1
+                isArchived:
+                  type: number
+                  enum:
+                    - 0
+                    - 1
+
       responses:
         "200":
           description: Success
@@ -998,6 +1167,77 @@ paths:
                     example: 87
                   data:
                     $ref: "#/components/schemas/Product"
+
+  /product/export:
+    post:
+      tags:
+        - Products
+      summary: Export products in a series to Excel
+      description: Export the filtered products of a specific series to an Excel file.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: order
+          description: Order by field
+          schema:
+            type: string
+            example: 11,asc
+      requestBody:
+        description: Filter criteria for product export
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seriesId:
+                  type: number
+                filter:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      fieldId:
+                        type: integer
+                      value:
+                        type: string
+                      operation:
+                        type: string
+                        enum:
+                          - equals
+                          - greater
+                          - less
+      responses:
+        "200":
+          description: Excel download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  msg:
+                    type: string
+        "404":
+          description: Series not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  msg:
+                    type: string
 
   /product/edit:
     patch:
@@ -1030,6 +1270,11 @@ paths:
                             - type: string
                             - type: number
                             - type: boolean
+                  isDeleted:
+                    type: number
+                    enum:
+                      - 0
+                      - 1
       responses:
         "200":
           description: Success
@@ -1158,7 +1403,7 @@ paths:
       tags:
         - Archive
       summary: Archive operation
-      description: Add Archive
+      description: Add multiple Archives
       security:
         - bearerAuth: []
       requestBody:
@@ -1168,9 +1413,11 @@ paths:
             schema:
               type: object
               properties:
-                itemId:
-                  type: integer
-                  example: 87
+                itemIds:
+                  type: array
+                  items:
+                    type: integer
+                  example: [87, 88, 89]
       responses:
         "200":
           description: Success
@@ -1184,15 +1431,82 @@ paths:
                     example: 200
                   msg:
                     type: string
-                    example: Success
-  /archive/{itemId}:
+                    example: Archived 2 items, skipped 1 duplicates
+                  data:
+                    type: object
+                    properties:
+                      skipped:
+                        type: array
+                        items:
+                          type: integer
+                        example: [88]
+
     delete:
       tags:
         - Archive
-      summary: Archive operation
-      description: Delete Archive
+      summary: Delete multiple Archives
+      description: Delete archive records by multiple itemIds
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                itemIds:
+                  type: array
+                  items:
+                    type: integer
+                  example: [87, 88, 89]
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: Deleted 2 items, 1 not found
+                  data:
+                    type: object
+                    properties:
+                      deleted:
+                        type: array
+                        items:
+                          type: integer
+                        example: [87, 88]
+                      notFound:
+                        type: array
+                        items:
+                          type: integer
+                        example: [89]
+
+  /field/search:
+    get:
+      tags:
+        - Field
+      summary: Search ItemAttribute by field_id and value
+      description: Retrieve a list of ItemAttributes matching the given field_id and fuzzy search value.
+      parameters:
+        - in: query
+          name: field_id
+          description: ID of the field to search within
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: search_value
+          description: Value to fuzzy search for within ItemAttribute values
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: Success
@@ -1207,6 +1521,44 @@ paths:
                   msg:
                     type: string
                     example: Success
+                  data:
+                    type: array
+                    items:
+                      type: string
+                      example: "sample_value"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 400
+                  msg:
+                    type: string
+                    example: Missing field_id or search_value
+                  data:
+                    type: array
+                    items: {}
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 500
+                  msg:
+                    type: string
+                    example: Internal server error message
+                  data:
+                    type: array
+                    items: {}
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1339,14 +1691,12 @@ components:
               isErp:
                 type: boolean
                 example: false
+              searchErp:
+                type: boolean
+                example: false
               name:
                 type: string
                 example: PORT數
-              value:
-                type: array
-                items:
-                  example: 1 x 1
-                example: Series 1
               sequence:
                 type: number
                 example: 1
@@ -1378,6 +1728,9 @@ components:
                 type: boolean
                 example: false
               isErp:
+                type: boolean
+                example: false
+              searchErp:
                 type: boolean
                 example: false
               name:
@@ -1412,6 +1765,8 @@ components:
                 type: integer
               isLimitField:
                 type: integer
+              searchErp:
+                type: integer
 
     SeriesUpdatePayload:
       type: object
@@ -1435,6 +1790,8 @@ components:
                 type: integer
               isLimitField:
                 type: integer
+              searchErp:
+                type: integer
               sequence:
                 type: integer
         create:
@@ -1452,12 +1809,49 @@ components:
                 type: integer
               isLimitField:
                 type: integer
+              searchErp:
+                type: integer
               sequence:
                 type: integer
         delete:
           type: array
           items:
             type: integer
+
+    SingleProduct:
+      type: object
+      properties:
+        itemId:
+          type: integer
+          example: 1
+        seriesId:
+          type: integer
+          example: 1
+        seriesName:
+          type: string
+          example: "Test Series"
+        hasArchive:
+          type: boolean
+          example: false
+        isDeleted:
+          type: boolean
+          example: false
+          description: "Indicates whether the product has been deleted"
+        attributes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attribute"
+        erp:
+          type: array
+          items:
+            type: object
+            properties:
+              fieldName:
+                type: string
+                example: "廠商編號"
+              value:
+                type: string
+                example: "Field Value"
 
     Product:
       type: array

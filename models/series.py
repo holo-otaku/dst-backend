@@ -27,6 +27,7 @@ class Field(db.Model):
     is_required = Column(Boolean, default=0, nullable=False)
     is_filtered = Column(Boolean, default=0, nullable=False)
     is_erp = Column(Boolean, default=0, nullable=False)
+    search_erp = Column(Boolean, default=0, nullable=False)
     is_limit_field = Column(Boolean, default=0, nullable=False)
     series_id = Column(Integer, ForeignKey('series.id'))
     sequence = Column(Integer, nullable=False, default=0)
@@ -42,6 +43,7 @@ class Item(db.Model):
     series_id = Column(Integer, ForeignKey('series.id'))
     created_at = Column(DateTime, default=datetime.now, nullable=False)
     updated_at = Column(DateTime, default=datetime.now, nullable=False)
+    is_deleted = Column(Boolean, default=0, nullable=False)
 
     attributes = relationship('ItemAttribute', back_populates='item')
     series = relationship('Series')

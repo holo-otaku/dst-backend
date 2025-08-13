@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from controller.user import create, read, read_multi, update, delete
+from controller.user import create, read, read_multi, update, delete, force_logout, force_logout_all
 from controller.access import check_permission
 
 user = Blueprint("user", __name__)
@@ -33,6 +33,20 @@ def update_user(user_id):
     data = request.get_json()
 
     return update(user_id, data)
+
+
+@user.route("<int:user_id>/force-logout", methods=["POST"])
+@check_permission('user.edit')
+def force_logout_user(user_id):
+    """強制指定使用者登出"""
+    return force_logout(user_id)
+
+
+@user.route("/force-logout-all", methods=["POST"])
+@check_permission('user.edit')
+def force_logout_all_users():
+    """強制所有使用者登出"""
+    return force_logout_all()
 
 
 @user.route("<int:user_id>", methods=["DELETE"])

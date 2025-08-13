@@ -1,5 +1,5 @@
 from flask import current_app, jsonify, make_response, request
-from models.user import Permission, Role, RolePermission
+from models.user import Permission, Role, RolePermission, User
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 from modules.exception import handle_exceptions
@@ -77,6 +77,12 @@ def __update_role_permissions(role_id, permission_ids):
         role_permission = RolePermission(
             role_id=role_id, permission_id=permission_id)
         db.session.add(role_permission)
+
+    # 更新擁有此角色的所有使用者的 token_version，強制重新登入
+    role = db.session.get(Role, role_id)
+    if role:
+        for user in role.users:
+            user.token_version += 1
 
     db.session.commit()
 

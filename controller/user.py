@@ -100,8 +100,6 @@ def update(user_id, data):
 
     if password is not None and password != "":
         user.set_password(password)
-    else:
-        return make_response(jsonify({"code": 400, "msg": "Invalid password: %s" % password}), 400)
 
     if role_id is not None:
         role = db.session.get(Role, role_id)
@@ -114,6 +112,9 @@ def update(user_id, data):
 
         # Create a new user-role association
         user.roles.append(role)
+        
+        # 增加 token 版本以強制重新登入
+        user.token_version += 1
 
     db.session.commit()
 
@@ -133,3 +134,38 @@ def delete(user_id):
     db.session.commit()
 
     return make_response(jsonify({"code": 200, "msg": "User deleted"}), 200)
+
+
+@handle_exceptions
+def force_logout(user_id):
+    """強制使用者登出（增加 token 版本）"""
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        return make_response(jsonify({"code": 404, 'msg': 'User not found'}), 404)
+
+    # 增加 token 版本以強制重新登入
+    user.token_version += 1
+    db.session.commit()
+
+    return make_response(jsonify({
+        "code": 200, 
+        "msg": "User has been forced to logout",
+        "data": {"userId": user.id, "tokenVersion": user.token_version}
+    }), 200)
+
+
+@handle_exceptions
+def force_logout_all():
+    """強制所有使用者登出"""
+    users = db.session.query(User).all()
+    
+    for user in users:
+        user.token_version += 1
+    
+    db.session.commit()
+    
+    return make_response(jsonify({
+        "code": 200, 
+        "msg": f"All {len(users)} users have been forced to logout"
+    }), 200)

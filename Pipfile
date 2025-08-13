@@ -54,6 +54,8 @@ referencing = "==0.29.1"
 rpds-py = "==0.8.10"
 six = "==1.16.0"
 webargs = "==8.3.0"
+xlsxwriter = "*"
+gunicorn = "*"
 
 [dev-packages]
 
