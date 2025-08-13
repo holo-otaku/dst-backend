@@ -287,15 +287,15 @@ paths:
     delete:
       tags:
         - User
-      summary: Delete a user
-      description: Delete a specific user by ID.
+      summary: Disable a user (backwards compatibility)
+      description: Disable a specific user by ID. This endpoint provides backwards compatibility but actually performs user disable instead of deletion.
       security:
         - bearerAuth: []
       parameters:
         - in: path
           required: true
           name: user_id
-          description: ID of the user to delete
+          description: ID of the user to disable
           schema:
             type: integer
       responses:
@@ -311,7 +311,175 @@ paths:
                     example: 200
                   msg:
                     type: string
-                    example: User deleted
+                    example: User disabled successfully
+
+  /user/{user_id}/disable:
+    post:
+      tags:
+        - User
+      summary: Disable a user
+      description: Disable a specific user by ID. This will prevent the user from logging in and force logout all their current sessions.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          required: true
+          name: user_id
+          description: ID of the user to disable
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: User disabled successfully
+        "400":
+          description: User already disabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: User already disabled
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: User not found
+
+  /user/{user_id}/enable:
+    post:
+      tags:
+        - User
+      summary: Enable a user
+      description: Enable a previously disabled user by ID. This will allow the user to login again.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          required: true
+          name: user_id
+          description: ID of the user to enable
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: User enabled successfully
+        "400":
+          description: User already enabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: User already enabled
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: User not found
+
+  /user/all:
+    get:
+      tags:
+        - User
+      summary: Get all users including disabled ones
+      description: Retrieve all users with pagination support, including disabled users. Each user object includes a flag indicating if the user is disabled.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          description: Number of users per page
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  msg:
+                    type: string
+                    example: Success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        userName:
+                          type: string
+                          example: "admin"
+                        role:
+                          type: string
+                          example: "admin"
+                        isDisabled:
+                          type: boolean
+                          example: false
+                  totalCount:
+                    type: integer
+                    example: 15
 
   /user/{user_id}/force-logout:
     post:

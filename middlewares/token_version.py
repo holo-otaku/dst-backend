@@ -41,6 +41,14 @@ class TokenVersionMiddleware:
                         "msg": "User not found"
                     }), 401)
                 
+                # 檢查使用者是否被停用
+                if user.is_disabled:
+                    return make_response(jsonify({
+                        "code": 403,
+                        "msg": "User account is disabled",
+                        "forceLogout": True
+                    }), 403)
+                
                 # 檢查 token 版本是否匹配
                 if user.token_version != token_version:
                     return make_response(jsonify({

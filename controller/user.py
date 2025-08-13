@@ -54,7 +54,7 @@ def create(data):
 def read(user_id):
     user = db.session.get(User, user_id)
 
-    if user is None:
+    if user is None or user.is_disabled:
         return make_response(jsonify({'code': 200, 'msg': 'User not found'}), 404)
 
     role_name = user.roles[0].name if user.roles else None
@@ -71,12 +71,12 @@ def read_multi():
     page = int(request.args.get('page', 1))
     limit = int(request.args.get('limit', 10))
 
-    # Query for all users with pagination
-    users = db.session.query(User).limit(
+    # Query for all active users (not disabled) with pagination
+    users = db.session.query(User).filter(User.is_disabled == False).limit(
         limit).offset((page - 1) * limit).all()
 
-    # Count total users
-    total_count = db.session.query(User).count()
+    # Count total active users
+    total_count = db.session.query(User).filter(User.is_disabled == False).count()
 
     result = [{'id': user.id, 'userName': user.username,
                'role': user.roles[0].name if user.roles else None} for user in users]
@@ -85,10 +85,31 @@ def read_multi():
 
 
 @handle_exceptions
+def read_all():
+    """查看所有使用者，包含已停用的使用者"""
+    # Pagination parameters
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 10))
+
+    # Query for all users with pagination
+    users = db.session.query(User).limit(
+        limit).offset((page - 1) * limit).all()
+
+    # Count total users
+    total_count = db.session.query(User).count()
+
+    result = [{'id': user.id, 'userName': user.username,
+               'role': user.roles[0].name if user.roles else None,
+               'isDisabled': user.is_disabled} for user in users]
+
+    return make_response(jsonify({"code": 200, "msg": "Success", "data": result, "totalCount": total_count}), 200)
+
+
+@handle_exceptions
 def update(user_id, data):
     user = db.session.get(User, user_id)
 
-    if user is None:
+    if user is None or user.is_disabled:
         return make_response(jsonify({"code": 400, 'msg': 'User not found'}), 404)
 
     username = data.get('username')
@@ -124,16 +145,41 @@ def update(user_id, data):
 
 
 @handle_exceptions
-def delete(user_id):
+def disable(user_id):
+    """停用使用者（軟刪除）"""
     user = db.session.get(User, user_id)
 
     if user is None:
         return make_response(jsonify({"code": 200, "msg": 'User not found'}), 404)
 
-    db.session.delete(user)
+    if user.is_disabled:
+        return make_response(jsonify({"code": 200, "msg": 'User already disabled'}), 400)
+
+    # 停用使用者
+    user.is_disabled = True
+    # 增加 token 版本以強制重新登入
+    user.token_version += 1
     db.session.commit()
 
-    return make_response(jsonify({"code": 200, "msg": "User deleted"}), 200)
+    return make_response(jsonify({"code": 200, "msg": "User disabled successfully"}), 200)
+
+
+@handle_exceptions
+def enable(user_id):
+    """啟用使用者"""
+    user = db.session.get(User, user_id)
+
+    if user is None:
+        return make_response(jsonify({"code": 200, "msg": 'User not found'}), 404)
+
+    if not user.is_disabled:
+        return make_response(jsonify({"code": 200, "msg": 'User already enabled'}), 400)
+
+    # 啟用使用者
+    user.is_disabled = False
+    db.session.commit()
+
+    return make_response(jsonify({"code": 200, "msg": "User enabled successfully"}), 200)
 
 
 @handle_exceptions
@@ -141,7 +187,7 @@ def force_logout(user_id):
     """強制使用者登出（增加 token 版本）"""
     user = db.session.get(User, user_id)
 
-    if user is None:
+    if user is None or user.is_disabled:
         return make_response(jsonify({"code": 404, 'msg': 'User not found'}), 404)
 
     # 增加 token 版本以強制重新登入
@@ -158,7 +204,7 @@ def force_logout(user_id):
 @handle_exceptions
 def force_logout_all():
     """強制所有使用者登出"""
-    users = db.session.query(User).all()
+    users = db.session.query(User).filter(User.is_disabled == False).all()
     
     for user in users:
         user.token_version += 1
@@ -167,5 +213,5 @@ def force_logout_all():
     
     return make_response(jsonify({
         "code": 200, 
-        "msg": f"All {len(users)} users have been forced to logout"
+        "msg": f"All {len(users)} active users have been forced to logout"
     }), 200)
