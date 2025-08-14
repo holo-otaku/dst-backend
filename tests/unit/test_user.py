@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock, PropertyMock
-from controller.user import create, read, read_multi, update, delete
+from controller.user import create, read, read_multi, update, disable, enable
 from models.user import User, Role
 from .client import app
 
@@ -69,6 +69,7 @@ def test_read_user_found(mock_get, app):
         # Mock user
         mock_user = MagicMock(spec=User)
         mock_user.username = 'testuser'
+        mock_user.is_disabled = False
 
         # Mock roles attribute to return a list of objects with serializable attributes
         role_mock = MagicMock()
@@ -91,6 +92,24 @@ def test_read_user_found(mock_get, app):
 
 
 @patch('models.shared.db.session.get', autospec=True)
+def test_read_user_disabled(mock_get, app):
+    with app.app_context():
+        # Mock disabled user
+        mock_user = MagicMock(spec=User)
+        mock_user.username = 'testuser'
+        mock_user.is_disabled = True
+
+        mock_get.return_value = mock_user
+
+        response = read(user_id=1)
+        data = response.get_json()
+
+        assert response.status_code == 404
+        assert data['code'] == 200
+        assert data['msg'] == "User not found"
+
+
+@patch('models.shared.db.session.get', autospec=True)
 def test_read_user_not_found(mock_get, app):
     with app.app_context():
         mock_get.return_value = None
@@ -108,17 +127,23 @@ def test_read_multi_success(mock_query, app):
     with app.test_request_context('?page=1&limit=2'):
         # Setup the mock query to return users with serializable roles
         mock_user_query = mock_query.return_value
+        
         # Create mocked users with roles that have a serializable 'name' attribute
         mock_user_1 = MagicMock(id=1, username='User1')
         role_1 = MagicMock()
         role_name_1 = PropertyMock(return_value='Role1')
         type(role_1).name = role_name_1
         mock_user_1.roles = [role_1]
+        
         mock_user_2 = MagicMock(id=2, username='User2')
         mock_user_2.roles = []  # An empty list for users without roles
-        mock_user_query.limit.return_value.offset.return_value.all.return_value = [
-            mock_user_1, mock_user_2]
-        mock_user_query.count.return_value = 2
+        
+        # Setup the filter and pagination chain
+        mock_filter = mock_user_query.filter.return_value
+        mock_limit = mock_filter.limit.return_value
+        mock_offset = mock_limit.offset.return_value
+        mock_offset.all.return_value = [mock_user_1, mock_user_2]
+        mock_filter.count.return_value = 2
 
         # Call the function under test
         response = read_multi()
@@ -163,6 +188,8 @@ def test_update_user_success(mock_db_get, app):
         mock_user.id = 1
         mock_user.username = "OldUsername"
         mock_user.roles = []
+        mock_user.is_disabled = False
+        mock_user.token_version = 1
 
         # Use side_effect or return_value to simulate the behavior of set_password and roles' operations
         mock_user.set_password = MagicMock()
@@ -238,6 +265,7 @@ def test_update_user_invalid_role(mock_db_get, app):
         mock_user = MagicMock()
         mock_user.id = 1
         mock_user.username = "ExistingUsername"
+        mock_user.is_disabled = False
         mock_db_get.side_effect = lambda model, id: mock_user if model.__name__ == "User" else None
 
         user_id = 1  # Existing user ID
@@ -261,6 +289,8 @@ def test_update_user_only_role_id(mock_db_get, app):
         mock_user.id = 1
         mock_user.username = "ExistingUsername"
         mock_user.roles = []
+        mock_user.is_disabled = False
+        mock_user.token_version = 1
         mock_user.set_password = MagicMock()
         
         # Mock role exists
@@ -304,6 +334,7 @@ def test_update_user_empty_password_no_role(mock_db_get, app):
         mock_user.username = "ExistingUsername"
         mock_user.roles = [MagicMock()]
         mock_user.roles[0].name = "ExistingRole"
+        mock_user.is_disabled = False
         mock_user.set_password = MagicMock()
         
         mock_db_get.return_value = mock_user
@@ -324,35 +355,105 @@ def test_update_user_empty_password_no_role(mock_db_get, app):
         mock_user.set_password.assert_not_called()
 
 
-# Test case for successful user deletion
+# Test case for successful user disable
 @patch('models.shared.db.session.commit')
-@patch('models.shared.db.session.delete')
 @patch('models.shared.db.session.get')
-def test_delete_user_success(mock_db_get, mock_db_delete, mock_db_commit, app):
+def test_disable_user_success(mock_db_get, mock_db_commit, app):
     with app.app_context():
         mock_user = MagicMock()
+        mock_user.is_disabled = False
+        mock_user.token_version = 1
         mock_db_get.return_value = mock_user  # Simulate finding the user
 
         user_id = 1  # Example user ID
-        response = delete(user_id)
+        response = disable(user_id)
         data = response.get_json()
 
         mock_db_get.assert_called_once_with(User, user_id)
-        mock_db_delete.assert_called_once_with(mock_user)
         mock_db_commit.assert_called_once()
         assert response.status_code == 200
-        assert data == {"code": 200, "msg": "User deleted"}
+        assert data == {"code": 200, "msg": "User disabled successfully"}
+        assert mock_user.is_disabled is True
+        assert mock_user.token_version == 2
+
+
+# Test case for user already disabled
+@patch('models.shared.db.session.get')
+def test_disable_user_already_disabled(mock_db_get, app):
+    with app.app_context():
+        mock_user = MagicMock()
+        mock_user.is_disabled = True
+        mock_db_get.return_value = mock_user  # Simulate finding a disabled user
+
+        user_id = 1  # Example user ID
+        response = disable(user_id)
+        data = response.get_json()
+
+        mock_db_get.assert_called_once_with(User, user_id)
+        assert response.status_code == 400
+        assert data == {"code": 200, "msg": "User already disabled"}
+
 
 # Test case for user not found
-
-
 @patch('models.shared.db.session.get')
-def test_delete_user_not_found(mock_db_get, app):
+def test_disable_user_not_found(mock_db_get, app):
     with app.app_context():
         mock_db_get.return_value = None  # Simulate user not found
 
         user_id = 99  # Example user ID that does not exist
-        response = delete(user_id)
+        response = disable(user_id)
+        data = response.get_json()
+
+        mock_db_get.assert_called_once_with(User, user_id)
+        assert response.status_code == 404
+        assert data == {"code": 200, "msg": "User not found"}
+
+
+# Test case for successful user enable
+@patch('models.shared.db.session.commit')
+@patch('models.shared.db.session.get')
+def test_enable_user_success(mock_db_get, mock_db_commit, app):
+    with app.app_context():
+        mock_user = MagicMock()
+        mock_user.is_disabled = True
+        mock_db_get.return_value = mock_user  # Simulate finding a disabled user
+
+        user_id = 1  # Example user ID
+        response = enable(user_id)
+        data = response.get_json()
+
+        mock_db_get.assert_called_once_with(User, user_id)
+        mock_db_commit.assert_called_once()
+        assert response.status_code == 200
+        assert data == {"code": 200, "msg": "User enabled successfully"}
+        assert mock_user.is_disabled is False
+
+
+# Test case for user already enabled
+@patch('models.shared.db.session.get')
+def test_enable_user_already_enabled(mock_db_get, app):
+    with app.app_context():
+        mock_user = MagicMock()
+        mock_user.is_disabled = False
+        mock_db_get.return_value = mock_user  # Simulate finding an enabled user
+
+        user_id = 1  # Example user ID
+        response = enable(user_id)
+        data = response.get_json()
+
+        mock_db_get.assert_called_once_with(User, user_id)
+        assert response.status_code == 400
+        assert data == {"code": 200, "msg": "User already enabled"}
+
+
+# Test case for user not found when enabling
+@patch('models.shared.db.session.get')
+def test_enable_user_not_found(mock_db_get, app):
+    with app.app_context():
+        mock_db_get.return_value = None  # Simulate user not found
+
+        user_id = 99  # Example user ID that does not exist
+        response = enable(user_id)
         data = response.get_json()
 
         mock_db_get.assert_called_once_with(User, user_id)

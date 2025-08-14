@@ -19,6 +19,10 @@ def login():
     user = User.query.filter_by(username=username).first()
 
     if user and user.check_password(password):
+        # 檢查使用者是否被停用
+        if user.is_disabled:
+            return make_response(jsonify({"msg": "User account is disabled"}), 403)
+            
         access_token = __create_access_token(user)
         return make_response(jsonify({"code": 200, "msg": "login success", "data": {"accessToken": access_token}}), 200)
     else:
@@ -33,6 +37,10 @@ def refresh():
 
     if not user:
         return make_response(jsonify({"code": 404, "msg": "User not found"}), 404)
+
+    # 檢查使用者是否被停用
+    if user.is_disabled:
+        return make_response(jsonify({"code": 403, "msg": "User account is disabled"}), 403)
 
     # 創建新的 JWT Token，有效期為 30 分鐘
     new_token = __create_access_token(user)
