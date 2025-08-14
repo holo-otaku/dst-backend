@@ -1,5 +1,5 @@
 from models.shared import db
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
@@ -11,6 +11,7 @@ class User(db.Model):
     username = Column(String(50), unique=True, nullable=False)
     password = Column(String(256), nullable=False)  # 增加密碼欄位長度
     token_version = Column(Integer, nullable=False, default=1)  # 用於強制登出的版本控制
+    is_disabled = Column(Boolean, nullable=False, default=False)  # 用於軟刪除/停用使用者
 
     roles = relationship('Role', secondary='user_role', backref='users')
     created_at = Column(DateTime, default=datetime.now, nullable=False)
