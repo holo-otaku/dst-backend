@@ -80,7 +80,7 @@ def read(series_id):
     data = {
         "id": series.id,
         "name": series.name,
-        "createdBy": str(series.creator.username),
+        "createdBy": series.creator.username if series.creator else "Unknown User",
         "createdAt": series.created_at.strftime("%Y-%m-%d %H:%M:%S"),
     }
 
@@ -186,7 +186,7 @@ def read_multi():
         data = {
             "id": s.id,
             "name": s.name,
-            "createdBy": s.creator.username,
+            "createdBy": s.creator.username if s.creator else "Unknown User",
             "createdAt": s.created_at.strftime("%Y-%m-%d %H:%M:%S"),
         }
 
