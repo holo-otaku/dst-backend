@@ -349,14 +349,14 @@ def test_delete_with_missing_itemId(app):
         assert response.get_json()["msg"] == "Invalid data"
 
 
-@patch("controller.product.__save_image")
+@patch("controller.product.__copy_image")
 @patch("models.shared.db.session.commit")
 @patch("models.shared.db.session.flush")
 @patch("models.shared.db.session.add")
 @patch("models.shared.db.session.query")
 @patch("models.shared.db.session.get")
 def test_copy_success(
-    mock_get, mock_query, mock_add, mock_flush, mock_commit, mock_save_image, app
+    mock_get, mock_query, mock_add, mock_flush, mock_commit, mock_copy_image, app
 ):
     with app.app_context():
         # 模擬原始 Item
@@ -371,17 +371,24 @@ def test_copy_success(
         mock_attr = MagicMock(spec=ItemAttribute)
         mock_attr.item_id = 1
         mock_attr.field_id = 100
-        mock_attr.value = "image/path/original.jpg"
+        mock_attr.value = 123  # 圖片 ID
         mock_attr.field = mock_field
 
-        # 模擬複製圖片後的回傳值
-        mock_save_image.return_value = "image/path/copied.jpg"
+        # 模擬複製圖片後的回傳值（新圖片的 ID）
+        mock_copy_image.return_value = 456
 
         # Configure session.get to return the mock_item
         mock_get.return_value = mock_item
 
         # 模擬 .query(ItemAttribute).filter_by().all()
         mock_query.return_value.filter_by.return_value.all.return_value = [mock_attr]
+
+        # 模擬 add 方法，讓新創建的 Item 有 ID
+        def mock_add_side_effect(obj):
+            if isinstance(obj, Item):
+                obj.id = 999  # 設定新 Item 的 ID
+        
+        mock_add.side_effect = mock_add_side_effect
 
         # 執行函式
         request_data = {"itemIds": [1]}
@@ -398,10 +405,12 @@ def test_copy_success(
 
         # 驗證是否呼叫預期的操作
         mock_get.assert_called_with(Item, 1)
+        # 驗證 __copy_image 被正確呼叫 (999 是新 Item 的 ID)
+        mock_copy_image.assert_called_with(123, 999, 100)
         mock_query.assert_called_with(ItemAttribute)
         mock_add.assert_called()
         mock_commit.assert_called_once()
-        mock_save_image.assert_called_once()
+        mock_copy_image.assert_called_once()
 
 
 @patch("models.shared.db.session.get")
