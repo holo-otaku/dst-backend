@@ -195,7 +195,7 @@ def create_from_items(data):
             new_value = attr.value
             # 如果是圖片類型，需要另外處理圖片複製
             if attr.field.data_type == "picture" and attr.value:
-                new_value = __save_image(attr.value, new_item.id, attr.field_id)
+                new_value = __copy_image(attr.value, new_item.id, attr.field_id)
 
             new_attr = ItemAttribute(
                 item_id=new_item.id, field_id=attr.field_id, value=new_value
@@ -493,6 +493,45 @@ def __save_image(image_data, item_id, field_id, image_id=None):
         db.session.flush()
 
     return image.id
+
+
+def __copy_image(source_image_id, new_item_id, field_id):
+    """複製圖片檔案到新的位置，用於產品複製功能"""
+    import os
+    import shutil
+    
+    # 如果沒有圖片 ID，返回 None
+    if not source_image_id:
+        return None
+    
+    try:
+        # 從資料庫中找到原始圖片記錄
+        source_image = db.session.get(Image, source_image_id)
+        if not source_image:
+            current_app.logger.warning(f"Source image not found in database: {source_image_id}")
+            return None
+        
+        # 檢查原始圖片檔案是否存在
+        if not os.path.exists(source_image.path):
+            current_app.logger.warning(f"Source image file not found: {source_image.path}")
+            return None
+        
+        # 產生新的圖片名稱和路徑
+        new_image_name, new_image_path = __img_path_and_name(new_item_id, field_id)
+        
+        # 複製圖片檔案
+        shutil.copy2(source_image.path, new_image_path)
+        
+        # 在資料庫中建立新的圖片記錄
+        new_image = Image(name=new_image_name[:-4], path=new_image_path)
+        db.session.add(new_image)
+        db.session.flush()
+        
+        return new_image.id
+        
+    except Exception as e:
+        current_app.logger.error(f"Error copying image: {str(e)}")
+        return None
 
 
 def __delete_image(image_id):
