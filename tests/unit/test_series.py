@@ -11,7 +11,11 @@ def test_create_series_success(mock_commit, mock_add, app):
     with app.app_context():
         data = {
             "name": "Test Series",
-            "fields": [{"name": "Field1", "dataType": "String", "searchErp": True}],
+            "fields": [
+                {"name": "供應商料號", "dataType": "string"},
+                {"name": "DST料號", "dataType": "string"},
+                {"name": "Field1", "dataType": "string", "searchErp": True}
+            ],
         }
 
         create_by = "user_id"
@@ -41,7 +45,11 @@ def test_create_series_invalid_data_type(app):
     with app.app_context():
         data = {
             "name": "Test Series",
-            "fields": [{"name": "Field1", "dataType": "InvalidType"}],
+            "fields": [
+                {"name": "供應商料號", "dataType": "string"},
+                {"name": "DST料號", "dataType": "string"},
+                {"name": "Field1", "dataType": "InvalidType"}
+            ],
         }
         create_by = "user_id"
         response = create(data, create_by)
@@ -455,3 +463,138 @@ def test_delete_series_not_found(mock_commit, mock_get, app):
 
         # Assert that db.session.commit was not called
         assert not mock_commit.called
+
+
+def test_create_series_missing_required_fields(app):
+    """測試創建 series 時缺少必填 field 的情況"""
+    with app.app_context():
+        # 測試缺少供應商料號
+        data = {
+            "name": "Test Series",
+            "fields": [
+                {"name": "DST料號", "dataType": "string"},
+                {"name": "其他欄位", "dataType": "string"}
+            ],
+        }
+        create_by = "user_id"
+        response = create(data, create_by)
+        json_data = response.get_json()
+
+        assert response.status_code == 400
+        assert json_data["code"] == 400
+        assert "Missing required fields: 供應商料號" in json_data["msg"]
+
+        # 測試缺少 DST料號
+        data = {
+            "name": "Test Series",
+            "fields": [
+                {"name": "供應商料號", "dataType": "string"},
+                {"name": "其他欄位", "dataType": "string"}
+            ],
+        }
+        response = create(data, create_by)
+        json_data = response.get_json()
+
+        assert response.status_code == 400
+        assert json_data["code"] == 400
+        assert "Missing required fields: DST料號" in json_data["msg"]
+
+        # 測試缺少兩個必填 field
+        data = {
+            "name": "Test Series",
+            "fields": [
+                {"name": "其他欄位", "dataType": "string"}
+            ],
+        }
+        response = create(data, create_by)
+        json_data = response.get_json()
+
+        assert response.status_code == 400
+        assert json_data["code"] == 400
+        assert "Missing required fields: 供應商料號, DST料號" in json_data["msg"]
+
+
+@patch("models.shared.db.session.query")
+@patch("models.shared.db.session.get")
+def test_update_series_delete_required_fields(mock_get, mock_query, app):
+    """測試更新 series 時嘗試刪除必填 field 的情況"""
+    with app.app_context():
+        # Mock the Series object
+        mock_series = MagicMock()
+        mock_series.id = 1
+        mock_series.name = "Test Series"
+
+        # Mock the required fields
+        mock_supplier_field = MagicMock()
+        mock_supplier_field.id = 1
+        mock_supplier_field.name = "供應商料號"
+
+        mock_dst_field = MagicMock()
+        mock_dst_field.id = 2
+        mock_dst_field.name = "DST料號"
+
+        mock_other_field = MagicMock()
+        mock_other_field.id = 3
+        mock_other_field.name = "其他欄位"
+
+        mock_series.fields = [mock_supplier_field, mock_dst_field, mock_other_field]
+
+        # Configure mock_get to return the appropriate objects
+        def mock_get_side_effect(model_class, obj_id):
+            if model_class == Series and obj_id == 1:
+                return mock_series
+            elif model_class == Field:
+                if obj_id == 1:
+                    return mock_supplier_field
+                elif obj_id == 2:
+                    return mock_dst_field
+                elif obj_id == 3:
+                    return mock_other_field
+            return None
+
+        mock_get.side_effect = mock_get_side_effect
+
+        # 測試嘗試刪除供應商料號
+        data = {
+            "name": "Updated Series Name",
+            "fields": [],
+            "create": [],
+            "delete": [1],  # 嘗試刪除供應商料號
+        }
+
+        response = update(series_id=1, data=data)
+        json_data = response.get_json()
+
+        assert response.status_code == 400
+        assert json_data["code"] == 400
+        assert "Cannot delete required fields: 供應商料號" in json_data["msg"]
+
+        # 測試嘗試刪除 DST料號
+        data = {
+            "name": "Updated Series Name",
+            "fields": [],
+            "create": [],
+            "delete": [2],  # 嘗試刪除 DST料號
+        }
+
+        response = update(series_id=1, data=data)
+        json_data = response.get_json()
+
+        assert response.status_code == 400
+        assert json_data["code"] == 400
+        assert "Cannot delete required fields: DST料號" in json_data["msg"]
+
+        # 測試嘗試刪除兩個必填 field
+        data = {
+            "name": "Updated Series Name",
+            "fields": [],
+            "create": [],
+            "delete": [1, 2],  # 嘗試刪除兩個必填 field
+        }
+
+        response = update(series_id=1, data=data)
+        json_data = response.get_json()
+
+        assert response.status_code == 400
+        assert json_data["code"] == 400
+        assert "Cannot delete required fields: 供應商料號, DST料號" in json_data["msg"]

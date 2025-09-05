@@ -22,6 +22,26 @@ def create(data, created_by):
     # Check if 'fields' data is provided in the request
     fields_data = data.get("fields", [])
     if fields_data:
+        # 檢查必須的 field：供應商料號 和 DST料號
+        required_field_names = ["供應商料號", "DST料號"]
+        field_names = [field_data.get("name") for field_data in fields_data]
+
+        missing_fields = []
+        for required_name in required_field_names:
+            if required_name not in field_names:
+                missing_fields.append(required_name)
+
+        if missing_fields:
+            return make_response(
+                jsonify(
+                    {
+                        "code": 400,
+                        "msg": f"Missing required fields: {', '.join(missing_fields)}. These fields are mandatory for creating a series.",
+                    }
+                ),
+                400,
+            )
+
         # Check search_erp only one
         erp_count = 0
         for index, field_data in enumerate(fields_data):
@@ -309,6 +329,38 @@ def update(series_id, data):
 
     # Handle field deletion
     delete_ids = data.get("delete", [])
+
+    # 檢查是否嘗試刪除必填的 field
+    if delete_ids:
+        required_field_names = ["供應商料號", "DST料號"]
+
+        # 獲取所有現有 field 的名稱
+        existing_fields = {field.id: field.name for field in series.fields}
+
+        # 檢查要刪除的 field 中是否包含必填 field
+        fields_to_delete_names = []
+        for delete_id in delete_ids:
+            field_name = existing_fields.get(delete_id)
+            if field_name:
+                fields_to_delete_names.append(field_name)
+
+        # 檢查是否有必填 field 被刪除
+        forbidden_deletions = []
+        for field_name in fields_to_delete_names:
+            if field_name in required_field_names:
+                forbidden_deletions.append(field_name)
+
+        if forbidden_deletions:
+            return make_response(
+                jsonify(
+                    {
+                        "code": 400,
+                        "msg": f"Cannot delete required fields: {', '.join(forbidden_deletions)}. These fields are mandatory for the series.",
+                    }
+                ),
+                400,
+            )
+
     for delete_id in delete_ids:
         field_to_delete = db.session.get(Field, delete_id)
         if not field_to_delete:
