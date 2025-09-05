@@ -191,11 +191,26 @@ def create_from_items(data):
 
         # 複製對應的 attributes
         attributes = db.session.query(ItemAttribute).filter_by(item_id=item_id).all()
+        # 按照欄位的 sequence 排序，確保按正確順序處理
+        attributes_with_field = []
         for attr in attributes:
+            field = db.session.get(Field, attr.field_id)
+            attributes_with_field.append((attr, field))
+        
+        # 按照 field.sequence 排序
+        attributes_with_field.sort(key=lambda x: x[1].sequence if x[1].sequence is not None else float('inf'))
+        
+        first_string_field_modified = False  # 每個 item 都重設標記
+        
+        for attr, field in attributes_with_field:
             new_value = attr.value
             # 如果是圖片類型，需要另外處理圖片複製
-            if attr.field.data_type == "picture" and attr.value:
+            if field.data_type == "picture" and attr.value:
                 new_value = __copy_image(attr.value, new_item.id, attr.field_id)
+            # 如果是第一個遇到的字串類型欄位，加上 "copy" 前綴
+            elif field.data_type == "string" and attr.value and not first_string_field_modified:
+                new_value = f"copy {attr.value}"
+                first_string_field_modified = True
 
             new_attr = ItemAttribute(
                 item_id=new_item.id, field_id=attr.field_id, value=new_value

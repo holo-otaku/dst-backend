@@ -367,6 +367,7 @@ def test_copy_success(
         # 模擬屬性 Field 與 ItemAttribute
         mock_field = MagicMock()
         mock_field.data_type = "picture"
+        mock_field.sequence = 1  # 添加 sequence 屬性
 
         mock_attr = MagicMock(spec=ItemAttribute)
         mock_attr.item_id = 1
@@ -377,8 +378,15 @@ def test_copy_success(
         # 模擬複製圖片後的回傳值（新圖片的 ID）
         mock_copy_image.return_value = 456
 
-        # Configure session.get to return the mock_item
-        mock_get.return_value = mock_item
+        # Configure session.get to return appropriate objects
+        def mock_get_side_effect(model_class, obj_id):
+            if model_class == Item and obj_id == 1:
+                return mock_item
+            elif model_class == Field and obj_id == 100:
+                return mock_field
+            return None
+        
+        mock_get.side_effect = mock_get_side_effect
 
         # 模擬 .query(ItemAttribute).filter_by().all()
         mock_query.return_value.filter_by.return_value.all.return_value = [mock_attr]
@@ -404,7 +412,13 @@ def test_copy_success(
         assert "seriesId" in json_data["data"][0]
 
         # 驗證是否呼叫預期的操作
-        mock_get.assert_called_with(Item, 1)
+        # 檢查所有的 mock_get 調用
+        assert mock_get.call_count >= 2
+        # 檢查是否有調用 Item 和 Field
+        calls = mock_get.call_args_list
+        assert any(call[0] == (Item, 1) for call in calls)
+        assert any(call[0] == (Field, 100) for call in calls)
+        
         # 驗證 __copy_image 被正確呼叫 (999 是新 Item 的 ID)
         mock_copy_image.assert_called_with(123, 999, 100)
         mock_query.assert_called_with(ItemAttribute)
