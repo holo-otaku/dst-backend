@@ -57,7 +57,9 @@ def test_create_success(mock_add, mock_commit, mock_query, mock_get, app):
         mock_get.assert_called_once_with(Series, 1)
 
         # Assert that db.session.query was called with the correct parameters
-        mock_query.assert_called_once_with(Field)
+        # Note: query is called multiple times now due to duplicate checking
+        assert mock_query.call_count >= 1
+        mock_query.assert_any_call(Field)
 
         # Assert that db.session.commit was called
         mock_commit.assert_called_once()
@@ -393,7 +395,7 @@ def test_copy_success(
 
         # 模擬 add 方法，讓新創建的 Item 有 ID
         def mock_add_side_effect(obj):
-            if isinstance(obj, Item):
+            if hasattr(obj, 'id'):
                 obj.id = 999  # 設定新 Item 的 ID
         
         mock_add.side_effect = mock_add_side_effect
