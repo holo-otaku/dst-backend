@@ -249,7 +249,7 @@ def read_multi(data):
 @handle_exceptions
 def export_excel(data):
     try:
-        rows, _, _ = __get_series_data(data, for_export=True)
+        rows, _, fields = __get_series_data(data, for_export=True)
 
         if not rows:
             return make_response(
@@ -272,20 +272,73 @@ def export_excel(data):
         workbook = xlsxwriter.Workbook(output, {"in_memory": True})
         worksheet = workbook.add_worksheet("Products")
 
+        # 凍結前面五個欄位
+        worksheet.freeze_panes(1, 5)  # 從第1列（標題列之後）和第5欄開始凍結
+
+        # 設定欄位寬度和列高度，特別是圖片欄位
+        default_row_height = 20
+        image_row_height = 80  # 圖片列的高度
+        has_image_cols = []
+        
+        # 檢查哪些欄位是圖片類型
+        for col_idx, attr in enumerate(rows[0]["attributes"]):
+            field_id = int(attr["fieldId"])
+            if field_id in fields and fields[field_id].data_type == "picture":
+                has_image_cols.append(col_idx)
+                worksheet.set_column(col_idx, col_idx, 15)  # 設定圖片欄位寬度
+
         # 寫入表頭
         for col, name in enumerate(all_field_names):
             worksheet.write(0, col, name)
 
         # 寫入每列資料
         for row_idx, row in enumerate(rows, start=1):
+            # 如果這一行有圖片，設定行高
+            has_image_in_row = False
+            
             col_idx = 0
             
             # 寫入一般欄位資料
             attr_list = row.get("attributes", [])
-            for attr in attr_list:
+            for attr_idx, attr in enumerate(attr_list):
                 value = attr.get("value", "")
-                worksheet.write(row_idx, col_idx, value)
+                data_type = attr.get("dataType", "")
+                
+                if data_type == "picture" and value:
+                    # 處理圖片欄位
+                    has_image_in_row = True
+                    try:
+                        # 從 value 中提取圖片 ID（去掉 /image/ 前綴）
+                        if value.startswith("/image/"):
+                            image_id = value.replace("/image/", "")
+                            
+                            # 從資料庫獲取圖片路徑
+                            image_record = db.session.get(Image, image_id)
+                            if image_record and os.path.exists(image_record.path):
+                                # 插入圖片到 Excel
+                                worksheet.insert_image(row_idx, col_idx, image_record.path, {
+                                    'x_scale': 0.3,  # 縮放比例
+                                    'y_scale': 0.3,
+                                    'x_offset': 2,   # 偏移
+                                    'y_offset': 2
+                                })
+                            else:
+                                worksheet.write(row_idx, col_idx, "圖片不存在")
+                        else:
+                            worksheet.write(row_idx, col_idx, value)
+                    except Exception as e:
+                        # 如果圖片處理失敗，寫入錯誤訊息
+                        worksheet.write(row_idx, col_idx, f"圖片載入失敗: {str(e)}")
+                else:
+                    # 一般欄位
+                    worksheet.write(row_idx, col_idx, value)
                 col_idx += 1
+            
+            # 設定行高
+            if has_image_in_row:
+                worksheet.set_row(row_idx, image_row_height)
+            else:
+                worksheet.set_row(row_idx, default_row_height)
             
             # 寫入 ERP 欄位資料
             erp_list = row.get("erp", [])
