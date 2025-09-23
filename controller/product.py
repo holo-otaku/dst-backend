@@ -429,8 +429,8 @@ def __get_series_data(data, for_export=False):
     if is_deleted not in [0, 1]:
         raise ValueError("Input body error")
 
-    is_archived = data.get("isArchived")
-    if is_archived is not None and is_archived not in [0, 1]:
+    is_archived = data.get("isArchived", 0)  # 默認為 0，未封存
+    if is_archived not in [0, 1]:
         raise ValueError("isArchived must be 0 or 1")
 
     series = db.session.query(Series).filter_by(id=series_id, status=1).first()
