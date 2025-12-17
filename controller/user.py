@@ -70,33 +70,18 @@ def read_multi():
     # Pagination parameters
     page = int(request.args.get('page', 1))
     limit = int(request.args.get('limit', 10))
+    all_users = request.args.get('all', 'false').lower() == 'true'
 
-    # Query for all active users (not disabled) with pagination
-    users = db.session.query(User).filter(User.is_disabled == False).limit(
-        limit).offset((page - 1) * limit).all()
+    query = db.session.query(User)
 
-    # Count total active users
-    total_count = db.session.query(User).filter(User.is_disabled == False).count()
-
-    result = [{'id': user.id, 'userName': user.username,
-               'role': user.roles[0].name if user.roles else None} for user in users]
-
-    return make_response(jsonify({"code": 200, "msg": "Success", "data": result, "totalCount": total_count}), 200)
-
-
-@handle_exceptions
-def read_all():
-    """查看所有使用者，包含已停用的使用者"""
-    # Pagination parameters
-    page = int(request.args.get('page', 1))
-    limit = int(request.args.get('limit', 10))
-
-    # Query for all users with pagination
-    users = db.session.query(User).limit(
-        limit).offset((page - 1) * limit).all()
+    if not all_users:
+        query = query.filter(User.is_disabled == False)
 
     # Count total users
-    total_count = db.session.query(User).count()
+    total_count = query.count()
+
+    # Query for users with pagination
+    users = query.limit(limit).offset((page - 1) * limit).all()
 
     result = [{'id': user.id, 'userName': user.username,
                'role': user.roles[0].name if user.roles else None,
@@ -109,12 +94,13 @@ def read_all():
 def update(user_id, data):
     user = db.session.get(User, user_id)
 
-    if user is None or user.is_disabled:
+    if user is None:
         return make_response(jsonify({"code": 400, 'msg': 'User not found'}), 404)
 
     username = data.get('username')
     password = data.get('password')
     role_id = data.get('roleId')
+    is_disabled = data.get('isDisabled')
 
     if username is not None:
         user.username = username
@@ -137,49 +123,18 @@ def update(user_id, data):
         # 增加 token 版本以強制重新登入
         user.token_version += 1
 
+    if is_disabled is not None:
+        if is_disabled and not user.is_disabled:
+            user.is_disabled = True
+            user.token_version += 1
+        elif not is_disabled and user.is_disabled:
+            user.is_disabled = False
+
     db.session.commit()
 
     result = {'id': user.id, 'username': user.username,
-              'role': user.roles[0].name}
+              'role': user.roles[0].name, 'isDisabled': user.is_disabled}
     return make_response(jsonify({"code": 200, "msg": "Success", "data": result}), 200)
-
-
-@handle_exceptions
-def disable(user_id):
-    """停用使用者（軟刪除）"""
-    user = db.session.get(User, user_id)
-
-    if user is None:
-        return make_response(jsonify({"code": 200, "msg": 'User not found'}), 404)
-
-    if user.is_disabled:
-        return make_response(jsonify({"code": 200, "msg": 'User already disabled'}), 400)
-
-    # 停用使用者
-    user.is_disabled = True
-    # 增加 token 版本以強制重新登入
-    user.token_version += 1
-    db.session.commit()
-
-    return make_response(jsonify({"code": 200, "msg": "User disabled successfully"}), 200)
-
-
-@handle_exceptions
-def enable(user_id):
-    """啟用使用者"""
-    user = db.session.get(User, user_id)
-
-    if user is None:
-        return make_response(jsonify({"code": 200, "msg": 'User not found'}), 404)
-
-    if not user.is_disabled:
-        return make_response(jsonify({"code": 200, "msg": 'User already enabled'}), 400)
-
-    # 啟用使用者
-    user.is_disabled = False
-    db.session.commit()
-
-    return make_response(jsonify({"code": 200, "msg": "User enabled successfully"}), 200)
 
 
 @handle_exceptions

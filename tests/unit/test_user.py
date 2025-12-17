@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock, PropertyMock
-from controller.user import create, read, read_multi, update, disable, enable
+from controller.user import create, read, read_multi, update
 from models.user import User, Role
 from .client import app
 
@@ -130,12 +130,14 @@ def test_read_multi_success(mock_query, app):
         
         # Create mocked users with roles that have a serializable 'name' attribute
         mock_user_1 = MagicMock(id=1, username='User1')
+        mock_user_1.is_disabled = False
         role_1 = MagicMock()
         role_name_1 = PropertyMock(return_value='Role1')
         type(role_1).name = role_name_1
         mock_user_1.roles = [role_1]
         
         mock_user_2 = MagicMock(id=2, username='User2')
+        mock_user_2.is_disabled = True
         mock_user_2.roles = []  # An empty list for users without roles
         
         # Setup the filter and pagination chain
@@ -152,8 +154,8 @@ def test_read_multi_success(mock_query, app):
         assert response.status_code == 200
 
         # Assertions
-        expected_result = [{'id': 1, 'userName': 'User1', 'role': 'Role1'}, {
-            'id': 2, 'userName': 'User2', 'role': None}]
+        expected_result = [{'id': 1, 'userName': 'User1', 'role': 'Role1', 'isDisabled': False}, {
+            'id': 2, 'userName': 'User2', 'role': None, 'isDisabled': True}]
 
         assert data == {"code": 200, "msg": "Success",
                         "data": expected_result, "totalCount": 2}
@@ -355,107 +357,55 @@ def test_update_user_empty_password_no_role(mock_db_get, app):
         mock_user.set_password.assert_not_called()
 
 
-# Test case for successful user disable
+# Test case for successful user disable via update
 @patch('models.shared.db.session.commit')
 @patch('models.shared.db.session.get')
 def test_disable_user_success(mock_db_get, mock_db_commit, app):
     with app.app_context():
         mock_user = MagicMock()
+        mock_user.id = 1
+        mock_user.username = "User1"
         mock_user.is_disabled = False
         mock_user.token_version = 1
+        role_mock = MagicMock()
+        type(role_mock).name = PropertyMock(return_value='Role')
+        mock_user.roles = [role_mock]
         mock_db_get.return_value = mock_user  # Simulate finding the user
 
         user_id = 1  # Example user ID
-        response = disable(user_id)
+        response = update(user_id, {'isDisabled': True})
         data = response.get_json()
 
         mock_db_get.assert_called_once_with(User, user_id)
         mock_db_commit.assert_called_once()
         assert response.status_code == 200
-        assert data == {"code": 200, "msg": "User disabled successfully"}
+        assert data['code'] == 200
+        assert data['msg'] == "Success"
         assert mock_user.is_disabled is True
         assert mock_user.token_version == 2
 
 
-# Test case for user already disabled
-@patch('models.shared.db.session.get')
-def test_disable_user_already_disabled(mock_db_get, app):
-    with app.app_context():
-        mock_user = MagicMock()
-        mock_user.is_disabled = True
-        mock_db_get.return_value = mock_user  # Simulate finding a disabled user
-
-        user_id = 1  # Example user ID
-        response = disable(user_id)
-        data = response.get_json()
-
-        mock_db_get.assert_called_once_with(User, user_id)
-        assert response.status_code == 400
-        assert data == {"code": 200, "msg": "User already disabled"}
-
-
-# Test case for user not found
-@patch('models.shared.db.session.get')
-def test_disable_user_not_found(mock_db_get, app):
-    with app.app_context():
-        mock_db_get.return_value = None  # Simulate user not found
-
-        user_id = 99  # Example user ID that does not exist
-        response = disable(user_id)
-        data = response.get_json()
-
-        mock_db_get.assert_called_once_with(User, user_id)
-        assert response.status_code == 404
-        assert data == {"code": 200, "msg": "User not found"}
-
-
-# Test case for successful user enable
+# Test case for successful user enable via update
 @patch('models.shared.db.session.commit')
 @patch('models.shared.db.session.get')
 def test_enable_user_success(mock_db_get, mock_db_commit, app):
     with app.app_context():
         mock_user = MagicMock()
+        mock_user.id = 1
+        mock_user.username = "User1"
         mock_user.is_disabled = True
+        role_mock = MagicMock()
+        type(role_mock).name = PropertyMock(return_value='Role')
+        mock_user.roles = [role_mock]
         mock_db_get.return_value = mock_user  # Simulate finding a disabled user
 
         user_id = 1  # Example user ID
-        response = enable(user_id)
+        response = update(user_id, {'isDisabled': False})
         data = response.get_json()
 
         mock_db_get.assert_called_once_with(User, user_id)
         mock_db_commit.assert_called_once()
         assert response.status_code == 200
-        assert data == {"code": 200, "msg": "User enabled successfully"}
+        assert data['code'] == 200
+        assert data['msg'] == "Success"
         assert mock_user.is_disabled is False
-
-
-# Test case for user already enabled
-@patch('models.shared.db.session.get')
-def test_enable_user_already_enabled(mock_db_get, app):
-    with app.app_context():
-        mock_user = MagicMock()
-        mock_user.is_disabled = False
-        mock_db_get.return_value = mock_user  # Simulate finding an enabled user
-
-        user_id = 1  # Example user ID
-        response = enable(user_id)
-        data = response.get_json()
-
-        mock_db_get.assert_called_once_with(User, user_id)
-        assert response.status_code == 400
-        assert data == {"code": 200, "msg": "User already enabled"}
-
-
-# Test case for user not found when enabling
-@patch('models.shared.db.session.get')
-def test_enable_user_not_found(mock_db_get, app):
-    with app.app_context():
-        mock_db_get.return_value = None  # Simulate user not found
-
-        user_id = 99  # Example user ID that does not exist
-        response = enable(user_id)
-        data = response.get_json()
-
-        mock_db_get.assert_called_once_with(User, user_id)
-        assert response.status_code == 404
-        assert data == {"code": 200, "msg": "User not found"}
