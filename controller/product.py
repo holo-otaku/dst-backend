@@ -479,12 +479,12 @@ def __get_series_data(data, for_export=False):
         raise ValueError("SeriesId not found")
 
     is_deleted = data.get("isDeleted", 0)
-    if is_deleted not in [0, 1]:
+    if is_deleted not in [0, 1, 2]:
         raise ValueError("Input body error")
 
     is_archived = data.get("isArchived", 0)  # 默認為 0，未封存
-    if is_archived not in [0, 1]:
-        raise ValueError("isArchived must be 0 or 1")
+    if is_archived not in [0, 1, 2]:
+        raise ValueError("isArchived must be 0, 1 or 2")
 
     series = db.session.query(Series).filter_by(id=series_id, status=1).first()
     if not series:
@@ -520,6 +520,11 @@ def __get_series_data(data, for_export=False):
         if len(type_err) != 0:
             raise ValueError(type_err)
 
+    # If is_archived is 2, treat it as None (all) for the query functions
+    query_is_archived = is_archived if is_archived != 2 else None
+    # If is_deleted is 2, treat it as None (all) for the query functions
+    query_is_deleted = is_deleted if is_deleted != 2 else None
+
     # 查詢資料
     items, conditions, parameters = __get_items(
         series_id,
@@ -529,13 +534,13 @@ def __get_series_data(data, for_export=False):
         sort_order,
         limit,
         page,
-        is_deleted,
-        is_archived,
+        query_is_deleted,
+        query_is_archived,
     )
     erp_data_map = __read_erp(items, fields, series_id)
     data = __combine_data_result(items, fields, erp_data_map)
     total_count = __count_total_count(
-        data, filters, conditions, parameters, is_deleted, is_archived
+        data, filters, conditions, parameters, query_is_deleted, query_is_archived
     )
 
     return data, total_count, fields
@@ -898,11 +903,14 @@ def __get_items(
             FROM item
             JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
-            AND item.is_deleted = :is_deleted
         """
 
     conditions = []
-    parameters = {"series_id": series_id, "is_deleted": is_deleted}
+    parameters = {"series_id": series_id}
+
+    if is_deleted is not None:
+        sql_query += " AND item.is_deleted = :is_deleted"
+        parameters["is_deleted"] = is_deleted
 
     if is_archived is not None:
         if is_archived == 1:
@@ -1040,8 +1048,21 @@ def __count_total_count(
             FROM item
             JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
-            AND item.is_deleted = :is_deleted
         """
+
+    if status_filter is not None:
+        count_query += " AND item.is_deleted = :is_deleted"
+        # Ensure is_deleted is in parameters if not already there (it should be passed from __get_items logic usually, but let's be safe)
+        # Actually parameters are passed from outside. If status_filter is None, we don't add the clause, so parameter presence doesn't matter as much, 
+        # but if it IS not None, we need to make sure the parameter is used.
+        # In __get_series_data, parameters dict is created by __get_items.
+        # If __get_items was called with is_deleted=None, parameters won't have 'is_deleted'.
+        # But here we are using status_filter (which is the passed is_deleted value).
+        # If status_filter is NOT None, we need to add it to parameters if it's missing?
+        # Wait, __get_items returns parameters. If is_deleted was None there, it's not in parameters.
+        # So we should add it here if needed.
+        if "is_deleted" not in parameters:
+             parameters["is_deleted"] = status_filter
 
     if is_archived is not None:
         if is_archived == 1:
