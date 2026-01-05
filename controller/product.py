@@ -899,7 +899,8 @@ def __get_items(
     sql_query = """
             SELECT item.id AS item_id,
                 item.series_id AS item_series_id,
-                s.name AS series_name
+                s.name AS series_name,
+                item.is_deleted AS is_deleted
             FROM item
             JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
@@ -991,7 +992,7 @@ def __combine_data_result(items, fields, erp_data_map):
 
     for row in items:
         fields_data = []
-        item_id, item_series_id, series_name = row
+        item_id, item_series_id, series_name, is_deleted = row
         erp_data = []
         for field in sorted(fields.values(), key=lambda x: x.sequence):
             item = attributes_dict.get((item_id, field.id))
@@ -1021,6 +1022,7 @@ def __combine_data_result(items, fields, erp_data_map):
                 "seriesName": series_name,
                 "attributes": fields_data,
                 "erp": erp_data,
+                "isDeleted": bool(is_deleted),
             }
         )
 
@@ -1052,15 +1054,6 @@ def __count_total_count(
 
     if status_filter is not None:
         count_query += " AND item.is_deleted = :is_deleted"
-        # Ensure is_deleted is in parameters if not already there (it should be passed from __get_items logic usually, but let's be safe)
-        # Actually parameters are passed from outside. If status_filter is None, we don't add the clause, so parameter presence doesn't matter as much, 
-        # but if it IS not None, we need to make sure the parameter is used.
-        # In __get_series_data, parameters dict is created by __get_items.
-        # If __get_items was called with is_deleted=None, parameters won't have 'is_deleted'.
-        # But here we are using status_filter (which is the passed is_deleted value).
-        # If status_filter is NOT None, we need to add it to parameters if it's missing?
-        # Wait, __get_items returns parameters. If is_deleted was None there, it's not in parameters.
-        # So we should add it here if needed.
         if "is_deleted" not in parameters:
              parameters["is_deleted"] = status_filter
 
@@ -1104,7 +1097,7 @@ def __read_erp(items, fields, series_id):
     # Extract all product numbers from the result that need ERP data
     product_nos_to_fetch = set()
     for row in items:
-        item_id, item_series_id, series_name = row
+        item_id, item_series_id, series_name, is_deleted = row
         for field in fields.values():
             if field.search_erp:
                 item = (
