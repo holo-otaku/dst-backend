@@ -1148,11 +1148,13 @@ paths:
                   enum:
                     - 0
                     - 1
+                    - 2
                 isArchived:
                   type: number
                   enum:
                     - 0
                     - 1
+                    - 2
 
       responses:
         "200":
@@ -1214,6 +1216,12 @@ paths:
                           - equals
                           - greater
                           - less
+                isArchived:
+                  type: number
+                  enum:
+                    - 0
+                    - 1
+                    - 2
       responses:
         "200":
           description: Excel download
