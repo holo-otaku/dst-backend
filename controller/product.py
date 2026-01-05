@@ -479,12 +479,12 @@ def __get_series_data(data, for_export=False):
         raise ValueError("SeriesId not found")
 
     is_deleted = data.get("isDeleted", 0)
-    if is_deleted not in [0, 1]:
+    if is_deleted not in [0, 1, 2]:
         raise ValueError("Input body error")
 
     is_archived = data.get("isArchived", 0)  # 默認為 0，未封存
-    if is_archived not in [0, 1]:
-        raise ValueError("isArchived must be 0 or 1")
+    if is_archived not in [0, 1, 2]:
+        raise ValueError("isArchived must be 0, 1 or 2")
 
     series = db.session.query(Series).filter_by(id=series_id, status=1).first()
     if not series:
@@ -520,6 +520,11 @@ def __get_series_data(data, for_export=False):
         if len(type_err) != 0:
             raise ValueError(type_err)
 
+    # If is_archived is 2, treat it as None (all) for the query functions
+    query_is_archived = is_archived if is_archived != 2 else None
+    # If is_deleted is 2, treat it as None (all) for the query functions
+    query_is_deleted = is_deleted if is_deleted != 2 else None
+
     # 查詢資料
     items, conditions, parameters = __get_items(
         series_id,
@@ -529,13 +534,13 @@ def __get_series_data(data, for_export=False):
         sort_order,
         limit,
         page,
-        is_deleted,
-        is_archived,
+        query_is_deleted,
+        query_is_archived,
     )
     erp_data_map = __read_erp(items, fields, series_id)
     data = __combine_data_result(items, fields, erp_data_map)
     total_count = __count_total_count(
-        data, filters, conditions, parameters, is_deleted, is_archived
+        data, filters, conditions, parameters, query_is_deleted, query_is_archived
     )
 
     return data, total_count, fields
@@ -894,15 +899,19 @@ def __get_items(
     sql_query = """
             SELECT item.id AS item_id,
                 item.series_id AS item_series_id,
-                s.name AS series_name
+                s.name AS series_name,
+                item.is_deleted AS is_deleted
             FROM item
             JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
-            AND item.is_deleted = :is_deleted
         """
 
     conditions = []
-    parameters = {"series_id": series_id, "is_deleted": is_deleted}
+    parameters = {"series_id": series_id}
+
+    if is_deleted is not None:
+        sql_query += " AND item.is_deleted = :is_deleted"
+        parameters["is_deleted"] = is_deleted
 
     if is_archived is not None:
         if is_archived == 1:
@@ -983,7 +992,7 @@ def __combine_data_result(items, fields, erp_data_map):
 
     for row in items:
         fields_data = []
-        item_id, item_series_id, series_name = row
+        item_id, item_series_id, series_name, is_deleted = row
         erp_data = []
         for field in sorted(fields.values(), key=lambda x: x.sequence):
             item = attributes_dict.get((item_id, field.id))
@@ -1013,6 +1022,7 @@ def __combine_data_result(items, fields, erp_data_map):
                 "seriesName": series_name,
                 "attributes": fields_data,
                 "erp": erp_data,
+                "isDeleted": bool(is_deleted),
             }
         )
 
@@ -1040,8 +1050,12 @@ def __count_total_count(
             FROM item
             JOIN series AS s ON item.series_id = s.id
             WHERE item.series_id = :series_id
-            AND item.is_deleted = :is_deleted
         """
+
+    if status_filter is not None:
+        count_query += " AND item.is_deleted = :is_deleted"
+        if "is_deleted" not in parameters:
+             parameters["is_deleted"] = status_filter
 
     if is_archived is not None:
         if is_archived == 1:
@@ -1083,7 +1097,7 @@ def __read_erp(items, fields, series_id):
     # Extract all product numbers from the result that need ERP data
     product_nos_to_fetch = set()
     for row in items:
-        item_id, item_series_id, series_name = row
+        item_id, item_series_id, series_name, is_deleted = row
         for field in fields.values():
             if field.search_erp:
                 item = (
