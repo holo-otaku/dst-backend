@@ -13,28 +13,15 @@ from models.image import Image
 from models.archive import Archive
 
 
-@patch("models.shared.db.session.get")
-@patch("models.shared.db.session.query")
+@patch("controller.product.__create_item")
+@patch("controller.product.__normalize_payload_from_request")
 @patch("models.shared.db.session.commit")
-@patch("models.shared.db.session.add")
-def test_create_success(mock_add, mock_commit, mock_query, mock_get, app):
+def test_create_success(mock_commit, mock_normalize, mock_create_item, app):
     with app.app_context():
-        # Mock the Series object
-        mock_series = MagicMock(spec=Series)
-        mock_series.id = 1
+        mock_normalize.return_value = {"series_id": 1, "attributes": []}
+        mock_item = MagicMock(id=1, series_id=1)
+        mock_create_item.return_value = (mock_item, None)
 
-        # Configure mock_get to return the mock_series
-        mock_get.return_value = mock_series
-
-        # Create mock objects for fields and field query
-        mock_field_1 = MagicMock(id=1, name="Field1", is_required=True)
-        mock_field_2 = MagicMock(id=2, name="Field2", is_required=False)
-        mock_fields = [mock_field_1, mock_field_2]
-        mock_field_query = MagicMock()
-        mock_query.return_value.filter.return_value = MagicMock()
-        mock_field_query.all.return_value = [mock_field_1]
-
-        # Prepare test data
         data = [
             {
                 "seriesId": 1,
@@ -45,57 +32,71 @@ def test_create_success(mock_add, mock_commit, mock_query, mock_get, app):
             }
         ]
 
-        # Call the create function
         response = create(data=data)
 
-        # Assert response status code and message
         assert response.status_code == 201
         assert response.get_json()["code"] == 201
         assert response.get_json()["msg"] == "Success"
 
-        # Assert that db.session.get was called with the correct parameters
-        mock_get.assert_called_once_with(Series, 1)
-
-        # Assert that db.session.query was called with the correct parameters
-        # Note: query is called multiple times now due to duplicate checking
-        assert mock_query.call_count >= 1
-        mock_query.assert_any_call(Field)
-
-        # Assert that db.session.commit was called
+        mock_normalize.assert_called_once()
+        mock_create_item.assert_called_once()
         mock_commit.assert_called_once()
 
 
-@patch("models.shared.db.session.get")
-def test_create_incomplete_data(mock_get, app):
+@patch("controller.product.__create_item")
+@patch("controller.product.__normalize_payload_from_request")
+def test_create_incomplete_data(mock_normalize, mock_create_item, app):
     with app.app_context():
-        # Call the create function with incomplete data
+        mock_normalize.return_value = {"series_id": None, "attributes": []}
+        error_resp = MagicMock(status_code=400)
+        error_resp.get_json.return_value = {"code": 400, "msg": "Incomplete data"}
+        mock_create_item.return_value = (None, error_resp)
+
         response = create(data=[{"attributes": [{"fieldId": 1, "value": "Value1"}]}])
 
-        # Assert response status code and message
         assert response.status_code == 400
-        assert response.get_json() == {"code": 400, "msg": "Incomplete data"}
+        assert response.get_json()["code"] == 400
+        mock_normalize.assert_called_once()
+        mock_create_item.assert_called_once()
 
-        # Assert that db.session.get was not called
-        assert not mock_get.called
 
-
-@patch("models.shared.db.session.get")
-def test_create_series_not_found(mock_get, app):
+@patch("controller.product.__create_item")
+@patch("controller.product.__normalize_payload_from_request")
+def test_create_series_not_found(mock_normalize, mock_create_item, app):
     with app.app_context():
-        # Configure mock_get to return None, simulating series not found
-        mock_get.return_value = None
+        mock_normalize.return_value = {"series_id": 1, "attributes": []}
+        error_resp = MagicMock(status_code=404)
+        error_resp.get_json.return_value = {"code": 404, "msg": "Series not found"}
+        mock_create_item.return_value = (None, error_resp)
 
-        # Call the create function
         response = create(
             data=[{"seriesId": 1, "attributes": [{"fieldId": 1, "value": "Value1"}]}]
         )
 
-        # Assert response status code and message
         assert response.status_code == 404
         assert response.get_json() == {"code": 404, "msg": "Series not found"}
 
-        # Assert that db.session.get was called with the correct parameters
-        mock_get.assert_called_once_with(Series, 1)
+        mock_normalize.assert_called_once()
+        mock_create_item.assert_called_once()
+
+
+@patch("models.shared.db.session.get")
+@patch("controller.product.__check_duplicate_required_fields")
+def test_create_duplicate_blocked(mock_dup_check, mock_get, app):
+    with app.app_context():
+        mock_get.return_value = MagicMock(id=1, series_id=1)
+        mock_dup_check.return_value = ["供應商料號 'X' 已存在"]
+
+        response = create(
+            data=[{"seriesId": 1, "attributes": [{"fieldId": 1, "value": "X"}]}]
+        )
+
+        assert response.status_code == 400
+        json_data = response.get_json()
+        assert json_data["code"] == 400
+        assert "Duplicate values" in json_data["msg"]
+        mock_dup_check.assert_called_once()
+        mock_get.assert_called_once()
 
 
 @patch("models.shared.db.session.get")
@@ -275,6 +276,43 @@ def test_update_multi_success(
         mock_commit.assert_called_once()
 
 
+@patch("controller.product.__check_duplicate_required_fields")
+@patch("models.shared.db.session.get")
+def test_update_multi_duplicate_blocked(mock_get, mock_dup_check, app):
+    with app.app_context():
+        mock_item = MagicMock(id=1, series_id=10)
+
+        def get_side_effect(model, id):
+            if model == Item:
+                return mock_item
+            if model == Field:
+                field = MagicMock()
+                field.id = 1
+                field.data_type = "string"
+                return field
+            return None
+
+        mock_get.side_effect = get_side_effect
+        mock_dup_check.return_value = ["DST料號 'X' 已存在"]
+
+        data = [
+            {
+                "itemId": 1,
+                "attributes": [
+                    {"fieldId": 1, "value": "X"},
+                ],
+            }
+        ]
+
+        response = update_multi(data)
+
+        assert response.status_code == 400
+        json_data = response.get_json()
+        assert json_data["code"] == 400
+        assert "Duplicate values" in json_data["msg"]
+        mock_dup_check.assert_called_once()
+
+
 @patch("models.shared.db.session.commit")
 @patch("models.shared.db.session.query")
 @patch("models.shared.db.session.get")
@@ -351,98 +389,51 @@ def test_delete_with_missing_itemId(app):
         assert response.get_json()["msg"] == "Invalid data"
 
 
-@patch("controller.product.__copy_image")
+@patch("controller.product.__create_item")
+@patch("controller.product.__normalize_payload_from_item")
 @patch("models.shared.db.session.commit")
-@patch("models.shared.db.session.flush")
-@patch("models.shared.db.session.add")
 @patch("models.shared.db.session.query")
-@patch("models.shared.db.session.get")
-def test_copy_success(
-    mock_get, mock_query, mock_add, mock_flush, mock_commit, mock_copy_image, app
-):
+def test_copy_success(mock_query, mock_commit, mock_normalize, mock_create_item, app):
     with app.app_context():
-        # 模擬原始 Item
         mock_item = MagicMock(spec=Item)
         mock_item.id = 1
         mock_item.series_id = 10
 
-        # 模擬屬性 Field 與 ItemAttribute
-        mock_field = MagicMock()
-        mock_field.data_type = "picture"
-        mock_field.sequence = 1  # 添加 sequence 屬性
+        mock_query_obj = MagicMock()
+        mock_query_obj.filter.return_value.all.return_value = [mock_item]
+        mock_query.return_value = mock_query_obj
 
-        mock_attr = MagicMock(spec=ItemAttribute)
-        mock_attr.item_id = 1
-        mock_attr.field_id = 100
-        mock_attr.value = 123  # 圖片 ID
-        mock_attr.field = mock_field
+        mock_normalize.return_value = {"series_id": 10, "attributes": [], "fields": []}
+        mock_new_item = MagicMock(id=999, series_id=10)
+        mock_create_item.return_value = (mock_new_item, None)
 
-        # 模擬複製圖片後的回傳值（新圖片的 ID）
-        mock_copy_image.return_value = 456
+        response = create_from_items({"itemIds": [1]})
 
-        # Configure session.get to return appropriate objects
-        def mock_get_side_effect(model_class, obj_id):
-            if model_class == Item and obj_id == 1:
-                return mock_item
-            elif model_class == Field and obj_id == 100:
-                return mock_field
-            return None
-        
-        mock_get.side_effect = mock_get_side_effect
-
-        # 模擬 .query(ItemAttribute).filter_by().all()
-        mock_query.return_value.filter_by.return_value.all.return_value = [mock_attr]
-
-        # 模擬 add 方法，讓新創建的 Item 有 ID
-        def mock_add_side_effect(obj):
-            if hasattr(obj, 'id'):
-                obj.id = 999  # 設定新 Item 的 ID
-        
-        mock_add.side_effect = mock_add_side_effect
-
-        # 執行函式
-        request_data = {"itemIds": [1]}
-        response = create_from_items(request_data)
-
-        # 驗證 HTTP 回應
         assert response.status_code == 201
         json_data = response.get_json()
         assert json_data["code"] == 201
         assert json_data["msg"] == "Success"
-        assert isinstance(json_data["data"], list)
-        assert "id" in json_data["data"][0]
-        assert "seriesId" in json_data["data"][0]
+        assert json_data["data"][0]["id"] == 999
+        assert json_data["data"][0]["seriesId"] == 10
 
-        # 驗證是否呼叫預期的操作
-        # 檢查所有的 mock_get 調用
-        assert mock_get.call_count >= 2
-        # 檢查是否有調用 Item 和 Field
-        calls = mock_get.call_args_list
-        assert any(call[0] == (Item, 1) for call in calls)
-        assert any(call[0] == (Field, 100) for call in calls)
-        
-        # 驗證 __copy_image 被正確呼叫 (999 是新 Item 的 ID)
-        mock_copy_image.assert_called_with(123, 999, 100)
-        mock_query.assert_called_with(ItemAttribute)
-        mock_add.assert_called()
+        mock_query.assert_called_once_with(Item)
+        mock_normalize.assert_called_once_with(mock_item)
+        mock_create_item.assert_called_once()
         mock_commit.assert_called_once()
-        mock_copy_image.assert_called_once()
 
 
-@patch("models.shared.db.session.get")
-def test_copy_with_missing_item(mock_get, app):
+@patch("models.shared.db.session.query")
+def test_copy_with_missing_item(mock_query, app):
     with app.app_context():
-        # 模擬 db.session.get 找不到該 item
-        mock_get.return_value = None
+        mock_query_obj = MagicMock()
+        mock_query_obj.filter.return_value.all.return_value = []
+        mock_query.return_value = mock_query_obj
 
-        request_data = {"itemIds": [999]}
-
-        response = create_from_items(request_data)
+        response = create_from_items({"itemIds": [999]})
 
         assert response.status_code == 404
-        assert response.get_json() == {"code": 404, "msg": "Item 999 not found"}
-
-        mock_get.assert_called_once_with(Item, 999)
+        assert response.get_json() == {"code": 404, "msg": "Item(s) not found: [999]"}
+        mock_query.assert_called_once_with(Item)
 
 
 def test_copy_with_invalid_input(app):

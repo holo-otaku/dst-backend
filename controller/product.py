@@ -111,62 +111,10 @@ def create(data):
     items = []
 
     for item_data in data:
-        series_id = item_data.get("seriesId")
-        attributes = item_data.get("attributes")
-
-        # Get the fields related to this series
-        fields_query = db.session.query(Field).filter(Field.series_id == series_id)
-
-        if not series_id:
-            return make_response(jsonify({"code": 400, "msg": "Incomplete data"}), 400)
-
-        series = db.session.get(Series, series_id)
-
-        if not series:
-            return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
-
-        item = Item(series_id=series_id)
-        db.session.add(item)
-
-        missing_field = __check_field_required(
-            fields_query, attributes, Field.is_required
-        )
-
-        if len(missing_field) != 0:
-            return make_response(
-                jsonify(
-                    {"code": 400, "msg": f"Missing required field: {missing_field}"}
-                ),
-                400,
-            )
-
-        # 檢查供應商料號和DST料號是否已經存在
-        duplicate_fields = __check_duplicate_required_fields(series_id, attributes)
-        if duplicate_fields:
-            return make_response(
-                jsonify({"code": 400, "msg": f"Duplicate values found: {duplicate_fields}"}),
-                400,
-            )
-
-        for field in fields_query:
-            attribute = next(
-                (a for a in attributes if a.get("fieldId") == field.id), None
-            )
-            value = attribute.get("value") if attribute else None
-
-            # Check if the value is of the correct data type
-            type_err = __check_field_type(field, value)
-            if len(type_err) != 0:
-                return make_response(jsonify({"code": 400, "msg": type_err}), 400)
-
-            if field.data_type.lower() == "picture" and value:
-                value = __save_image(value, item.id, field.id)
-
-            item_attribute = ItemAttribute(
-                item_id=item.id, field_id=field.id, value=value
-            )
-            db.session.add(item_attribute)
-
+        payload = __normalize_payload_from_request(item_data)
+        item, error_response = __create_item(payload, mode="create")
+        if error_response:
+            return error_response
         items.append(item)
 
     db.session.commit()
@@ -185,47 +133,21 @@ def create_from_items(data):
 
     new_items = []
 
-    for item_id in item_ids:
-        item = db.session.get(Item, item_id)
-        if not item:
-            return make_response(
-                jsonify({"code": 404, "msg": f"Item {item_id} not found"}), 404
-            )
+    items_by_id = db.session.query(Item).filter(Item.id.in_(item_ids)).all()
+    found_ids = {item.id for item in items_by_id}
+    missing_ids = [item_id for item_id in item_ids if item_id not in found_ids]
+    if missing_ids:
+        return make_response(
+            jsonify({"code": 404, "msg": f"Item(s) not found: {missing_ids}"}),
+            404,
+        )
 
-        # 建立新 Item
-        new_item = Item(series_id=item.series_id)
-        db.session.add(new_item)
-        db.session.flush()  # 取得 new_item.id
-
-        # 複製對應的 attributes
-        attributes = db.session.query(ItemAttribute).filter_by(item_id=item_id).all()
-        # 按照欄位的 sequence 排序，確保按正確順序處理
-        attributes_with_field = []
-        for attr in attributes:
-            field = db.session.get(Field, attr.field_id)
-            attributes_with_field.append((attr, field))
-        
-        # 按照 field.sequence 排序
-        attributes_with_field.sort(key=lambda x: x[1].sequence if x[1].sequence is not None else float('inf'))
-        
-        first_string_field_modified = False  # 每個 item 都重設標記
-        
-        for attr, field in attributes_with_field:
-            new_value = attr.value
-            # 如果是圖片類型，需要另外處理圖片複製
-            if field.data_type == "picture" and attr.value:
-                new_value = __copy_image(attr.value, new_item.id, attr.field_id)
-            # 如果是第一個遇到的字串類型欄位，加上 "copy" 前綴
-            elif field.data_type == "string" and attr.value and not first_string_field_modified:
-                new_value = f"copy {attr.value}"
-                first_string_field_modified = True
-
-            new_attr = ItemAttribute(
-                item_id=new_item.id, field_id=attr.field_id, value=new_value
-            )
-            db.session.add(new_attr)
-
-        new_items.append(new_item)
+    for item in items_by_id:
+        payload = __normalize_payload_from_item(item)
+        item_created, error_response = __create_item(payload, mode="copy")
+        if error_response:
+            return error_response
+        new_items.append(item_created)
 
     db.session.commit()
     result = [{"id": item.id, "seriesId": item.series_id} for item in new_items]
@@ -395,7 +317,9 @@ def update_multi(data):
             item.is_deleted = is_deleted
 
         # 檢查供應商料號和DST料號是否已經存在（排除當前項目）
-        duplicate_fields = __check_duplicate_required_fields_for_update(item_id, item.series_id, attributes)
+        duplicate_fields = __check_duplicate_required_fields(
+            item.series_id, attributes, exclude_item_id=item_id
+        )
         if duplicate_fields:
             return make_response(
                 jsonify({"code": 400, "msg": f"Duplicate values found: {duplicate_fields}"}),
@@ -466,6 +390,111 @@ def delete(data):
     db.session.commit()
 
     return make_response(jsonify({"code": 200, "msg": "Items deleted"}), 200)
+
+
+def __get_fields_by_series(series_id):
+    return (
+        db.session.query(Field)
+        .filter(Field.series_id == series_id)
+        .order_by(Field.sequence)
+        .all()
+    )
+
+
+def __normalize_payload_from_request(item_data):
+    return {
+        "series_id": item_data.get("seriesId"),
+        "attributes": item_data.get("attributes", []),
+    }
+
+
+def __normalize_payload_from_item(item):
+    fields = __get_fields_by_series(item.series_id)
+    attributes_query = db.session.query(ItemAttribute).filter_by(item_id=item.id)
+    attributes_by_field = {attr.field_id: attr for attr in attributes_query.all()}
+
+    normalized_attributes = []
+    first_string_field_modified = False
+
+    for field in fields:
+        source_attr = attributes_by_field.get(field.id)
+        value = source_attr.value if source_attr else None
+
+        if field.data_type == "picture" and value:
+            normalized_attributes.append({"fieldId": field.id, "value": value})
+        elif field.data_type == "string" and value and not first_string_field_modified:
+            normalized_attributes.append({"fieldId": field.id, "value": f"copy {value}"})
+            first_string_field_modified = True
+        else:
+            normalized_attributes.append({"fieldId": field.id, "value": value})
+
+    return {
+        "series_id": item.series_id,
+        "attributes": normalized_attributes,
+        "fields": fields,
+    }
+
+
+def __create_item(payload, mode="create"):
+    series_id = payload.get("series_id")
+    attributes = payload.get("attributes", [])
+    fields = payload.get("fields")
+
+    if not series_id:
+        return None, make_response(
+            jsonify({"code": 400, "msg": "Incomplete data"}), 400
+        )
+
+    series = db.session.get(Series, series_id)
+    if not series:
+        return None, make_response(
+            jsonify({"code": 404, "msg": "Series not found"}), 404
+        )
+
+    fields_query = db.session.query(Field).filter(Field.series_id == series_id)
+    if fields is None:
+        fields = fields_query.order_by(Field.sequence).all()
+
+    missing_field = __check_field_required(fields_query, attributes, Field.is_required)
+    if len(missing_field) != 0:
+        return None, make_response(
+            jsonify({"code": 400, "msg": f"Missing required field: {missing_field}"}),
+            400,
+        )
+
+    duplicate_fields = __check_duplicate_required_fields(series_id, attributes)
+    if duplicate_fields:
+        return None, make_response(
+            jsonify({"code": 400, "msg": f"Duplicate values found: {duplicate_fields}"}),
+            400,
+        )
+
+    item = Item(series_id=series_id)
+    db.session.add(item)
+    db.session.flush()
+
+    for field in fields:
+        attribute = next(
+            (a for a in attributes if a.get("fieldId") == field.id), None
+        )
+        value = attribute.get("value") if attribute else None
+
+        # Only run type checking for create mode to avoid base64 expectations on copy
+        if mode != "copy":
+            type_err = __check_field_type(field, value)
+            if len(type_err) != 0:
+                return None, make_response(jsonify({"code": 400, "msg": type_err}), 400)
+
+        if field.data_type.lower() == "picture" and value:
+            if mode == "copy":
+                value = __copy_image(value, item.id, field.id)
+            else:
+                value = __save_image(value, item.id, field.id)
+
+        item_attribute = ItemAttribute(item_id=item.id, field_id=field.id, value=value)
+        db.session.add(item_attribute)
+
+    return item, None
 
 
 def __get_series_data(data, for_export=False):
@@ -1117,20 +1146,22 @@ def __read_erp(items, fields, series_id):
     return read_erp(product_nos_to_fetch, series_id)
 
 
-def __check_duplicate_required_fields(series_id, attributes):
-    """檢查供應商料號和DST料號是否已經存在"""
+def __check_duplicate_required_fields(series_id, attributes, exclude_item_id=None):
+    """檢查供應商料號和DST料號是否已經存在，可選擇排除指定 item。"""
     duplicate_fields = []
-    
-    # 取得供應商料號和DST料號欄位
+
     supplier_field = db.session.query(Field).filter(
         and_(Field.series_id == series_id, Field.name == "供應商料號")
     ).first()
-    
+
     dst_field = db.session.query(Field).filter(
         and_(Field.series_id == series_id, Field.name == "DST料號")
     ).first()
-    
-    # 檢查供應商料號
+
+    base_filters = [Item.series_id == series_id, Item.is_deleted == 0]
+    if exclude_item_id is not None:
+        base_filters.append(Item.id != exclude_item_id)
+
     if supplier_field:
         supplier_attr = next(
             (a for a in attributes if a.get("fieldId") == supplier_field.id), None
@@ -1140,14 +1171,12 @@ def __check_duplicate_required_fields(series_id, attributes):
                 and_(
                     ItemAttribute.field_id == supplier_field.id,
                     ItemAttribute.value == supplier_attr["value"],
-                    Item.series_id == series_id,
-                    Item.is_deleted == 0
+                    *base_filters,
                 )
             ).first()
             if existing_supplier:
                 duplicate_fields.append(f"供應商料號 '{supplier_attr['value']}' 已存在")
-    
-    # 檢查DST料號
+
     if dst_field:
         dst_attr = next(
             (a for a in attributes if a.get("fieldId") == dst_field.id), None
@@ -1157,63 +1186,10 @@ def __check_duplicate_required_fields(series_id, attributes):
                 and_(
                     ItemAttribute.field_id == dst_field.id,
                     ItemAttribute.value == dst_attr["value"],
-                    Item.series_id == series_id,
-                    Item.is_deleted == 0
+                    *base_filters,
                 )
             ).first()
             if existing_dst:
                 duplicate_fields.append(f"DST料號 '{dst_attr['value']}' 已存在")
-    
-    return duplicate_fields
 
-
-def __check_duplicate_required_fields_for_update(item_id, series_id, attributes):
-    """檢查供應商料號和DST料號是否已經存在（用於編輯時，排除當前項目）"""
-    duplicate_fields = []
-    
-    # 取得供應商料號和DST料號欄位
-    supplier_field = db.session.query(Field).filter(
-        and_(Field.series_id == series_id, Field.name == "供應商料號")
-    ).first()
-    
-    dst_field = db.session.query(Field).filter(
-        and_(Field.series_id == series_id, Field.name == "DST料號")
-    ).first()
-    
-    # 檢查供應商料號
-    if supplier_field:
-        supplier_attr = next(
-            (a for a in attributes if a.get("fieldId") == supplier_field.id), None
-        )
-        if supplier_attr and supplier_attr.get("value"):
-            existing_supplier = db.session.query(ItemAttribute).join(Item).filter(
-                and_(
-                    ItemAttribute.field_id == supplier_field.id,
-                    ItemAttribute.value == supplier_attr["value"],
-                    Item.series_id == series_id,
-                    Item.is_deleted == 0,
-                    Item.id != item_id  # 排除當前項目
-                )
-            ).first()
-            if existing_supplier:
-                duplicate_fields.append(f"供應商料號 '{supplier_attr['value']}' 已存在")
-    
-    # 檢查DST料號
-    if dst_field:
-        dst_attr = next(
-            (a for a in attributes if a.get("fieldId") == dst_field.id), None
-        )
-        if dst_attr and dst_attr.get("value"):
-            existing_dst = db.session.query(ItemAttribute).join(Item).filter(
-                and_(
-                    ItemAttribute.field_id == dst_field.id,
-                    ItemAttribute.value == dst_attr["value"],
-                    Item.series_id == series_id,
-                    Item.is_deleted == 0,
-                    Item.id != item_id  # 排除當前項目
-                )
-            ).first()
-            if existing_dst:
-                duplicate_fields.append(f"DST料號 '{dst_attr['value']}' 已存在")
-    
     return duplicate_fields
