@@ -81,6 +81,25 @@ def test_create_series_not_found(mock_normalize, mock_create_item, app):
 
 
 @patch("models.shared.db.session.get")
+@patch("controller.product.__check_duplicate_required_fields")
+def test_create_duplicate_blocked(mock_dup_check, mock_get, app):
+    with app.app_context():
+        mock_get.return_value = MagicMock(id=1, series_id=1)
+        mock_dup_check.return_value = ["供應商料號 'X' 已存在"]
+
+        response = create(
+            data=[{"seriesId": 1, "attributes": [{"fieldId": 1, "value": "X"}]}]
+        )
+
+        assert response.status_code == 400
+        json_data = response.get_json()
+        assert json_data["code"] == 400
+        assert "Duplicate values" in json_data["msg"]
+        mock_dup_check.assert_called_once()
+        mock_get.assert_called_once()
+
+
+@patch("models.shared.db.session.get")
 @patch("models.shared.db.session.query")
 @patch("controller.product.read_erp")
 @patch("controller.product.has_permission")
@@ -255,6 +274,43 @@ def test_update_multi_success(
 
         # Assert that db.session.commit was called
         mock_commit.assert_called_once()
+
+
+@patch("controller.product.__check_duplicate_required_fields")
+@patch("models.shared.db.session.get")
+def test_update_multi_duplicate_blocked(mock_get, mock_dup_check, app):
+    with app.app_context():
+        mock_item = MagicMock(id=1, series_id=10)
+
+        def get_side_effect(model, id):
+            if model == Item:
+                return mock_item
+            if model == Field:
+                field = MagicMock()
+                field.id = 1
+                field.data_type = "string"
+                return field
+            return None
+
+        mock_get.side_effect = get_side_effect
+        mock_dup_check.return_value = ["DST料號 'X' 已存在"]
+
+        data = [
+            {
+                "itemId": 1,
+                "attributes": [
+                    {"fieldId": 1, "value": "X"},
+                ],
+            }
+        ]
+
+        response = update_multi(data)
+
+        assert response.status_code == 400
+        json_data = response.get_json()
+        assert json_data["code"] == 400
+        assert "Duplicate values" in json_data["msg"]
+        mock_dup_check.assert_called_once()
 
 
 @patch("models.shared.db.session.commit")

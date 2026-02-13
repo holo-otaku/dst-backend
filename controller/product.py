@@ -317,7 +317,9 @@ def update_multi(data):
             item.is_deleted = is_deleted
 
         # 檢查供應商料號和DST料號是否已經存在（排除當前項目）
-        duplicate_fields = __check_duplicate_required_fields_for_update(item_id, item.series_id, attributes)
+        duplicate_fields = __check_duplicate_required_fields(
+            item.series_id, attributes, exclude_item_id=item_id
+        )
         if duplicate_fields:
             return make_response(
                 jsonify({"code": 400, "msg": f"Duplicate values found: {duplicate_fields}"}),
@@ -1144,20 +1146,22 @@ def __read_erp(items, fields, series_id):
     return read_erp(product_nos_to_fetch, series_id)
 
 
-def __check_duplicate_required_fields(series_id, attributes):
-    """檢查供應商料號和DST料號是否已經存在"""
+def __check_duplicate_required_fields(series_id, attributes, exclude_item_id=None):
+    """檢查供應商料號和DST料號是否已經存在，可選擇排除指定 item。"""
     duplicate_fields = []
-    
-    # 取得供應商料號和DST料號欄位
+
     supplier_field = db.session.query(Field).filter(
         and_(Field.series_id == series_id, Field.name == "供應商料號")
     ).first()
-    
+
     dst_field = db.session.query(Field).filter(
         and_(Field.series_id == series_id, Field.name == "DST料號")
     ).first()
-    
-    # 檢查供應商料號
+
+    base_filters = [Item.series_id == series_id, Item.is_deleted == 0]
+    if exclude_item_id is not None:
+        base_filters.append(Item.id != exclude_item_id)
+
     if supplier_field:
         supplier_attr = next(
             (a for a in attributes if a.get("fieldId") == supplier_field.id), None
@@ -1167,14 +1171,12 @@ def __check_duplicate_required_fields(series_id, attributes):
                 and_(
                     ItemAttribute.field_id == supplier_field.id,
                     ItemAttribute.value == supplier_attr["value"],
-                    Item.series_id == series_id,
-                    Item.is_deleted == 0
+                    *base_filters,
                 )
             ).first()
             if existing_supplier:
                 duplicate_fields.append(f"供應商料號 '{supplier_attr['value']}' 已存在")
-    
-    # 檢查DST料號
+
     if dst_field:
         dst_attr = next(
             (a for a in attributes if a.get("fieldId") == dst_field.id), None
@@ -1184,63 +1186,10 @@ def __check_duplicate_required_fields(series_id, attributes):
                 and_(
                     ItemAttribute.field_id == dst_field.id,
                     ItemAttribute.value == dst_attr["value"],
-                    Item.series_id == series_id,
-                    Item.is_deleted == 0
+                    *base_filters,
                 )
             ).first()
             if existing_dst:
                 duplicate_fields.append(f"DST料號 '{dst_attr['value']}' 已存在")
-    
-    return duplicate_fields
 
-
-def __check_duplicate_required_fields_for_update(item_id, series_id, attributes):
-    """檢查供應商料號和DST料號是否已經存在（用於編輯時，排除當前項目）"""
-    duplicate_fields = []
-    
-    # 取得供應商料號和DST料號欄位
-    supplier_field = db.session.query(Field).filter(
-        and_(Field.series_id == series_id, Field.name == "供應商料號")
-    ).first()
-    
-    dst_field = db.session.query(Field).filter(
-        and_(Field.series_id == series_id, Field.name == "DST料號")
-    ).first()
-    
-    # 檢查供應商料號
-    if supplier_field:
-        supplier_attr = next(
-            (a for a in attributes if a.get("fieldId") == supplier_field.id), None
-        )
-        if supplier_attr and supplier_attr.get("value"):
-            existing_supplier = db.session.query(ItemAttribute).join(Item).filter(
-                and_(
-                    ItemAttribute.field_id == supplier_field.id,
-                    ItemAttribute.value == supplier_attr["value"],
-                    Item.series_id == series_id,
-                    Item.is_deleted == 0,
-                    Item.id != item_id  # 排除當前項目
-                )
-            ).first()
-            if existing_supplier:
-                duplicate_fields.append(f"供應商料號 '{supplier_attr['value']}' 已存在")
-    
-    # 檢查DST料號
-    if dst_field:
-        dst_attr = next(
-            (a for a in attributes if a.get("fieldId") == dst_field.id), None
-        )
-        if dst_attr and dst_attr.get("value"):
-            existing_dst = db.session.query(ItemAttribute).join(Item).filter(
-                and_(
-                    ItemAttribute.field_id == dst_field.id,
-                    ItemAttribute.value == dst_attr["value"],
-                    Item.series_id == series_id,
-                    Item.is_deleted == 0,
-                    Item.id != item_id  # 排除當前項目
-                )
-            ).first()
-            if existing_dst:
-                duplicate_fields.append(f"DST料號 '{dst_attr['value']}' 已存在")
-    
     return duplicate_fields
