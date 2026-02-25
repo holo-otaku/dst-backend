@@ -462,12 +462,13 @@ def __create_item(payload, mode="create"):
             400,
         )
 
-    duplicate_fields = __check_duplicate_required_fields(series_id, attributes)
-    if duplicate_fields:
-        return None, make_response(
-            jsonify({"code": 400, "msg": f"Duplicate values found: {duplicate_fields}"}),
-            400,
-        )
+    if mode != "copy":
+        duplicate_fields = __check_duplicate_required_fields(series_id, attributes)
+        if duplicate_fields:
+            return None, make_response(
+                jsonify({"code": 400, "msg": f"Duplicate values found: {duplicate_fields}"}),
+                400,
+            )
 
     item = Item(series_id=series_id)
     db.session.add(item)
