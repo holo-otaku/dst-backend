@@ -24,7 +24,7 @@ def get_series(series_id):
 @check_permission('series.create')
 def create_series():
     data = request.get_json()
-    created_by = get_jwt_identity()
+    created_by = int(get_jwt_identity())
 
     return create(data, created_by)
 

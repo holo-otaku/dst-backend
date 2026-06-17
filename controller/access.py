@@ -15,7 +15,7 @@ def check_permission(permission):
             if not user_id:
                 return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
 
-            user = db.session.get(User, user_id)
+            user = db.session.get(User, int(user_id))
 
             if user and has_permission(user, permission):
                 # 有權限，執行原始函數

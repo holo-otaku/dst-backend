@@ -14,7 +14,7 @@ def has_permission(required_permission):
 def check_field_permission(permission):
     """檢查用戶對特定欄位的權限"""
     user_id = get_jwt_identity()
-    user = db.session.get(User, user_id)
+    user = db.session.get(User, int(user_id)) if user_id else None
     
     if user and has_permission(permission):
         return True
