@@ -33,7 +33,7 @@ class TokenVersionMiddleware:
                 token_version = claims.get('tokenVersion', 0)
                 
                 # 從資料庫獲取使用者資訊
-                user = db.session.query(User).filter_by(id=user_id).first()
+                user = db.session.query(User).filter_by(id=int(user_id)).first()
                 
                 if not user:
                     return make_response(jsonify({
