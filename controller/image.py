@@ -5,6 +5,7 @@ from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 import uuid
 import os
+from PIL import Image as PILImage
 from modules.exception import handle_exceptions
 
 
@@ -46,4 +47,13 @@ def read(image_id):
     image_directory = os.path.dirname(image.path)
     image_filename = os.path.basename(image.path)
 
-    return send_from_directory(directory=image_directory, path=image_filename, mimetype='image/jpeg', as_attachment=True, download_name='%s.jpg' % image_id)
+    # Files are always saved as .png, but uploads may be JPEG, so sniff the real format
+    try:
+        with PILImage.open(image.path) as img:
+            image_format = img.format
+    except OSError:
+        image_format = None
+    mimetype = PILImage.MIME.get(image_format, 'application/octet-stream')
+    extension = {'JPEG': 'jpg', 'PNG': 'png'}.get(image_format, 'bin')
+
+    return send_from_directory(directory=image_directory, path=image_filename, mimetype=mimetype, as_attachment=True, download_name='%s.%s' % (image_id, extension))
