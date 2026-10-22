@@ -1,14 +1,14 @@
-FROM python:3.10.8-slim
+FROM python:3.10-slim-trixie
 
 WORKDIR /usr/app
 
-COPY Pipfile* ./
+COPY --from=ghcr.io/astral-sh/uv:0.12.12 /uv /bin/uv
+
+COPY pyproject.toml uv.lock .python-version ./
 
 RUN mkdir logs
 
-RUN pip install --upgrade pip \
-    && pip install pipenv \
-    && pipenv install --system --deploy --ignore-pipfile \
+RUN UV_PROJECT_ENVIRONMENT=/usr/local uv sync --frozen --no-dev --no-cache \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
     && apt-get install -y unixodbc \
