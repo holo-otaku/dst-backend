@@ -21,7 +21,7 @@ dependencies = [
     "tomli==2.0.1",
     "typing-extensions",
     "flask-cors",
-    "flask-swagger-ui==4.11.1",
+    "flask-swagger-ui==5.33.2",
     "python-dotenv==1.2.2",
     "aniso8601==9.0.1",
     "apispec==6.3.0",
