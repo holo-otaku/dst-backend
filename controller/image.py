@@ -18,11 +18,23 @@ def create():
     # Get the file from the form data
     image_file = request.files['image_data']
 
-    # Read the image file as bytes
-    image_bytes = image_file.read()
+    # Reject anything Pillow can't parse as an image
+    try:
+        with PILImage.open(image_file.stream) as img:
+            img.verify()
+    except (OSError, SyntaxError):
+        return make_response(jsonify({"code": 400, "msg": "image_data is not a valid image"}), 400)
+
+    # Save the file under IMG_PATH and store only its path, like product images
+    image_dir = current_app.config["IMG_PATH"]
+    os.makedirs(image_dir, exist_ok=True)
+    image_name = str(uuid.uuid4())[:8]
+    image_path = os.path.join(image_dir, f"{image_name}.png")
+    image_file.stream.seek(0)
+    image_file.save(image_path)
 
     # Create an Image instance and set its properties
-    image = Image(data=image_bytes, name=str(uuid.uuid4())[:8])
+    image = Image(name=image_name, path=image_path)
 
     # Add the image to the database
     db.session.add(image)
