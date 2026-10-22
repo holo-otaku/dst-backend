@@ -33,7 +33,8 @@ def login():
 def refresh():
     # 獲取當前用戶的 ID
     current_user = get_jwt_identity()
-    user = db.session.query(User).filter_by(id=current_user).first()
+    user = db.session.query(User).filter_by(
+        id=int(current_user)).first() if current_user else None
 
     if not user:
         return make_response(jsonify({"code": 404, "msg": "User not found"}), 404)
@@ -55,7 +56,7 @@ def __create_access_token(user):
         for permission in role.permissions:
             permissions.append(permission.name)
 
-    return create_access_token(identity=user.id,
+    return create_access_token(identity=str(user.id),
                                additional_claims={
                                    "userName": user.username, 
                                    "permissions": permissions,

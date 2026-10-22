@@ -28,7 +28,8 @@ class Middlewares():
                     verify_jwt_in_request()  # Only verify JWT if required
 
                 # Attempt to get user identity
-                user_id = get_jwt_identity() if verify_jwt_in_request() else None
+                identity = get_jwt_identity() if verify_jwt_in_request() else None
+                user_id = int(identity) if identity else None
 
                 log_data = {
                     'url': request.path,
