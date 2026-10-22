@@ -337,7 +337,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "autopep8", specifier = "==2.0.2" },
-    { name = "faker", specifier = "==25.5.0" },
+    { name = "faker", specifier = "==40.43.0" },
     { name = "iniconfig", specifier = "==2.0.0" },
     { name = "pluggy", specifier = "==1.5.0" },
     { name = "pycodestyle", specifier = "==2.10.0" },
@@ -356,14 +356,14 @@ wheels = [
 
 [[package]]
 name = "faker"
-version = "25.5.0"
+version = "40.43.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "python-dateutil" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/90/7f/03a9ea6fad7c404dc43edd1fc6fd9d6cf7eaafacd3bfdc766a03b29a7404/Faker-25.5.0.tar.gz", hash = "sha256:84d454fc9fef0b73428e00bdf45a36c04568c75f22727e990071580840cfbb84", size = 1760846, upload-time = "2024-06-04T20:18:41.592Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/6c/b8793efc2f00a912ef17cf0b61b717cddf34607499efcb8a32238c119368/faker-40.43.0.tar.gz", hash = "sha256:02fae4327c03a4a6315e1b428a3878f435bfc276c93435ea349b95c0c9372361", size = 2032713, upload-time = "2026-10-09T20:06:29.652Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a8/bc/82714305d23addf6bdb4b22abb179f247bbbf29224739d452d077ba39354/Faker-25.5.0-py3-none-any.whl", hash = "sha256:edb85040a47ef1b30ccd8c4b6f07ee3cb4bd64aab1483be4efe75816ee2e2e36", size = 1797692, upload-time = "2024-06-04T20:18:27.524Z" },
+    { url = "https://files.pythonhosted.org/packages/81/ed/0d6d0d6467ae3d009fb82fb411867c7fcfeadbdd25602cab0d7a7963f400/faker-40.43.0-py3-none-any.whl", hash = "sha256:9dd7c0ddfaf30c842b05502d3cf641c135e0120a3a19047008ba8525b72953ed", size = 2069082, upload-time = "2026-10-09T20:06:27.166Z" },
 ]
 
 [[package]]
@@ -894,6 +894,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f6/cc/6253133b5bb138fc3306cebfbda2c520f545d36b5be2c7255cc528bb45d6/typing_extensions-4.16.0.tar.gz", hash = "sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5", size = 113555, upload-time = "2026-07-02T08:40:05.92Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl", hash = "sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8", size = 45571, upload-time = "2026-07-02T08:40:04.659Z" },
+]
+
+[[package]]
+name = "tzdata"
+version = "2026.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d9/68/f1b440335057bfce71b6e50a9d09445aa2ecbd08359a337976627b8409e7/tzdata-2026.5.tar.gz", hash = "sha256:8cc73c0a0bfca7dbfa59235d60b2eff82231dee33f53d206db1acd9173cfc0a7", size = 200404, upload-time = "2026-10-03T09:23:14.143Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/94/21/1e5995a1c920cce14e4bffae20c665ec10e7ed03ab25e006cd741092b718/tzdata-2026.5-py2.py3-none-any.whl", hash = "sha256:b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac", size = 347996, upload-time = "2026-10-03T09:23:12.535Z" },
 ]
 
 [[package]]
