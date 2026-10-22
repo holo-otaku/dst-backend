@@ -22,7 +22,7 @@ On Apple Silicon macOS, pyodbc has no prebuilt wheel and is built from source. I
 ```bash
 brew install unixodbc
 P=$(brew --prefix unixodbc)
-CPPFLAGS="-I$P/include" LDFLAGS="-L$P/lib" uv pip install --python .venv --reinstall --no-cache --no-binary pyodbc pyodbc==4.0.39
+CPPFLAGS="-I$P/include" LDFLAGS="-L$P/lib" uv pip install --python .venv --reinstall --no-cache --no-binary pyodbc pyodbc==5.2.0
 ```
 
 ## Run required services with docker-compose
