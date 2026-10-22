@@ -36,7 +36,7 @@ dependencies = [
     "pycparser==2.22",
     "python-dateutil==2.9.0.post0",
     "python-tds==1.13.0",
-    "pytz==2023.3",
+    "pytz==2026.5",
     "referencing==0.29.1",
     "rpds-py==0.8.10",
     "six==1.16.0",
