@@ -1,6 +1,7 @@
 from flask import request, jsonify, make_response
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
 from flask_jwt_extended.exceptions import NoAuthorizationError, JWTExtendedException
+from jwt.exceptions import PyJWTError
 from models.shared import db
 from models.user import User
 
@@ -33,7 +34,7 @@ class TokenVersionMiddleware:
                 token_version = claims.get('tokenVersion', 0)
                 
                 # 從資料庫獲取使用者資訊
-                user = db.session.query(User).filter_by(id=user_id).first()
+                user = db.session.query(User).filter_by(id=int(user_id)).first()
                 
                 if not user:
                     return make_response(jsonify({
@@ -61,14 +62,16 @@ class TokenVersionMiddleware:
                 # 沒有 JWT token
                 return make_response(jsonify({
                     "code": 401,
-                    "msg": "Missing Authorization Header"
+                    "msg": "Missing Authorization Header",
+                    "forceLogout": True
                 }), 401)
                 
-            except JWTExtendedException as e:
-                # JWT 相關錯誤
+            except (JWTExtendedException, PyJWTError) as e:
+                # JWT 相關錯誤（含過期、簽章不符、套件升級後舊格式 token 無法解析）
                 return make_response(jsonify({
                     "code": 401,
-                    "msg": str(e)
+                    "msg": str(e),
+                    "forceLogout": True
                 }), 401)
                 
             except Exception as e:

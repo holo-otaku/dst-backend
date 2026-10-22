@@ -4,37 +4,25 @@ This is a project that uses the Python Flask framework and includes functionalit
 
 ## Pre-requisites
 
-1. [pipenv](https://pipenv.pypa.io/en/latest/)
+1. [uv](https://docs.astral.sh/uv/)
 2. [odbc driver](https://docs.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server?view=sql-server-ver15)
 
-## Install Dependencies via pipenv
+## Install Dependencies via uv
 
-In the project directory, you can create a Python virtual environment using the following steps:
-
-1. Open a terminal or command prompt.
-
-2. Navigate to the project directory:
+In the project directory, run:
 
 ```bash
-cd /path/to/your/project
+uv sync
 ```
 
-3. Install package via pipenv:
+This creates `.venv/` in the project directory, using the Python version in `.python-version` (uv downloads it if missing), and installs the dependencies from `uv.lock`, including the `dev` group. Run commands inside it with `uv run`, e.g. `uv run pytest`.
+
+On Apple Silicon macOS, pyodbc has no prebuilt wheel and is built from source. If `import pyodbc` fails with `symbol not found ... '_SQLAllocHandle'`, rebuild it against Homebrew's unixODBC:
 
 ```bash
-pipenv install
-```
-
-This will create a virtual environment in the user's home directory.
-
-It depends on the operating system, see [pipenv doc](https://pipenv.pypa.io/en/latest/virtualenv/#custom-virtual-environment-location) for more details.
-
-Also, it will install all the dependencies listed in the `Pipfile` file in the project directory.
-
-4. Activate the virtual environment:
-
-```bash
-pipenv shell
+brew install unixodbc
+P=$(brew --prefix unixodbc)
+CPPFLAGS="-I$P/include" LDFLAGS="-L$P/lib" uv pip install --python .venv --reinstall --no-cache --no-binary pyodbc pyodbc==5.2.0
 ```
 
 ## Run required services with docker-compose

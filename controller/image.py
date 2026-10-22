@@ -5,6 +5,7 @@ from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 import uuid
 import os
+from PIL import Image as PILImage
 from modules.exception import handle_exceptions
 
 
@@ -17,11 +18,23 @@ def create():
     # Get the file from the form data
     image_file = request.files['image_data']
 
-    # Read the image file as bytes
-    image_bytes = image_file.read()
+    # Reject anything Pillow can't parse as an image
+    try:
+        with PILImage.open(image_file.stream) as img:
+            img.verify()
+    except (OSError, SyntaxError):
+        return make_response(jsonify({"code": 400, "msg": "image_data is not a valid image"}), 400)
+
+    # Save the file under IMG_PATH and store only its path, like product images
+    image_dir = current_app.config["IMG_PATH"]
+    os.makedirs(image_dir, exist_ok=True)
+    image_name = str(uuid.uuid4())[:8]
+    image_path = os.path.join(image_dir, f"{image_name}.png")
+    image_file.stream.seek(0)
+    image_file.save(image_path)
 
     # Create an Image instance and set its properties
-    image = Image(data=image_bytes, name=str(uuid.uuid4())[:8])
+    image = Image(name=image_name, path=image_path)
 
     # Add the image to the database
     db.session.add(image)
@@ -46,4 +59,13 @@ def read(image_id):
     image_directory = os.path.dirname(image.path)
     image_filename = os.path.basename(image.path)
 
-    return send_from_directory(directory=image_directory, path=image_filename, mimetype='image/jpeg', as_attachment=True, download_name='%s.jpg' % image_id)
+    # Files are always saved as .png, but uploads may be JPEG, so sniff the real format
+    try:
+        with PILImage.open(image.path) as img:
+            image_format = img.format
+    except OSError:
+        image_format = None
+    mimetype = PILImage.MIME.get(image_format, 'application/octet-stream')
+    extension = {'JPEG': 'jpg', 'PNG': 'png'}.get(image_format, 'bin')
+
+    return send_from_directory(directory=image_directory, path=image_filename, mimetype=mimetype, as_attachment=True, download_name='%s.%s' % (image_id, extension))

@@ -1,6 +1,7 @@
 .vscode/
 __pycache__/
 venv/
+.venv/
 *.egg-info/
 *.py[cod]
 *$py.class
@@ -18,3 +19,4 @@ mysql/
 sqlite/
 .env
 img/
+.omc/

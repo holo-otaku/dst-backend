@@ -9,7 +9,7 @@ from modules.exception import handle_exceptions
 @handle_exceptions
 def create(data):
     item_ids = data.get("itemIds", [])  # 多筆封存 item_id 的 list
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
 
     if not item_ids:
         return make_response(jsonify({"code": 400, "msg": "No itemIds provided"}), 400)
