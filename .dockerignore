@@ -1,2 +1,6 @@
 api
+.env
 .env.example
+.venv
+img
+logs
