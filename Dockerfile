@@ -2,7 +2,7 @@ FROM python:3.12-slim-trixie
 
 WORKDIR /usr/app
 
-COPY --from=ghcr.io/astral-sh/uv:0.12.12 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /bin/uv
 
 COPY pyproject.toml uv.lock .python-version ./
 
@@ -19,6 +19,9 @@ RUN UV_PROJECT_ENVIRONMENT=/usr/local uv sync --frozen --no-dev --no-cache \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/* \
     && odbcinst -i -d -f /usr/share/tdsodbc/odbcinst.ini
+
+# uv installs everything; drop the base image's unused pip
+RUN pip uninstall -y pip
 
 COPY . .
 
