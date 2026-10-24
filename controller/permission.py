@@ -4,6 +4,14 @@ from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 from models.mapping_table import permissions_table
 from modules.exception import handle_exceptions
+from controller.access import can_grant
+
+
+def __revoke_holders(permission):
+    """讓擁有此權限的使用者重新登入，舊 token 的權限才會失效"""
+    for role in permission.roles:
+        for user in role.users:
+            user.token_version += 1
 
 
 @handle_exceptions
@@ -78,7 +86,11 @@ def update(permission_id, data):
         return make_response(jsonify({"code": 404, "msg": 'Permission not found'}), 404)
 
     name = data.get('name')
-    if name:
+    if name and name != permission.name:
+        # 改名等於改變權限的意義，只有持有全部權限的人可以做
+        if not can_grant(p.name for p in Permission.query.all()):
+            return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
+        __revoke_holders(permission)
         permission.name = name
 
     db.session.commit()
@@ -93,6 +105,7 @@ def delete(permission_id):
     if permission is None:
         return make_response(jsonify({"code": 404, "msg": 'Permission not found'}), 404)
 
+    __revoke_holders(permission)
     db.session.delete(permission)
     db.session.commit()
 

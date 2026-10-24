@@ -1,7 +1,9 @@
 from flask import send_from_directory
 from flask import current_app, jsonify, make_response, request, send_file, abort
 from models.image import Image
+from models.series import Field, ItemAttribute
 from models.shared import db
+from utils.permissions import check_field_permission
 from sqlalchemy.exc import SQLAlchemyError
 import uuid
 import os
@@ -54,6 +56,15 @@ def read(image_id):
 
     if image is None:
         return make_response(jsonify({"code": 404, "msg": 'Image not found'}), 404)
+
+    # 圖片屬於 limit 欄位時，套用和商品欄位相同的 limit-field.read 檢查
+    limit_ref = db.session.query(Field.id).join(ItemAttribute, ItemAttribute.field_id == Field.id).filter(
+        Field.data_type == 'picture',
+        Field.is_limit_field.is_(True),
+        ItemAttribute.value == str(image_id),
+    ).first()
+    if limit_ref and not check_field_permission("limit-field.read"):
+        return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
 
     # Extract the directory and filename from the image path
     image_directory = os.path.dirname(image.path)

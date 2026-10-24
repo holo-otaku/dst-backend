@@ -6,7 +6,7 @@ image = Blueprint("image", __name__)
 
 
 @image.route("/<int:image_id>", methods=["GET"])
-# @check_permission('image.read')
+@check_permission('product.read')
 def get_image(image_id):
 
     return read(image_id)

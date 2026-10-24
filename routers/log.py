@@ -13,6 +13,7 @@ def get_logs():
 
 
 @log.route('/user/<int:user_id>', methods=['GET'])
+@check_permission('log.read')
 def get_user_logs(user_id):
 
     return user_logs(user_id)
