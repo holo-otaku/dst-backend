@@ -214,7 +214,7 @@ def test_read_product_not_found(mock_get, app):
 @patch("models.shared.db.session.get")
 @patch("models.shared.db.session.query")
 @patch("models.shared.db.session.commit")
-@patch("controller.product.__check_field_type")
+@patch("controller.product.field_value.check")
 @patch("controller.product.__save_image")
 def test_update_multi_success(
     mock_save_image, mock_check_field_type, mock_commit, mock_query, mock_get, app

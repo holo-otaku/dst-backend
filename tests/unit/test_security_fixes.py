@@ -31,7 +31,8 @@ def ctx(tmp_path):
     JWTManager(app)
     Routes(app)
     Middlewares(app)
-    with app.app_context(), patch("controller.product.read_erp", return_value={}):
+    with app.app_context(), patch("controller.product.read_erp", return_value={}), \
+            patch("controller.product_query.read_erp", return_value={}):
         db.create_all()
         for name in permissions_table:
             db.session.add(Permission(name=name))
