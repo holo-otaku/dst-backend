@@ -2,6 +2,14 @@ from unittest.mock import patch, MagicMock, PropertyMock
 from controller.user import create, read, read_multi, update
 from models.user import User, Role
 from .client import app
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def allow_grant():
+    # 這些測試沒有 JWT，privilege ceiling 另外測
+    with patch("controller.user.can_grant", return_value=True):
+        yield
 
 
 @patch('models.shared.db.session.commit', autospec=True)

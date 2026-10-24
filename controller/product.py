@@ -32,12 +32,16 @@ def read(product_id):
     # Get the item related to this product_id
     item = db.session.get(Item, product_id)
 
-    # Check if product exists
-    if not item:
+    # Check if product exists (items of a deleted series count as not found)
+    if not item or item.series.status == 0:
         return make_response(jsonify({"code": 404, "msg": "Product not found"}), 404)
 
     # Check if the item is archived
     is_archived = db.session.query(Archive).filter_by(item_id=product_id).first()
+
+    # Archived items are hidden from users without archive permission, as in search
+    if is_archived and not check_field_permission("archive.create"):
+        return make_response(jsonify({"code": 404, "msg": "Product not found"}), 404)
 
     # Get all fields for this series
     series_fields = db.session.query(Field).filter(
@@ -133,7 +137,11 @@ def create_from_items(data):
 
     new_items = []
 
-    items_by_id = db.session.query(Item).filter(Item.id.in_(item_ids)).all()
+    items_query = db.session.query(Item).filter(Item.id.in_(item_ids))
+    # Archived items are hidden from users without archive permission, as in search
+    if not check_field_permission("archive.create"):
+        items_query = items_query.filter(~Item.id.in_(db.session.query(Archive.item_id)))
+    items_by_id = items_query.all()
     found_ids = {item.id for item in items_by_id}
     missing_ids = [item_id for item_id in item_ids if item_id not in found_ids]
     if missing_ids:
@@ -191,7 +199,10 @@ def export_excel(data):
 
         # 建立 Excel 檔案在記憶體中
         output = BytesIO()
-        workbook = xlsxwriter.Workbook(output, {"in_memory": True})
+        # Stored values are user input: write them as text, never as formulas or links
+        workbook = xlsxwriter.Workbook(
+            output, {"in_memory": True, "strings_to_formulas": False, "strings_to_urls": False}
+        )
         worksheet = workbook.add_worksheet("Products")
 
         # 凍結前面五個欄位
@@ -310,10 +321,14 @@ def update_multi(data):
         item = db.session.get(Item, item_id)
 
         # 檢查 Item 是否存在
-        if not item:
+        if not item or item.series.status == 0:
             return make_response(jsonify({"code": 404, "msg": "Item not found"}), 404)
 
         if is_deleted in [0, 1]:
+            # 刪除/還原和 DELETE /product/delete 一樣需要 product.delete
+            if not has_permission("product.delete"):
+                db.session.rollback()
+                return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
             item.is_deleted = is_deleted
 
         # 檢查供應商料號和DST料號是否已經存在（排除當前項目）
@@ -446,7 +461,7 @@ def __create_item(payload, mode="create"):
         )
 
     series = db.session.get(Series, series_id)
-    if not series:
+    if not series or series.status == 0:
         return None, make_response(
             jsonify({"code": 404, "msg": "Series not found"}), 404
         )
@@ -540,10 +555,19 @@ def __get_series_data(data, for_export=False):
         for field in db.session.query(Field).filter(Field.series_id == series_id)
     }
 
+    # 沒有 limit-field.read 不能用 limit 欄位篩選或排序，否則可以推出隱藏的值
+    can_read_limit = check_field_permission("limit-field.read")
+
+    def is_hidden(field_id):
+        return field_id not in fields or (fields[field_id].is_limit_field and not can_read_limit)
+
+    if sort_field_id is not None and is_hidden(sort_field_id):
+        raise ValueError("Invalid sort parameter")
+
     # 驗證欄位與資料型別
     for filter_criteria in filters:
         field_id = filter_criteria["fieldId"]
-        if field_id not in fields:
+        if is_hidden(field_id):
             raise ValueError(f"Invalid fieldId: {field_id}")
         value = filter_criteria["value"]
         type_err = __check_field_type(fields[field_id], value)
@@ -552,6 +576,9 @@ def __get_series_data(data, for_export=False):
 
     # If is_archived is 2, treat it as None (all) for the query functions
     query_is_archived = is_archived if is_archived != 2 else None
+    # Without archive permission, exclude archived items in SQL so totalCount cannot count them
+    if not check_field_permission("archive.create"):
+        query_is_archived = 0
     # If is_deleted is 2, treat it as None (all) for the query functions
     query_is_deleted = is_deleted if is_deleted != 2 else None
 

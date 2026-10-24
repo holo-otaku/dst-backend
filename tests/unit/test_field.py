@@ -1,6 +1,13 @@
 from unittest.mock import patch, MagicMock
 from controller.field import search_item_attribute_by_field_id_and_value
 from .client import app
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def plain_field():
+    with patch("controller.field.db.session.get", return_value=MagicMock(is_limit_field=False)):
+        yield
 
 
 @patch("controller.field.db.session.query")

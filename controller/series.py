@@ -244,7 +244,7 @@ def read_multi():
 @handle_exceptions
 def update(series_id, data):
     series = db.session.get(Series, series_id)
-    if not series:
+    if not series or series.status == 0:
         return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
 
     series.name = data.get("name", series.name)
@@ -396,7 +396,7 @@ def update(series_id, data):
 def delete(series_id):
     series = db.session.get(Series, series_id)
 
-    if not series:
+    if not series or series.status == 0:
         return make_response(jsonify({"code": 404, "msg": "Series not found"}), 404)
 
     # Set series status to 0 (deleted)

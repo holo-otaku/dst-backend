@@ -10,6 +10,15 @@ from controller.product import (
 )
 from models.series import Field, Series, Item, ItemAttribute
 from models.image import Image
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def full_permissions():
+    # 這些測試沒有 JWT；權限檢查另外測
+    with patch("controller.product.check_field_permission", return_value=True), \
+            patch("controller.product.has_permission", return_value=True):
+        yield
 from models.archive import Archive
 
 
