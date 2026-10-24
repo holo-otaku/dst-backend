@@ -1,21 +1,18 @@
 import os
 from flask import current_app, jsonify, make_response, request
+from controller import field_value, product_query
 from controller.erp import read as read_erp
 from models.series import Series, Field, Item, ItemAttribute
 from models.user import User
 from models.archive import Archive
 from models.shared import db
-from models.mapping_table import data_type_map
 from models.image import Image
 from sqlalchemy.exc import SQLAlchemyError
 from utils.permissions import check_field_permission, has_permission
-from sqlalchemy import and_, text
-from datetime import datetime
+from sqlalchemy import and_
 import base64
 from flask_jwt_extended import get_jwt_identity, get_jwt
 from modules.exception import handle_exceptions
-from PIL import Image as PILImage
-import io
 import xlsxwriter
 from io import BytesIO
 from flask import send_file
@@ -32,12 +29,16 @@ def read(product_id):
     # Get the item related to this product_id
     item = db.session.get(Item, product_id)
 
-    # Check if product exists
-    if not item:
+    # Check if product exists (items of a deleted series count as not found)
+    if not item or item.series.status == 0:
         return make_response(jsonify({"code": 404, "msg": "Product not found"}), 404)
 
     # Check if the item is archived
     is_archived = db.session.query(Archive).filter_by(item_id=product_id).first()
+
+    # Archived items are hidden from users without archive permission, as in search
+    if is_archived and not check_field_permission("archive.create"):
+        return make_response(jsonify({"code": 404, "msg": "Product not found"}), 404)
 
     # Get all fields for this series
     series_fields = db.session.query(Field).filter(
@@ -69,12 +70,12 @@ def read(product_id):
                 "fieldId": field.id,
                 "fieldName": field.name,
                 "dataType": field.data_type,
-                "value": __get_field_value_by_type(attribute) if attribute else None,
+                "value": field_value.present(field.data_type, attribute.value if attribute else None),
             })
 
             # Collect erp product numbers
             if field.search_erp and attribute:
-                erp_product_no = __get_field_value_by_type(attribute)
+                erp_product_no = field_value.present(field.data_type, attribute.value)
                 if erp_product_no:
                     erp_product_nos.add(erp_product_no)
 
@@ -133,7 +134,11 @@ def create_from_items(data):
 
     new_items = []
 
-    items_by_id = db.session.query(Item).filter(Item.id.in_(item_ids)).all()
+    items_query = db.session.query(Item).filter(Item.id.in_(item_ids))
+    # Archived items are hidden from users without archive permission, as in search
+    if not check_field_permission("archive.create"):
+        items_query = items_query.filter(~Item.id.in_(db.session.query(Archive.item_id)))
+    items_by_id = items_query.all()
     found_ids = {item.id for item in items_by_id}
     missing_ids = [item_id for item_id in item_ids if item_id not in found_ids]
     if missing_ids:
@@ -157,7 +162,12 @@ def create_from_items(data):
 @handle_exceptions
 def read_multi(data):
     try:
-        data, total_count, _ = __get_series_data(data, for_export=False)
+        data, total_count, _ = product_query.search(
+            data,
+            page=int(request.args.get("page", 1)),
+            limit=int(request.args.get("limit", 10)),
+            sort=request.args.get("sort"),
+        )
         return make_response(
             jsonify(
                 {"code": 200, "msg": "Success", "data": data, "totalCount": total_count}
@@ -171,7 +181,7 @@ def read_multi(data):
 @handle_exceptions
 def export_excel(data):
     try:
-        rows, _, fields = __get_series_data(data, for_export=True)
+        rows, _, fields = product_query.search(data, sort=request.args.get("sort"))
 
         if not rows:
             return make_response(
@@ -191,7 +201,10 @@ def export_excel(data):
 
         # 建立 Excel 檔案在記憶體中
         output = BytesIO()
-        workbook = xlsxwriter.Workbook(output, {"in_memory": True})
+        # Stored values are user input: write them as text, never as formulas or links
+        workbook = xlsxwriter.Workbook(
+            output, {"in_memory": True, "strings_to_formulas": False, "strings_to_urls": False}
+        )
         worksheet = workbook.add_worksheet("Products")
 
         # 凍結前面五個欄位
@@ -230,10 +243,8 @@ def export_excel(data):
                     # 處理圖片欄位
                     has_image_in_row = True
                     try:
-                        # 從 value 中提取圖片 ID（去掉 /image/ 前綴）
-                        if value.startswith("/image/"):
-                            image_id = value.replace("/image/", "")
-                            
+                        image_id = field_value.image_id(value)
+                        if image_id:
                             # 從資料庫獲取圖片路徑
                             image_record = db.session.get(Image, image_id)
                             if image_record and os.path.exists(image_record.path):
@@ -310,10 +321,14 @@ def update_multi(data):
         item = db.session.get(Item, item_id)
 
         # 檢查 Item 是否存在
-        if not item:
+        if not item or item.series.status == 0:
             return make_response(jsonify({"code": 404, "msg": "Item not found"}), 404)
 
         if is_deleted in [0, 1]:
+            # 刪除/還原和 DELETE /product/delete 一樣需要 product.delete
+            if not has_permission("product.delete"):
+                db.session.rollback()
+                return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
             item.is_deleted = is_deleted
 
         # 檢查供應商料號和DST料號是否已經存在（排除當前項目）
@@ -345,7 +360,7 @@ def update_multi(data):
                 )
 
             # Check if the value is of the correct data type
-            type_err = __check_field_type(field, value)
+            type_err = field_value.check(field, value)
             if len(type_err) != 0:
                 return make_response(jsonify({"code": 400, "msg": type_err}), 400)
 
@@ -446,7 +461,7 @@ def __create_item(payload, mode="create"):
         )
 
     series = db.session.get(Series, series_id)
-    if not series:
+    if not series or series.status == 0:
         return None, make_response(
             jsonify({"code": 404, "msg": "Series not found"}), 404
         )
@@ -482,7 +497,7 @@ def __create_item(payload, mode="create"):
 
         # Only run type checking for create mode to avoid base64 expectations on copy
         if mode != "copy":
-            type_err = __check_field_type(field, value)
+            type_err = field_value.check(field, value)
             if len(type_err) != 0:
                 return None, make_response(jsonify({"code": 400, "msg": type_err}), 400)
 
@@ -496,84 +511,6 @@ def __create_item(payload, mode="create"):
         db.session.add(item_attribute)
 
     return item, None
-
-
-def __get_series_data(data, for_export=False):
-    """
-    共用產品查詢邏輯，可用於一般查詢或 Excel 匯出
-    - data: dict，包含 seriesId, filters
-    - for_export: True 表示匯出（不限制筆數），False 表示有分頁限制
-    """
-    series_id = data.get("seriesId")
-    if not series_id:
-        raise ValueError("SeriesId not found")
-
-    is_deleted = data.get("isDeleted", 0)
-    if is_deleted not in [0, 1, 2]:
-        raise ValueError("Input body error")
-
-    is_archived = data.get("isArchived", 0)  # 默認為 0，未封存
-    if is_archived not in [0, 1, 2]:
-        raise ValueError("isArchived must be 0, 1 or 2")
-
-    series = db.session.query(Series).filter_by(id=series_id, status=1).first()
-    if not series:
-        raise ValueError("Series not found")
-
-    page = int(request.args.get("page", 1)) if not for_export else 1
-    limit = int(request.args.get("limit", 10)) if not for_export else 999999
-    sort_param = request.args.get("sort", None)
-
-    sort_field_id, sort_order = None, None
-    if sort_param:
-        sort_parts = sort_param.split(",")
-        if len(sort_parts) == 2:
-            sort_field_id, sort_order = int(sort_parts[0]), sort_parts[1].lower()
-        else:
-            raise ValueError("Invalid sort parameter")
-
-    filters = data.get("filters", [])
-
-    # 取得欄位資訊
-    fields = {
-        field.id: field
-        for field in db.session.query(Field).filter(Field.series_id == series_id)
-    }
-
-    # 驗證欄位與資料型別
-    for filter_criteria in filters:
-        field_id = filter_criteria["fieldId"]
-        if field_id not in fields:
-            raise ValueError(f"Invalid fieldId: {field_id}")
-        value = filter_criteria["value"]
-        type_err = __check_field_type(fields[field_id], value)
-        if len(type_err) != 0:
-            raise ValueError(type_err)
-
-    # If is_archived is 2, treat it as None (all) for the query functions
-    query_is_archived = is_archived if is_archived != 2 else None
-    # If is_deleted is 2, treat it as None (all) for the query functions
-    query_is_deleted = is_deleted if is_deleted != 2 else None
-
-    # 查詢資料
-    items, conditions, parameters = __get_items(
-        series_id,
-        filters,
-        fields,
-        sort_field_id,
-        sort_order,
-        limit,
-        page,
-        query_is_deleted,
-        query_is_archived,
-    )
-    erp_data_map = __read_erp(items, fields, series_id)
-    data = __combine_data_result(items, fields, erp_data_map)
-    total_count = __count_total_count(
-        data, filters, conditions, parameters, query_is_deleted, query_is_archived
-    )
-
-    return data, total_count, fields
 
 
 def __save_image(image_data, item_id, field_id, image_id=None):
@@ -677,24 +614,6 @@ def __img_path_and_name(item_id, field_id):
     return image_name, image_path
 
 
-def __get_field_value_by_type(item):
-    if not item or not item.value:
-        return None
-
-    value = item.value
-    data_type = item.field.data_type
-
-    if data_type == "number":
-        value = str(value)
-    elif data_type == "boolean":
-        value = bool(int(value))
-    elif data_type == "picture":
-        # Get the corresponding image URL based on the image ID (value)
-        value = f"/image/{value}"
-
-    return value
-
-
 def __check_field_required(fields_query, filters, is_required_var):
     missing_field = []
 
@@ -705,446 +624,6 @@ def __check_field_required(fields_query, filters, is_required_var):
         if not any(filter.get("fieldId") == required_field_id for filter in filters):
             missing_field.append(required_fields[required_field_id].name)
     return missing_field
-
-
-def __is_datetime(string):
-    """
-    檢查字串是否為有效的日期格式
-    支援多種日期格式：
-    - %Y/%m/%d (2025/01/07)
-    - %m/%d/%y (01/07/25)
-    - %m/%d/%Y (01/07/2025)
-    - %Y-%m-%d (2025-01-07)
-    - %d/%m/%Y (07/01/2025)
-    """
-    date_formats = [
-        "%Y/%m/%d",  # 2025/01/07
-        "%m/%d/%y",  # 01/07/25
-        "%m/%d/%Y",  # 01/07/2025
-        "%Y-%m-%d",  # 2025-01-07
-        "%d/%m/%Y",  # 07/01/2025
-        "%d-%m-%Y",  # 07-01-2025
-    ]
-    
-    for date_format in date_formats:
-        try:
-            datetime.strptime(string, date_format)
-            return True
-        except ValueError:
-            continue
-    
-    return False
-
-
-def __normalize_date(date_string):
-    """
-    將不同格式的日期字串標準化為 YYYY-MM-DD 格式
-    """
-    if not date_string:
-        return None
-        
-    date_formats = [
-        "%Y/%m/%d",  # 2025/01/07
-        "%m/%d/%y",  # 01/07/25
-        "%m/%d/%Y",  # 01/07/2025
-        "%Y-%m-%d",  # 2025-01-07
-        "%d/%m/%Y",  # 07/01/2025
-        "%d-%m-%Y",  # 07-01-2025
-    ]
-    
-    for date_format in date_formats:
-        try:
-            parsed_date = datetime.strptime(date_string, date_format)
-            return parsed_date.strftime("%Y-%m-%d")
-        except ValueError:
-            continue
-    
-    return None
-
-
-def __check_field_type(field, value):
-    type_err = []
-
-    if value:
-        if field.data_type.lower() not in data_type_map:
-            type_err.append(
-                f"Incorrect data type for field: {field.name}. Expected {field.data_type.lower()}, got {type(value).__name__}."
-            )
-
-        # Check if the value is of the correct data type
-        data_type = field.data_type.lower()
-        correct_type = data_type_map[data_type]
-
-        if data_type == "picture":
-            # Check if the value is a valid base64-encoded string
-            encoded_data = value.split(",")[1]
-            decoded_data = base64.b64decode(encoded_data)
-            img = PILImage.open(io.BytesIO(decoded_data))
-            if img.format is None or img.format.lower() not in ["jpeg", "jpg", "png"]:
-                type_err.append(
-                    f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}."
-                )
-
-        elif data_type == "datetime":
-            if not __is_datetime(value):
-                type_err.append(
-                    f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}."
-                )
-
-        elif data_type == "number":
-            try:
-                value = float(value)
-            except:
-                type_err.append(
-                    f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}."
-                )
-
-        elif data_type == "string":
-            try:
-                value = str(value)
-            except:
-                type_err.append(
-                    f"Incorrect data type for field: {field.name}. Expected {data_type}, got {type(value).__name__}."
-                )
-
-    return type_err
-
-
-def __check_condition(field, operation, field_name, value_name):
-    condition = f"""
-    (item.id, item.series_id) IN (
-        SELECT DISTINCT item.id,
-                        item.series_id
-        FROM item
-            JOIN item_attribute ON item.id = item_attribute.item_id
-        WHERE item.series_id = :series_id
-            AND item_attribute.field_id = :{field_name}
-            AND item_attribute.value = :{value_name}
-    )
-    """
-
-    if operation == "greater":
-        if field.data_type.lower() == "number":
-            condition = f"""
-            (item.id, item.series_id) IN (
-                SELECT DISTINCT item.id,
-                                item.series_id
-                FROM item
-                    JOIN item_attribute ON item.id = item_attribute.item_id
-                WHERE item.series_id = :series_id
-                    AND item_attribute.field_id = :{field_name}
-                    AND CAST(item_attribute.value AS float) >= :{value_name}
-            )
-            """
-        elif field.data_type.lower() == "datetime":
-            condition = f"""
-            (item.id, item.series_id) IN (
-                SELECT DISTINCT item.id,
-                                item.series_id
-                FROM item
-                    JOIN item_attribute ON item.id = item_attribute.item_id
-                WHERE item.series_id = :series_id
-                    AND item_attribute.field_id = :{field_name}
-                    AND DATE(item_attribute.value) >= DATE(:{value_name})
-            )
-            """
-
-    elif operation == "less":
-        if field.data_type.lower() == "number":
-            condition = f"""
-            (item.id, item.series_id) IN (
-                SELECT DISTINCT item.id,
-                                item.series_id
-                FROM item
-                    JOIN item_attribute ON item.id = item_attribute.item_id
-                WHERE item.series_id = :series_id
-                    AND item_attribute.field_id = :{field_name}
-                    AND CAST(item_attribute.value AS float) <= :{value_name}
-            )
-            """
-        elif field.data_type.lower() == "datetime":
-            condition = f"""
-            (item.id, item.series_id) IN (
-                SELECT DISTINCT item.id,
-                                item.series_id
-                FROM item
-                    JOIN item_attribute ON item.id = item_attribute.item_id
-                WHERE item.series_id = :series_id
-                    AND item_attribute.field_id = :{field_name}
-                    AND DATE(item_attribute.value) <= DATE(:{value_name})
-            )
-            """
-    elif operation in ["equals", "equal"] and field.data_type.lower() == "datetime":
-        # 對於日期相等比較，使用 DATE() 函數確保只比較日期部分
-        condition = f"""
-        (item.id, item.series_id) IN (
-            SELECT DISTINCT item.id,
-                            item.series_id
-            FROM item
-                JOIN item_attribute ON item.id = item_attribute.item_id
-            WHERE item.series_id = :series_id
-                AND item_attribute.field_id = :{field_name}
-                AND DATE(item_attribute.value) = DATE(:{value_name})
-        )
-        """
-
-    if field.data_type.lower() == "string":
-        condition = f"""
-                (item.id, item.series_id) IN (
-                    SELECT DISTINCT item.id,
-                                    item.series_id
-                    FROM item
-                        JOIN item_attribute ON item.id = item_attribute.item_id
-                    WHERE item.series_id = :series_id
-                        AND item_attribute.field_id = :{field_name}
-                        AND item_attribute.value LIKE :{value_name}
-                )
-                """
-    return condition
-
-
-def __create_count_query(count_query, conditions):
-    count_query += """
-            AND (
-        """
-    # Using the same conditions for the count query
-    count_query += " AND ".join(conditions)
-    count_query += ")"
-
-    return count_query
-
-
-def __get_items(
-    series_id,
-    filters,
-    fields,
-    sort_field_id,
-    sort_order,
-    limit,
-    page,
-    is_deleted=0,
-    is_archived=None,
-):
-    # Create a SQL query to find the items
-    sql_query = """
-            SELECT item.id AS item_id,
-                item.series_id AS item_series_id,
-                s.name AS series_name,
-                item.is_deleted AS is_deleted
-            FROM item
-            JOIN series AS s ON item.series_id = s.id
-            WHERE item.series_id = :series_id
-        """
-
-    conditions = []
-    parameters = {"series_id": series_id}
-
-    if is_deleted is not None:
-        sql_query += " AND item.is_deleted = :is_deleted"
-        parameters["is_deleted"] = is_deleted
-
-    if is_archived is not None:
-        if is_archived == 1:
-            sql_query += " AND item.id IN (SELECT item_id FROM archive)"
-        else:
-            sql_query += " AND item.id NOT IN (SELECT item_id FROM archive)"
-
-    # if there is condition
-    if len(filters) > 0:
-        sql_query += """
-                AND (
-            """
-
-        for index, filter_criteria in enumerate(filters):
-            field_id = filter_criteria["fieldId"]
-            value = filter_criteria["value"]
-            operation = filter_criteria.get("operation", "equals")
-            field = fields[field_id]
-
-            field_name = f"field_id{index}"
-            value_name = f"value{index}"
-
-            parameters[field_name] = field_id
-
-            # 處理不同資料型別的值綁定
-            if field.data_type.lower() == "string":
-                parameters[value_name] = f"%{value}%"
-            elif field.data_type.lower() == "datetime":
-                # 標準化日期格式為 YYYY-MM-DD
-                normalized_date = __normalize_date(value)
-                if normalized_date:
-                    parameters[value_name] = normalized_date
-                else:
-                    # 如果日期格式無效，使用原始值（可能會導致查詢失敗，但會有適當的錯誤處理）
-                    parameters[value_name] = value
-            else:
-                parameters[value_name] = value
-
-            condition = __check_condition(field, operation, field_name, value_name)
-
-            conditions.append(condition)
-
-        sql_query += " AND ".join(conditions)
-        sql_query += ")"
-
-    if sort_field_id:
-        sql_query += f" ORDER BY (SELECT value FROM item_attribute WHERE item_id = item.id AND field_id = :sort_field_id)"
-        if sort_order == "desc":
-            sql_query += " DESC"
-        parameters["sort_field_id"] = sort_field_id
-
-    sql_query += " LIMIT :limit OFFSET :page"
-    parameters["limit"] = limit
-    parameters["page"] = (page - 1) * limit
-
-    # Execute the SQL query
-    result = db.session.execute(text(sql_query), parameters).fetchall()
-
-    return result, conditions, parameters
-
-
-def __combine_data_result(items, fields, erp_data_map):
-    # Format the output
-    data = []
-
-    # Get all relevant ItemAttributes in a single query
-    item_ids = [row[0] for row in items]
-    all_attributes = (
-        db.session.query(ItemAttribute)
-        .filter(and_(ItemAttribute.item_id.in_(item_ids)))
-        .all()
-    )
-
-    # Convert the list of attributes into a dictionary for easier look-up
-    attributes_dict = {(attr.item_id, attr.field_id): attr for attr in all_attributes}
-
-    
-
-    for row in items:
-        fields_data = []
-        item_id, item_series_id, series_name, is_deleted = row
-        erp_data = []
-        for field in sorted(fields.values(), key=lambda x: x.sequence):
-            item = attributes_dict.get((item_id, field.id))
-            value = __get_field_value_by_type(item)
-            # check permission disable field
-            is_limit_permission_ok = True
-            if field.is_limit_field:
-                is_limit_permission_ok = check_field_permission("limit-field.read")
-            if is_limit_permission_ok and not field.is_erp:
-                fields_data.append(
-                    {
-                        "fieldId": str(field.id),
-                        "fieldName": field.name,
-                        "dataType": field.data_type,
-                        "value": value,
-                    }
-                )
-
-            # Get erp data
-            if field.search_erp and value in erp_data_map:
-                erp_data += erp_data_map[value]
-
-        data.append(
-            {
-                "itemId": item_id,
-                "seriesId": item_series_id,
-                "seriesName": series_name,
-                "attributes": fields_data,
-                "erp": erp_data,
-                "isDeleted": bool(is_deleted),
-            }
-        )
-
-    return data
-
-
-def __count_total_count(
-    data, filters, conditions, parameters, status_filter=1, is_archived=None
-):
-    # find archive exist
-    item_ids = [item_data["itemId"] for item_data in data]
-
-    archive_records = (
-        db.session.query(Archive.item_id).filter(Archive.item_id.in_(item_ids)).all()
-    )
-
-    archive_item_ids = set(record[0] for record in archive_records)
-
-    for item_data in data:
-        item_id = item_data["itemId"]
-        item_data["hasArchive"] = item_id in archive_item_ids
-
-    count_query = """
-            SELECT COUNT(item.id) 
-            FROM item
-            JOIN series AS s ON item.series_id = s.id
-            WHERE item.series_id = :series_id
-        """
-
-    if status_filter is not None:
-        count_query += " AND item.is_deleted = :is_deleted"
-        if "is_deleted" not in parameters:
-             parameters["is_deleted"] = status_filter
-
-    if is_archived is not None:
-        if is_archived == 1:
-            count_query += " AND item.id IN (SELECT item_id FROM archive)"
-        else:
-            count_query += " AND item.id NOT IN (SELECT item_id FROM archive)"
-
-    # if there is condition
-    if len(filters) > 0:
-        count_query = __create_count_query(count_query, conditions)
-
-    # Execute the count query
-    count_result = db.session.execute(text(count_query), parameters).fetchone()
-    total_count = count_result[0]
-
-    # check archive.update permission not exist delete item with archive false
-    is_archive_permission_ok = check_field_permission("archive.create")
-
-    if not is_archive_permission_ok:
-        # archive.update not exist
-        removed_count = 0  # record remove count
-
-        for item_data in data.copy():
-            item_id = item_data["itemId"]
-            has_archive = item_id in archive_item_ids
-
-            if has_archive:
-                # if 'hasArchive' True，delete from data
-                data.remove(item_data)
-                removed_count += 1
-
-        # 从 total_count 中减去被删除的数量
-        total_count -= removed_count
-
-    return total_count
-
-
-def __read_erp(items, fields, series_id):
-    # Extract all product numbers from the result that need ERP data
-    product_nos_to_fetch = set()
-    for row in items:
-        item_id, item_series_id, series_name, is_deleted = row
-        for field in fields.values():
-            if field.search_erp:
-                item = (
-                    db.session.query(ItemAttribute)
-                    .filter(
-                        and_(
-                            ItemAttribute.item_id == item_id,
-                            ItemAttribute.field_id == field.id,
-                        )
-                    )
-                    .first()
-                )
-                erp_product_no = __get_field_value_by_type(item)
-                product_nos_to_fetch.add(erp_product_no)
-
-    # Fetch ERP data in a single call
-    return read_erp(product_nos_to_fetch, series_id)
 
 
 def __check_duplicate_required_fields(series_id, attributes, exclude_item_id=None):

@@ -1,4 +1,4 @@
-from models.series import ItemAttribute, Field, Item
+from models.series import ItemAttribute, Field, Item, Series
 from models.archive import Archive
 from sqlalchemy import or_, distinct, func
 from models.shared import db
@@ -18,13 +18,20 @@ def search_item_attribute_by_field_id_and_value(
     if not field_id:
         return {"code": 400, "msg": "Missing field_id", "data": []}
 
+    field = db.session.get(Field, field_id)
+    if not field:
+        return {"code": 404, "msg": "Field not found", "data": []}
+    if field.is_limit_field and not check_field_permission("limit-field.read"):
+        return {"code": 403, "msg": "Permission denied", "data": []}
+
     # 檢查用戶是否有查看 archive 的權限
     has_archive_permission = check_field_permission("archive.create")
 
-    # 構建基本查詢
+    # 構建基本查詢（已刪除的系列不列入）
     base_query = db.session.query(distinct(ItemAttribute.value)).join(Item).filter(
         ItemAttribute.field_id == field_id,
-        ItemAttribute.value.is_not(None)
+        ItemAttribute.value.is_not(None),
+        Item.series.has(Series.status == 1),
     )
 
     # 如果用戶沒有 archive 權限，過濾掉已歸檔的商品

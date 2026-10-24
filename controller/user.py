@@ -3,6 +3,15 @@ from models.user import User, Role
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 from modules.exception import handle_exceptions
+from controller.access import can_grant
+
+
+def __role_permission_names(roles):
+    return [p.name for role in roles for p in role.permissions]
+
+
+def __denied():
+    return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
 
 
 @handle_exceptions
@@ -37,6 +46,9 @@ def create(data):
 
     if role is None:
         return make_response(jsonify({"code": 200, "msg": "Invalid role"}), 400)
+
+    if not can_grant(__role_permission_names([role])):
+        return __denied()
 
     user = User(username=username)
     user.set_password(password)
@@ -102,17 +114,26 @@ def update(user_id, data):
     role_id = data.get('roleId')
     is_disabled = data.get('isDisabled')
 
+    # 不能修改權限比自己大的使用者（例如 admin 的密碼）
+    if not can_grant(__role_permission_names(user.roles)):
+        return __denied()
+
     if username is not None:
         user.username = username
 
     if password is not None and password != "":
         user.set_password(password)
+        # 改密碼要讓舊 token 失效
+        user.token_version += 1
 
     if role_id is not None:
         role = db.session.get(Role, role_id)
 
         if role is None:
             return make_response(jsonify({"code": 400, "msg": "Invalid role"}), 400)
+
+        if not can_grant(__role_permission_names([role])):
+            return __denied()
 
         # Remove current user-role associations
         user.roles.clear()

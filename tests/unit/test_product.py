@@ -10,6 +10,15 @@ from controller.product import (
 )
 from models.series import Field, Series, Item, ItemAttribute
 from models.image import Image
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def full_permissions():
+    # 這些測試沒有 JWT；權限檢查另外測
+    with patch("controller.product.check_field_permission", return_value=True), \
+            patch("controller.product.has_permission", return_value=True):
+        yield
 from models.archive import Archive
 
 
@@ -205,7 +214,7 @@ def test_read_product_not_found(mock_get, app):
 @patch("models.shared.db.session.get")
 @patch("models.shared.db.session.query")
 @patch("models.shared.db.session.commit")
-@patch("controller.product.__check_field_type")
+@patch("controller.product.field_value.check")
 @patch("controller.product.__save_image")
 def test_update_multi_success(
     mock_save_image, mock_check_field_type, mock_commit, mock_query, mock_get, app

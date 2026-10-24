@@ -3,6 +3,11 @@ from models.user import Permission, Role, RolePermission, User
 from models.shared import db
 from sqlalchemy.exc import SQLAlchemyError
 from modules.exception import handle_exceptions
+from controller.access import can_grant
+
+
+def __denied():
+    return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
 
 
 @handle_exceptions
@@ -36,11 +41,16 @@ def create(data):
         return make_response(jsonify({"code": 400, "msg": f"Role with name '{role_name}' already exists"}), 400)
 
     # 檢查 permission_ids 是否存在
+    permission_names = []
     for permission_id in permission_ids:
         permission = db.session.get(Permission, permission_id)
 
         if not permission:
             return make_response(jsonify({"code": 400, "msg": f"Permission with ID {permission_id} not found"}), 400)
+        permission_names.append(permission.name)
+
+    if not can_grant(permission_names):
+        return __denied()
 
     role = Role(name=role_name)
     db.session.add(role)
@@ -59,10 +69,21 @@ def update(role_id, data):
     if role is None:
         return make_response(jsonify({"code": 200, "msg": 'Role not found'}), 404)
 
+    permission_ids = data.get('permissionIds')
+    new_names = []
+    for permission_id in permission_ids:
+        permission = db.session.get(Permission, permission_id)
+        if not permission:
+            return make_response(jsonify({"code": 400, "msg": f"Permission with ID {permission_id} not found"}), 400)
+        new_names.append(permission.name)
+
+    # 不能修改比自己權限大的角色，也不能授予自己沒有的權限
+    if not can_grant([p.name for p in role.permissions] + new_names):
+        return __denied()
+
     role.name = data.get('roleName')
     db.session.commit()
 
-    permission_ids = data.get('permissionIds')
     __update_role_permissions(role.id, permission_ids)
 
     return make_response(jsonify({"code": 200, "msg": "Role updated"}), 200)
@@ -93,6 +114,10 @@ def delete(role_id):
 
     if role is None:
         return make_response(jsonify({"code": 200, "msg": 'Role not found'}), 404)
+
+    # 讓擁有此角色的使用者重新登入，舊 token 的權限才會失效
+    for user in role.users:
+        user.token_version += 1
 
     # 删除角色权限关联
     RolePermission.query.filter_by(role_id=role_id).delete()

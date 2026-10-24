@@ -31,6 +31,11 @@ def check_permission(permission):
     return decorator
 
 
+def can_grant(permission_names):
+    """A caller may only grant permissions it already holds."""
+    return set(permission_names) <= set(get_jwt().get("permissions", []))
+
+
 def has_permission(user, required_permission):
     permissions = get_jwt().get("permissions", [])
     if required_permission in permissions:
