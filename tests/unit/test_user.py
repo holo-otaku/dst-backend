@@ -184,8 +184,7 @@ def test_read_multi_failure(mock_query, app):
         assert response.status_code == 500
         # Assuming your application uses the same status code in the response body
         assert data['code'] == 500
-        # Assuming the error message contains the word "error"Ｆ
-        assert 'failed' in data['msg'].lower()
+        assert data['msg'] == 'Internal server error'
 
         # Mock the User and Role model, and db session
 

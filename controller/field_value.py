@@ -49,8 +49,11 @@ def check(field, value):
 
     if data_type == "picture":
         # base64 data URL，只接受 jpeg/png
-        decoded_data = base64.b64decode(value.split(",")[1])
-        img = PILImage.open(io.BytesIO(decoded_data))
+        try:
+            decoded_data = base64.b64decode(value.split(",")[1])
+            img = PILImage.open(io.BytesIO(decoded_data))
+        except (IndexError, ValueError, OSError):
+            return error
         if img.format is None or img.format.lower() not in ["jpeg", "jpg", "png"]:
             return error
     elif data_type == "datetime":

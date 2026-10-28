@@ -223,10 +223,12 @@ def test_update_multi_success(
         # Mock Item object
         mock_item = MagicMock()
         mock_item.id = 1
+        mock_item.series_id = 1
 
         # Mock Field object
         mock_field = MagicMock()
         mock_field.id = 1
+        mock_field.series_id = 1
         mock_field.data_type = "string"
 
         # Mock the ItemAttribute object and set initial value

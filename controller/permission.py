@@ -105,6 +105,9 @@ def delete(permission_id):
     if permission is None:
         return make_response(jsonify({"code": 404, "msg": 'Permission not found'}), 404)
 
+    if not can_grant([permission.name]):
+        return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
+
     __revoke_holders(permission)
     db.session.delete(permission)
     db.session.commit()

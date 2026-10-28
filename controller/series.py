@@ -270,7 +270,7 @@ def update(series_id, data):
             continue  # Should be in create list
 
         field = db.session.get(Field, field_id)
-        if not field:
+        if not field or field.series_id != series_id:
             return make_response(
                 jsonify({"code": 404, "msg": f"Field with ID {field_id} not found"}),
                 404,
@@ -363,7 +363,8 @@ def update(series_id, data):
 
     for delete_id in delete_ids:
         field_to_delete = db.session.get(Field, delete_id)
-        if not field_to_delete:
+        # 只能刪自己 series 的欄位，否則會繞過上面的必填欄位檢查
+        if not field_to_delete or field_to_delete.series_id != series_id:
             continue
 
         # If field type is "picture", delete associated images

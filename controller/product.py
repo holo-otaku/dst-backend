@@ -354,7 +354,7 @@ def update_multi(data):
 
             # 查詢對應的 Field 記錄
             field = db.session.get(Field, field_id)
-            if not field:
+            if not field or field.series_id != item.series_id:
                 return make_response(
                     jsonify({"code": 404, "msg": f"field_id:{field_id} not found"}), 404
                 )
@@ -369,6 +369,9 @@ def update_multi(data):
                 .filter_by(item_id=item_id, field_id=field_id)
                 .first()
             )
+            if not item_attribute:
+                item_attribute = ItemAttribute(item_id=item_id, field_id=field_id)
+                db.session.add(item_attribute)
 
             if isinstance(value, bool):
                 value = 1 if value else 0
@@ -380,8 +383,7 @@ def update_multi(data):
                     if item_attribute.value:
                         __delete_image(item_attribute.value)
 
-            if item_attribute:
-                item_attribute.value = value
+            item_attribute.value = value
 
     # 儲存變更到資料庫
     db.session.commit()
