@@ -115,13 +115,15 @@ def delete(role_id):
     if role is None:
         return make_response(jsonify({"code": 200, "msg": 'Role not found'}), 404)
 
+    # 不能刪除比自己權限大的角色（例如 admin）
+    if not can_grant([p.name for p in role.permissions]):
+        return __denied()
+
     # 讓擁有此角色的使用者重新登入，舊 token 的權限才會失效
     for user in role.users:
         user.token_version += 1
 
-    # 删除角色权限关联
-    RolePermission.query.filter_by(role_id=role_id).delete()
-
+    # role_permission 關聯由 ORM 隨 role 一起刪除
     db.session.delete(role)
     db.session.commit()
 

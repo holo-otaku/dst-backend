@@ -40,6 +40,6 @@ def has_permission(user, required_permission):
     permissions = get_jwt().get("permissions", [])
     if required_permission in permissions:
         return True
-    current_app.logger.warn(
+    current_app.logger.warning(
         f"{user.username} try to access {required_permission}")
     return False
