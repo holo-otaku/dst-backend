@@ -46,8 +46,8 @@ def test_delete_archives_success(mock_commit, mock_delete, app):
 
         mock_query = MagicMock()
         mock_query.filter_by.side_effect = [
-            MagicMock(first=MagicMock(return_value=MagicMock())),  # item 201 存在
-            MagicMock(first=MagicMock(return_value=None)),  # item 202 不存在
+            MagicMock(delete=MagicMock(return_value=1)),  # item 201 存在
+            MagicMock(delete=MagicMock(return_value=0)),  # item 202 不存在
         ]
 
         with patch.object(Archive, "query", new=mock_query):

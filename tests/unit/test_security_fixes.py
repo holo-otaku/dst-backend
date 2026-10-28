@@ -185,3 +185,62 @@ def test_archived_and_deleted_series_items_hidden(ctx):
     db.session.get(Series, s.id).status = 0
     db.session.commit()
     assert c.get(f"/product/{item.id}", headers=h).status_code == 404
+
+
+def test_cannot_delete_stronger_role_or_permission(ctx):
+    _, c = ctx
+    admin_role = Role(name="admin", permissions=Permission.query.all())
+    db.session.add(admin_role)
+    db.session.commit()
+    mgr = user("mgr", ["role.delete", "permission.delete"])
+    h, admin_id = auth(mgr), admin_role.id
+    perm_id = Permission.query.filter_by(name="user.create").first().id
+    assert c.delete(f"/role/{admin_id}", headers=h).status_code == 403
+    assert c.delete(f"/permission/{perm_id}", headers=h).status_code == 403
+    assert db.session.get(Role, admin_id) and db.session.get(Permission, perm_id)
+
+
+def test_cannot_touch_fields_of_another_series(ctx):
+    _, c = ctx
+    editor = user("editor", ["series.edit", "product.edit"])
+    _, name, _, _, item = catalog(editor)
+    other = Series(name="other", created_by=editor.id)
+    db.session.add(other)
+    db.session.commit()
+    h, name_id, other_id, item_id = auth(editor), name.id, other.id, item.id
+
+    c.patch(f"/series/{other_id}", json={"delete": [name_id]}, headers=h)
+    assert db.session.get(Field, name_id)
+    res = c.patch(f"/series/{other_id}", json={"fields": [{"id": name_id, "dataType": "string"}]}, headers=h)
+    assert res.status_code == 404
+
+    other_field = Field(name="x", data_type="string", series_id=other_id)
+    db.session.add(other_field)
+    db.session.commit()
+    body = [{"itemId": item_id, "attributes": [{"fieldId": other_field.id, "value": "v"}]}]
+    assert c.patch("/product/edit", json=body, headers=h).status_code == 404
+
+
+def test_unarchive_removes_every_users_archive(ctx):
+    _, c = ctx
+    a = user("a", ["archive.create", "archive.delete"])
+    b = user("b", ["archive.create"])
+    _, _, _, _, item = catalog(a)
+    item_id = item.id
+    db.session.add_all([Archive(item_id=item_id, archived_by=a.id), Archive(item_id=item_id, archived_by=b.id)])
+    db.session.commit()
+    c.delete("/archive", json={"itemIds": [item_id]}, headers=auth(a))
+    assert Archive.query.filter_by(item_id=item_id).count() == 0
+
+
+def test_bad_picture_is_400_and_errors_do_not_leak(ctx):
+    _, c = ctx
+    editor = user("editor", ["product.edit"])
+    _, _, _, pic, item = catalog(editor)
+    h, pic_id, item_id = auth(editor), pic.id, item.id
+    body = [{"itemId": item_id, "attributes": [{"fieldId": pic_id, "value": "not-base64"}]}]
+    assert c.patch("/product/edit", json=body, headers=h).status_code == 400
+
+    with patch("controller.product.__check_duplicate_required_fields", side_effect=RuntimeError("SELECT secret")):
+        res = c.patch("/product/edit", json=[{"itemId": item_id}], headers=h)
+    assert res.status_code == 500 and "secret" not in res.get_data(as_text=True)

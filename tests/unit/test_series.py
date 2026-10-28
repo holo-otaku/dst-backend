@@ -314,6 +314,7 @@ def test_update_success(mock_get, mock_query, app):
         mock_field = MagicMock()
         mock_field.id = 1
         mock_field.name = "Test Field"
+        mock_field.series_id = 1
 
         # Configure mock_get to return the appropriate objects
         mock_get.side_effect = [mock_series, mock_field]
@@ -379,7 +380,8 @@ def test_update_with_item_attribute(mock_get, mock_query, app):
         mock_series.id = 1
         mock_series.name = "Test Series"
 
-        # Configure mock_get to return the mock_series
+        # Configure mock_get to return the mock_series (also used as the field)
+        mock_series.series_id = 1
         mock_get.return_value = mock_series
 
         # Mock the ItemAttribute to simulate related item attributes
@@ -424,7 +426,8 @@ def test_delete_success(mock_commit, mock_get, app):
         mock_series = MagicMock()
         mock_series.id = 1
 
-        # Configure mock_get to return the mock_series
+        # Configure mock_get to return the mock_series (also used as the field)
+        mock_series.series_id = 1
         mock_get.return_value = mock_series
 
         # Call the delete function

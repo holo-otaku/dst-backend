@@ -54,9 +54,7 @@ def delete(data):
     not_found_ids = []
 
     for item_id in item_ids:
-        archive = Archive.query.filter_by(item_id=item_id).first()
-        if archive:
-            db.session.delete(archive)
+        if Archive.query.filter_by(item_id=item_id).delete():
             deleted_ids.append(item_id)
         else:
             not_found_ids.append(item_id)

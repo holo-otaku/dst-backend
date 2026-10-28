@@ -132,11 +132,11 @@ def test_search_item_attribute_exception(mock_check_permission, app):
             assert result.status_code == 500  # type: ignore
             response_data = result.get_json()  # type: ignore
             assert response_data["code"] == 500
-            assert "Database error" in response_data["msg"]
+            assert response_data["msg"] == "Internal server error"
         else:
             # 字典對象（測試環境可能的行為）
             assert result["code"] == 500
-            assert "Database error" in result["msg"]
+            assert result["msg"] == "Internal server error"
 
 
 @patch("controller.field.db.session.query")
