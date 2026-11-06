@@ -14,7 +14,8 @@ from routers.field import field
 
 class Routes:
     def __init__(self, app) -> None:
-        app.register_blueprint(swagger_ui_blueprint)
+        if app.config.get('ENABLE_SWAGGER'):
+            app.register_blueprint(swagger_ui_blueprint)
         app.register_blueprint(user, url_prefix='/user')
         app.register_blueprint(role, url_prefix='/role')
         app.register_blueprint(permission, url_prefix='/permission')
