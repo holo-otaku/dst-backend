@@ -89,7 +89,7 @@ Please make sure to change the default password after logging in for the first t
 
 ## API Document
 
-After starting the application, you can access the Swagger API documentation at the following URL:
+The Swagger API documentation is disabled by default. Set `ENABLE_SWAGGER=true` in `.env` (development only; leave it unset in production) and access it at the following URL:
 
 ```
 http://127.0.0.1:5001/api/docs/

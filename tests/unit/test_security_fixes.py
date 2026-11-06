@@ -85,6 +85,18 @@ def test_refresh_rejects_revoked_token(ctx):
     assert c.post("/jwt/refresh", headers=old).status_code == 401
 
 
+def test_swagger_disabled_unless_enabled(ctx):
+    # middleware 會略過含 /swagger 的路徑，所以只能靠不註冊路由來擋
+    _, c = ctx
+    assert c.get("/api/docs/swagger").status_code == 404
+
+    app = Flask(__name__)
+    app.config.update(ENABLE_SWAGGER=True, JWT_SECRET_KEY="test-secret-key-that-is-long-enough-32b")
+    JWTManager(app)
+    Routes(app)
+    assert app.test_client().get("/api/docs/swagger").status_code == 200
+
+
 def test_user_logs_need_log_read(ctx):
     _, c = ctx
     u = user("u", [])
