@@ -10,6 +10,8 @@ class Config:
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
     PORT = int(os.environ.get('PORT', 5001))
     DEBUG = os.environ.get('DEBUG', 'false').lower() in ('1', 'true')
+    # API 文件預設關閉，避免正式環境對外公開整份 API 規格；開發時設 ENABLE_SWAGGER=true
+    ENABLE_SWAGGER = os.environ.get('ENABLE_SWAGGER', 'false').lower() in ('1', 'true')
     SECRET_KEY = os.environ.get('SECRET_KEY', 'mysecretkey')
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         'SQLALCHEMY_DATABASE_URI', 'mysql+pymysql://admin:admin@localhost:3306/db')
