@@ -8,19 +8,28 @@
 步驟：檢查兩邊欄位一致 → 依 model 建表 → 依外鍵順序分批複製 → 重設 id 序列
 → 寫入 alembic 版本 → 比對每張表筆數。目標庫必須是空的，任何不一致都會中止。
 
+MySQL 必須在 SOURCE_REVISION，PG 直接建成目前的 schema（TARGET_REVISION）：
+MySQL 的 item_attribute（EAV）在複製 item 時轉成 item.attributes，規則同 field_value.stored。
+
 MySQL 沒有建外鍵約束，PG 有，所以指向不存在資料的孤兒列要處理：
 series.created_by 改指 admin（使用者被刪掉但系列要留著），其他孤兒列略過。兩者都會印出來。
 """
 import os
 import sys
+from collections import defaultdict
 
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, select, text
 
+from controller import field_value
 from models import model  # noqa: F401
-from models.series import Series
+from models.series import Item, Series
 from models.shared import db
 
 BATCH_SIZE = 5000
+SOURCE_REVISION = "13fdcde5ad3f"
+TARGET_REVISION = "71f1cd61f7d2"
+# MySQL 沒有、由 item_attribute 轉過來的欄位
+ATTRIBUTES = Item.__table__.c.attributes
 
 
 def check_columns(mysql):
@@ -29,13 +38,35 @@ def check_columns(mysql):
     errors = []
     for table in db.metadata.sorted_tables:
         actual = {column["name"] for column in inspector.get_columns(table.name)}
-        expected = set(table.columns.keys())
+        expected = {column.name for column in table.columns if column is not ATTRIBUTES}
         if actual != expected:
             errors.append(f"{table.name}: 只在 MySQL {sorted(actual - expected)}，只在 model {sorted(expected - actual)}")
     return errors
 
 
-def copy_table(table, mysql, pg, admin_id):
+def load_attributes(mysql):
+    """item_attribute 轉成 {item_id: {str(field_id): 值}}，回傳 (attributes, 非空值筆數, 略過筆數)。"""
+    attributes = defaultdict(dict)
+    skipped = 0
+    with mysql.connect() as conn:
+        source_values = conn.execute(text(
+            "SELECT COUNT(*) FROM item_attribute WHERE value <> ''")).scalar()
+        rows = conn.execute(text(
+            "SELECT ia.item_id, ia.field_id, f.data_type, ia.value"
+            " FROM item_attribute ia LEFT JOIN field f ON f.id = ia.field_id"))
+        for item_id, field_id, data_type, value in rows:
+            value = field_value.stored(data_type, value)
+            if value is None:
+                continue
+            if data_type is None:
+                print(f"  略過 item_attribute item {item_id}: field_id={field_id} 不存在")
+                skipped += 1
+                continue
+            attributes[item_id][str(field_id)] = value
+    return attributes, source_values, skipped
+
+
+def copy_table(table, mysql, pg, admin_id, attributes):
     """回傳略過的孤兒列數。"""
     # 依外鍵順序複製，父表已在 PG 裡，用它的 id 判斷孤兒
     valid_ids = {}
@@ -47,7 +78,8 @@ def copy_table(table, mysql, pg, admin_id):
     skipped = 0
     # 用 model 的 Table 讀寫，tinyint → boolean、JSON 等型別由 SQLAlchemy 轉換
     with mysql.connect() as source, pg.begin() as target:
-        result = source.execution_options(stream_results=True).execute(table.select())
+        columns = [column for column in table.columns if column is not ATTRIBUTES]
+        result = source.execution_options(stream_results=True).execute(select(*columns))
         while rows := result.mappings().fetchmany(BATCH_SIZE):
             batch = []
             for row in map(dict, rows):
@@ -63,6 +95,8 @@ def copy_table(table, mysql, pg, admin_id):
                         skipped += 1
                         break
                 else:
+                    if table is Item.__table__:
+                        row["attributes"] = attributes.pop(row["id"], {})
                     batch.append(row)
             if batch:
                 target.execute(table.insert(), batch)
@@ -98,19 +132,22 @@ def main():
     with mysql.connect() as conn:
         version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
         admin_id = conn.execute(text("SELECT id FROM users WHERE username = 'admin'")).scalar()
+    if version != SOURCE_REVISION:
+        sys.exit(f"MySQL 的 alembic 版本是 {version}，這個腳本只支援 {SOURCE_REVISION}，中止")
     if admin_id is None:
         sys.exit("MySQL 裡找不到 admin 使用者，中止")
 
+    attributes, source_values, skipped_values = load_attributes(mysql)
     db.metadata.create_all(pg)
     skipped = {}
     for table in db.metadata.sorted_tables:
         print(f"複製 {table.name} ...", flush=True)
-        skipped[table.name] = copy_table(table, mysql, pg, admin_id)
+        skipped[table.name] = copy_table(table, mysql, pg, admin_id, attributes)
         reset_sequence(table, pg)
 
     with pg.begin() as conn:
         conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) PRIMARY KEY)"))
-        conn.execute(text("INSERT INTO alembic_version VALUES (:v)"), {"v": version})
+        conn.execute(text("INSERT INTO alembic_version VALUES (:v)"), {"v": TARGET_REVISION})
 
     mismatched = []
     for table in db.metadata.sorted_tables:
@@ -118,9 +155,15 @@ def main():
         print(f"{table.name}: MySQL {source} / PostgreSQL {target} / 略過 {skipped[table.name]}")
         if source - skipped[table.name] != target:
             mismatched.append(table.name)
+    target_values = count(pg, "item, jsonb_object_keys(item.attributes)")
+    # 孤兒 item 沒被複製，它們的值會留在 attributes 裡
+    skipped_values += sum(len(values) for values in attributes.values())
+    print(f"item_attribute 非空值: MySQL {source_values} / item.attributes {target_values} / 略過 {skipped_values}")
+    if source_values - skipped_values != target_values:
+        mismatched.append("item.attributes")
     if mismatched:
         sys.exit(f"筆數不一致：{mismatched}")
-    print(f"完成，alembic 版本 {version}")
+    print(f"完成，alembic 版本 {TARGET_REVISION}")
 
 
 if __name__ == "__main__":

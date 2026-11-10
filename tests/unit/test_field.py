@@ -21,7 +21,7 @@ def test_search_item_attribute_success_with_archive_permission(mock_check_permis
         mock_check_permission.return_value = True
         
         # Mock 查詢結果 - 當有權限時，不會過濾 archive，所以查詢鏈較短
-        mock_query_chain = mock_query.return_value.join.return_value.filter.return_value.filter.return_value.limit.return_value
+        mock_query_chain = mock_query.return_value.distinct.return_value.filter.return_value.filter.return_value.limit.return_value
         mock_query_chain.all.return_value = [
             ("test_value_1",),
             ("test_value_2",),
@@ -54,7 +54,7 @@ def test_search_item_attribute_no_archive_permission(mock_check_permission, mock
         mock_check_permission.return_value = False
         
         # Mock 查詢結果 - 應該排除已歸檔的項目
-        mock_query_chain = mock_query.return_value.join.return_value.filter.return_value.filter.return_value.limit.return_value
+        mock_query_chain = mock_query.return_value.distinct.return_value.filter.return_value.filter.return_value.limit.return_value
         mock_query_chain.all.return_value = [
             ("non_archived_value_1",),
             ("non_archived_value_2",),
@@ -97,7 +97,7 @@ def test_search_item_attribute_no_search_value(mock_check_permission, mock_query
         mock_check_permission.return_value = True
         
         # Mock 查詢鏈
-        mock_query_chain = mock_query.return_value.join.return_value.filter.return_value.limit.return_value
+        mock_query_chain = mock_query.return_value.distinct.return_value.filter.return_value.limit.return_value
         mock_query_chain.all.return_value = [
             ("value_a",),
             ("value_b",),
@@ -150,7 +150,7 @@ def test_search_item_attribute_with_duplicates_removed(mock_check_permission, mo
         mock_check_permission.return_value = True
         
         # Mock 查詢鏈
-        mock_query_chain = mock_query.return_value.join.return_value.filter.return_value.filter.return_value.limit.return_value
+        mock_query_chain = mock_query.return_value.distinct.return_value.filter.return_value.filter.return_value.limit.return_value
         mock_query_chain.all.return_value = [
             ("unique_value_1",),
             ("unique_value_2",),
@@ -179,7 +179,7 @@ def test_search_item_attribute_limit_results(mock_check_permission, mock_query, 
         mock_check_permission.return_value = True
         
         # Mock 查詢鏈
-        mock_query_chain = mock_query.return_value.join.return_value.filter.return_value.limit.return_value
+        mock_query_chain = mock_query.return_value.distinct.return_value.filter.return_value.limit.return_value
         mock_results = [(f"value_{i}",) for i in range(100)]  # 100 筆結果
         mock_query_chain.all.return_value = mock_results
 
@@ -203,7 +203,7 @@ def test_search_item_attribute_with_search_value_filter(mock_check_permission, m
         mock_check_permission.return_value = True
         
         # Mock 查詢鏈
-        mock_query_chain = mock_query.return_value.join.return_value.filter.return_value.filter.return_value.limit.return_value
+        mock_query_chain = mock_query.return_value.distinct.return_value.filter.return_value.filter.return_value.limit.return_value
         mock_query_chain.all.return_value = [
             ("test_match_1",),
             ("test_match_2",),

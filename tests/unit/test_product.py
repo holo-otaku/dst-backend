@@ -8,7 +8,7 @@ from controller.product import (
     delete,
     create_from_items,
 )
-from models.series import Field, Series, Item, ItemAttribute
+from models.series import Field, Series, Item
 from models.image import Image
 import pytest
 
@@ -129,11 +129,7 @@ def test_read_success(mock_has_permission, mock_read_erp, mock_query, mock_get, 
         mock_field.is_limit_field = False
         mock_field.series_id = 1
 
-        # Mock attribute
-        mock_attribute = MagicMock()
-        mock_attribute.field_id = 1
-        mock_attribute.field = mock_field
-        mock_attribute.value = "Value1"
+        mock_item.attributes = {"1": "Value1"}
 
         # Configure mocks
         mock_get.return_value = mock_item
@@ -145,10 +141,6 @@ def test_read_success(mock_has_permission, mock_read_erp, mock_query, mock_get, 
                 field_query = MagicMock()
                 field_query.filter.return_value.order_by.return_value.all.return_value = [mock_field]
                 return field_query
-            elif model == ItemAttribute:
-                attribute_query = MagicMock()
-                attribute_query.filter.return_value.all.return_value = [mock_attribute]
-                return attribute_query
             elif model == Archive:
                 archive_query = MagicMock()
                 archive_query.filter_by.return_value.first.return_value = None
@@ -231,23 +223,16 @@ def test_update_multi_success(
         mock_field.series_id = 1
         mock_field.data_type = "string"
 
-        # Mock the ItemAttribute object and set initial value
-        mock_item_attribute = MagicMock()
-        mock_item_attribute.value = None
+        mock_item.attributes = {}
 
         # Configure mock_get to return the mock_item for items and None for fields (to simulate field not found)
         def get_side_effect(model, id):
             if model == Item:
                 return mock_item
             elif model == Field:
-                return mock_field  # Simulating field not found for simplicity
+                return MagicMock(id=id, series_id=1, data_type="string")
 
         mock_get.side_effect = get_side_effect
-
-        # Mock the query for ItemAttribute to return our mock_item_attribute
-        mock_query.return_value.filter_by.return_value.first.return_value = (
-            mock_item_attribute
-        )
 
         # Mock __check_field_type to always return an empty list (no type errors)
         mock_check_field_type.return_value = []
@@ -275,10 +260,7 @@ def test_update_multi_success(
         assert response.get_json()["code"] == 200
         assert response.get_json()["msg"] == "ItemAttributes updated"
 
-        # Verify the mock_item_attribute's value was updated
-        assert (
-            mock_item_attribute.value == "NewValue1" or "path/to/saved/image"
-        ), "ItemAttribute value was not updated correctly"
+        assert mock_item.attributes["1"] == "NewValue1"
 
         # Verify __check_field_type and __save_image were called correctly
         mock_check_field_type.assert_called()
@@ -489,11 +471,7 @@ def test_read_deleted_product(mock_has_permission, mock_read_erp, mock_query, mo
         mock_field.is_limit_field = False
         mock_field.series_id = 1
 
-        # Mock attribute
-        mock_attribute = MagicMock()
-        mock_attribute.field_id = 1
-        mock_attribute.field = mock_field
-        mock_attribute.value = "Value1"
+        mock_item.attributes = {"1": "Value1"}
 
         # Configure mocks
         mock_get.return_value = mock_item
@@ -505,10 +483,6 @@ def test_read_deleted_product(mock_has_permission, mock_read_erp, mock_query, mo
                 field_query = MagicMock()
                 field_query.filter.return_value.order_by.return_value.all.return_value = [mock_field]
                 return field_query
-            elif model == ItemAttribute:
-                attribute_query = MagicMock()
-                attribute_query.filter.return_value.all.return_value = [mock_attribute]
-                return attribute_query
             elif model == Archive:
                 archive_query = MagicMock()
                 archive_query.filter_by.return_value.first.return_value = None

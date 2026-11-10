@@ -1,6 +1,8 @@
 from models.shared import db
 from datetime import datetime
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Boolean, UniqueConstraint
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, Boolean
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 
 
@@ -33,7 +35,6 @@ class Field(db.Model):
     sequence = Column(Integer, nullable=False, default=0)
 
     series = relationship('Series', back_populates='fields')
-    item_attribute = relationship('ItemAttribute', back_populates='field')
 
 
 class Item(db.Model):
@@ -44,17 +45,10 @@ class Item(db.Model):
     created_at = Column(DateTime, default=datetime.now, nullable=False)
     updated_at = Column(DateTime, default=datetime.now, nullable=False)
     is_deleted = Column(Boolean, default=0, nullable=False)
+    # {str(field_id): 值}，值的型別規則見 controller/field_value.py；沒有值的欄位不放 key
+    attributes = Column(
+        MutableDict.as_mutable(JSON().with_variant(JSONB(), "postgresql")),
+        nullable=False, default=dict, server_default="{}",
+    )
 
-    attributes = relationship('ItemAttribute', back_populates='item')
     series = relationship('Series')
-
-
-class ItemAttribute(db.Model):
-    __tablename__ = 'item_attribute'
-
-    item_id = Column(Integer, ForeignKey('item.id'), primary_key=True)
-    field_id = Column(Integer, ForeignKey('field.id'), primary_key=True)
-    value = Column(String(length=256))
-
-    item = relationship('Item')
-    field = relationship('Field', back_populates='item_attribute')

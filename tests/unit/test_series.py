@@ -319,7 +319,7 @@ def test_update_success(mock_get, mock_query, app):
         # Configure mock_get to return the appropriate objects
         mock_get.side_effect = [mock_series, mock_field]
 
-        mock_query.return_value.filter_by.return_value.first.return_value = None
+        mock_query.return_value.filter.return_value.first.return_value = None
 
         # Prepare test data
         data = {

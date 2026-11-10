@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 
 from controller import field_value
 from models.archive import Archive
-from models.series import Series, Field, Item, ItemAttribute
+from models.series import Series, Field, Item
 from models.shared import db
 from tests.unit.test_security_fixes import ctx, user, auth  # noqa: F401
 
@@ -19,14 +19,11 @@ def seed(owner):
     db.session.add_all([name, price, day, part])
     db.session.flush()
     ids = []
-    for n, p, d in [("apple", "5", "2025-01-01"), ("banana", "15", "2025-02-01"), ("cherry", "25", "2025-03-01")]:
-        item = Item(series_id=s.id)
+    for n, p, d in [("apple", "5", "2025/01/01"), ("banana", "15", "2025/02/01"), ("cherry", "25", "2025/03/01")]:
+        item = Item(series_id=s.id, attributes={
+            str(name.id): n, str(price.id): p, str(day.id): d, str(part.id): f"P-{n}"})
         db.session.add(item)
         db.session.flush()
-        db.session.add_all([ItemAttribute(item_id=item.id, field_id=name.id, value=n),
-                            ItemAttribute(item_id=item.id, field_id=price.id, value=p),
-                            ItemAttribute(item_id=item.id, field_id=day.id, value=d),
-                            ItemAttribute(item_id=item.id, field_id=part.id, value=f"P-{n}")])
         ids.append(item.id)
     db.session.commit()
     return s.id, name.id, price.id, day.id, ids
@@ -101,8 +98,12 @@ def test_field_value_rules():
     field.data_type = "datetime"
     assert field_value.check(field, "2025/01/07") == []
     assert field_value.check(field, "not a date")
-    assert field_value.normalize_date("01/07/25") == "2025-01-07"
-    assert field_value.present("boolean", "0") is False
+    assert field_value.normalize_date("01/07/25") == "2025/01/07"
+    assert field_value.stored("datetime", "2025-01-07") == "2025/01/07"
+    assert field_value.stored("boolean", "0") is False
+    assert field_value.stored("number", "17.70") == "17.70"
+    assert field_value.stored("string", "") is None
+    assert field_value.present("boolean", False) is False
     assert field_value.present("picture", "7") == "/image/7"
     assert field_value.image_id("/image/7") == "7"
     assert field_value.image_id("data:image/png;base64,xx") is None
@@ -112,22 +113,16 @@ def test_blank_values_and_case_insensitive_filter(ctx):
     _, c = ctx
     u = user("u", ["product.read"])
     sid, name, price, day, _ = seed(u)
-    item = Item(series_id=sid)
-    db.session.add(item)
-    db.session.flush()
-    db.session.add_all([ItemAttribute(item_id=item.id, field_id=name, value="Apricot"),
-                        ItemAttribute(item_id=item.id, field_id=price, value=""),
-                        ItemAttribute(item_id=item.id, field_id=day, value="")])
-    legacy = Item(series_id=sid)
-    db.session.add(legacy)
-    db.session.flush()
+    db.session.add(Item(series_id=sid, attributes={str(name): "Apricot"}))
     # 舊資料裡無法解析的日期
-    db.session.add(ItemAttribute(item_id=legacy.id, field_id=day, value="32"))
+    db.session.add(Item(series_id=sid, attributes={str(day): "32"}))
     db.session.commit()
     h = auth(u)
     assert names(search(c, h, {"seriesId": sid, "filters": [{"fieldId": name, "value": "AP"}]})) == ["apple", "Apricot"]
-    # 空字串的數字/日期不能讓排序或範圍查詢報錯
-    assert search(c, h, {"seriesId": sid}, f"?sort={price},asc")["totalCount"] == 5
+    # 沒有值的數字/日期不能讓排序或範圍查詢報錯；數字依大小排，不是字典序
+    res = search(c, h, {"seriesId": sid}, f"?sort={price},asc")
+    assert res["totalCount"] == 5
+    assert [n for n in names(res) if n in ("apple", "banana", "cherry")] == ["apple", "banana", "cherry"]
     rng = [{"fieldId": price, "value": 10, "operation": "greater"}]
     assert names(search(c, h, {"seriesId": sid, "filters": rng})) == ["banana", "cherry"]
     rng = [{"fieldId": day, "value": "2025-02-01", "operation": "greater"}]
@@ -145,8 +140,11 @@ def test_boolean_field_create_and_filter(ctx):
     res = c.post("/product", json=[{"seriesId": sid, "attributes": [
         {"fieldId": name, "value": "durian"}, {"fieldId": flag_id, "value": True}]}], headers=h)
     assert res.status_code == 201, res.get_json()
-    assert ItemAttribute.query.filter_by(field_id=flag_id).one().value == "1"
+    created = Item.query.filter(Item.attributes[str(flag_id)].as_boolean().is_(True)).one()
+    assert created.attributes[str(flag_id)] is True
     assert names(search(c, h, {"seriesId": sid, "filters": [{"fieldId": flag_id, "value": True}]})) == ["durian"]
+    res = c.get(f"/product/{created.id}", headers=h).get_json()
+    assert res["data"]["attributes"][-1]["value"] is True
 
 
 def test_duplicate_part_number_check(ctx):
@@ -156,7 +154,9 @@ def test_duplicate_part_number_check(ctx):
     dst = Field(name="DST料號", data_type="string", series_id=sid, sequence=5)
     db.session.add(dst)
     db.session.flush()
-    db.session.add(ItemAttribute(item_id=ids[0], field_id=dst.id, value="D-1"))
+    # 要留著 item 的參照，MutableDict 才追蹤得到修改
+    first = db.session.get(Item, ids[0])
+    first.attributes[str(dst.id)] = "D-1"
     db.session.commit()
     dst_id, h = dst.id, auth(u)
 
@@ -169,3 +169,21 @@ def test_duplicate_part_number_check(ctx):
     assert edit.status_code == 200, edit.get_json()
     edit = c.patch("/product/edit", json=[{"itemId": ids[1], "attributes": [{"fieldId": dst_id, "value": "D-1"}]}], headers=h)
     assert edit.status_code == 400
+
+
+def test_copy_and_field_changes_keep_attributes_in_sync(ctx):
+    _, c = ctx
+    u = user("u", ["product.read", "product.create", "series.edit"])
+    sid, name, price, _, ids = seed(u)
+    h = auth(u)
+    res = c.post("/product/copy", json={"itemIds": [ids[0]]}, headers=h)
+    assert res.status_code == 201, res.get_json()
+    copied = db.session.get(Item, res.get_json()["data"][0]["id"])
+    assert copied.attributes[str(name)] == "copy apple" and copied.attributes[str(price)] == "5"
+
+    # 有值的欄位不能改型別；刪掉欄位後每個商品的值都要清掉
+    changed = {"fields": [{"id": price, "name": "price", "dataType": "string"}]}
+    assert c.patch(f"/series/{sid}", json=changed, headers=h).status_code == 400
+    assert c.patch(f"/series/{sid}", json={"delete": [price]}, headers=h).status_code == 200
+    db.session.expire_all()
+    assert not Item.query.filter(Item.attributes[str(price)].as_string().is_not(None)).all()

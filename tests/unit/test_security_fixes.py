@@ -11,7 +11,7 @@ from flask_jwt_extended import JWTManager, create_access_token
 from models.shared import db
 from models import model  # noqa: F401
 from models.user import User, Role, Permission
-from models.series import Series, Field, Item, ItemAttribute
+from models.series import Series, Field, Item
 from models.archive import Archive
 from models.image import Image
 from models.mapping_table import permissions_table
@@ -71,11 +71,8 @@ def catalog(owner, limit_picture=False):
     pic = Field(name="pic", data_type="picture", series_id=s.id, is_limit_field=limit_picture)
     db.session.add_all([name, cost, pic])
     db.session.flush()
-    item = Item(series_id=s.id)
+    item = Item(series_id=s.id, attributes={str(name.id): "=1+1", str(cost.id): "123"})
     db.session.add(item)
-    db.session.flush()
-    db.session.add_all([ItemAttribute(item_id=item.id, field_id=name.id, value="=1+1"),
-                        ItemAttribute(item_id=item.id, field_id=cost.id, value="123")])
     db.session.commit()
     return s, name, cost, pic, item
 
@@ -179,7 +176,7 @@ def test_image_needs_product_read_and_limit_permission(ctx):
     image = Image(name="x", path=path)
     db.session.add(image)
     db.session.flush()
-    db.session.add(ItemAttribute(item_id=item.id, field_id=pic.id, value=str(image.id)))
+    item.attributes[str(pic.id)] = str(image.id)
     db.session.commit()
     assert c.get(f"/image/{image.id}", headers=auth(nobody)).status_code == 403
     assert c.get(f"/image/{image.id}", headers=auth(reader)).status_code == 403

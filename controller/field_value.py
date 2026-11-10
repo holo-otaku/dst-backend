@@ -1,14 +1,17 @@
-"""Field 值的型別規則：每個 data_type 怎麼驗證、標準化、回傳給前端。
+"""Field 值的型別規則：每個 data_type 怎麼驗證、存進 Item.attributes、查詢、回傳給前端。
 
-ItemAttribute.value 一律存字串，所以讀寫兩端都要經過這裡。
+Item.attributes 是 {str(field_id): 值}：布林存 true/false，其他型別存字串
+（數字保留使用者輸入的格式，例如 "17.70"；日期統一成 YYYY/MM/DD，字串比較就是日期先後）。
 """
 import base64
 import io
 from datetime import datetime
 
 from PIL import Image as PILImage
+from sqlalchemy import Float, cast
 
 from models.mapping_table import data_type_map
+from models.series import Item
 
 IMAGE_URL_PREFIX = "/image/"
 
@@ -23,12 +26,12 @@ DATE_FORMATS = [
 
 
 def normalize_date(value):
-    """把支援的日期格式轉成 YYYY-MM-DD，無法解析時回傳 None。"""
+    """把支援的日期格式轉成 YYYY/MM/DD，無法解析時回傳 None。"""
     if not value:
         return None
     for date_format in DATE_FORMATS:
         try:
-            return datetime.strptime(value, date_format).strftime("%Y-%m-%d")
+            return datetime.strptime(value, date_format).strftime("%Y/%m/%d")
         except ValueError:
             continue
     return None
@@ -68,24 +71,32 @@ def check(field, value):
     return []
 
 
-def stored(value):
-    """寫入或比對資料庫前的值：布林存成 "1"/"0"。
+def stored(data_type, value):
+    """寫入或比對 Item.attributes 的值，空值回傳 None（不存 key）。"""
+    if value is None or value == "":
+        return None
+    if data_type == "boolean":
+        return value in (True, "1", "true")
+    if data_type == "datetime":
+        return normalize_date(value) or value
+    return str(value)
 
-    MySQL 會自動把 True 轉成 1，PG 不會（varchar 欄位存成 'true' 或直接報錯）。
-    """
-    if isinstance(value, bool):
-        return "1" if value else "0"
-    return value
+
+def sql(field_id, data_type):
+    """Item.attributes 裡某個欄位的 SQL 運算式，可直接比較、排序。"""
+    value = Item.attributes[str(field_id)]
+    if data_type == "number":
+        # as_float() 在 SQLite 不會轉型，字串會跟數字比
+        return cast(value.as_string(), Float)
+    if data_type == "boolean":
+        return value.as_boolean()
+    return value.as_string()
 
 
 def present(data_type, value):
-    """把資料庫裡的字串轉成 API 回傳的值。"""
-    if not value:
+    """把 Item.attributes 裡的值轉成 API 回傳的值。"""
+    if value is None:
         return None
-    if data_type == "number":
-        return str(value)
-    if data_type == "boolean":
-        return bool(int(value))
     if data_type == "picture":
         return f"{IMAGE_URL_PREFIX}{value}"
     return value

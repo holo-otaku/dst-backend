@@ -3,17 +3,19 @@
 負責篩選條件編譯、可見性（已刪除/封存/限制欄位）、分頁與總數、ERP 資料合併。
 可見性規則只在這裡套用一次，資料列與 totalCount 用同一個 WHERE。
 """
-from sqlalchemy import text
+import operator
+
+from sqlalchemy import func, select
 
 from controller import field_value
 from controller.erp import read as read_erp
 from models.archive import Archive
-from models.series import Series, Field, ItemAttribute
+from models.series import Series, Field, Item
 from models.shared import db
 from utils.permissions import check_field_permission
 
-# 數字與日期的範圍比較運算子
-_RANGE_OPERATORS = {"greater": ">=", "less": "<=", "equals": "=", "equal": "="}
+# 數字與日期的範圍比較
+_RANGE_OPERATORS = {"greater": operator.ge, "less": operator.le, "equals": operator.eq, "equal": operator.eq}
 
 
 def search(data, page=1, limit=None, sort=None):
@@ -76,97 +78,61 @@ def search(data, page=1, limit=None, sort=None):
     if not check_field_permission("archive.create"):
         query_is_archived = 0
 
-    where, parameters = _compile_where(
-        series_id, filters, fields, query_is_deleted, query_is_archived
-    )
+    where = _compile_where(series_id, filters, fields, query_is_deleted, query_is_archived)
 
-    sql_query = f"SELECT item.id, item.is_deleted FROM item WHERE {where}"
+    query = select(Item.id, Item.is_deleted, Item.attributes).where(*where)
     if sort_field_id is not None:
-        # 值都存成字串，數字欄位要轉型才不會變成字典序
-        sort_value = "CAST(NULLIF(value, '') AS float)" if fields[sort_field_id].data_type == "number" else "value"
-        sql_query += (
-            f" ORDER BY (SELECT {sort_value} FROM item_attribute"
-            " WHERE item_id = item.id AND field_id = :sort_field_id)"
-        )
-        if sort_order == "desc":
-            sql_query += " DESC"
-        parameters["sort_field_id"] = sort_field_id
+        sort_column = field_value.sql(sort_field_id, fields[sort_field_id].data_type)
+        query = query.order_by(sort_column.desc() if sort_order == "desc" else sort_column)
     if limit is not None:
-        sql_query += " LIMIT :limit OFFSET :offset"
-        parameters["limit"] = limit
-        parameters["offset"] = (page - 1) * limit
+        query = query.limit(limit).offset((page - 1) * limit)
 
-    items = db.session.execute(text(sql_query), parameters).fetchall()
-    total_count = db.session.execute(
-        text(f"SELECT COUNT(item.id) FROM item WHERE {where}"), parameters
-    ).scalar()
+    items = db.session.execute(query).all()
+    total_count = db.session.scalar(select(func.count()).select_from(Item).where(*where))
 
     rows = _build_rows(series, items, fields, can_read_limit)
     return rows, total_count, fields
 
 
 def _compile_where(series_id, filters, fields, is_deleted, is_archived):
-    conditions = ["item.series_id = :series_id"]
-    parameters = {"series_id": series_id}
+    conditions = [Item.series_id == series_id]
 
     if is_deleted is not None:
-        conditions.append("item.is_deleted = :is_deleted")
-        # PG 的 boolean 欄位不能跟整數比較
-        parameters["is_deleted"] = bool(is_deleted)
+        conditions.append(Item.is_deleted.is_(bool(is_deleted)))
 
     if is_archived is not None:
-        conditions.append(
-            ("item.id IN" if is_archived == 1 else "item.id NOT IN")
-            + " (SELECT item_id FROM archive)"
-        )
+        archived = Item.id.in_(select(Archive.item_id))
+        conditions.append(archived if is_archived == 1 else ~archived)
 
-    for index, filter_criteria in enumerate(filters):
+    for filter_criteria in filters:
         field = fields[filter_criteria["fieldId"]]
         operation = filter_criteria.get("operation", "equals")
-        value = filter_criteria["value"]
-        field_param, value_param = f"field_id{index}", f"value{index}"
         data_type = field.data_type.lower()
+        column = field_value.sql(field.id, data_type)
+        value = field_value.stored(data_type, filter_criteria["value"])
+        if value is None:
+            continue
 
         if data_type == "string":
-            # MySQL 的 collation 不分大小寫，PG 的 LIKE 會分，統一用 LOWER
-            expression = f"LOWER(item_attribute.value) LIKE LOWER(:{value_param})"
-            value = f"%{value}%"
-        elif data_type == "number" and operation in ("greater", "less"):
-            # 空字串先轉 NULL：MySQL 會當成 0，PG 會直接報錯
-            expression = f"CAST(NULLIF(item_attribute.value, '') AS float) {_RANGE_OPERATORS[operation]} :{value_param}"
+            conditions.append(column.ilike(f"%{value}%"))
+        elif data_type == "number":
+            compare = _RANGE_OPERATORS.get(operation, operator.eq)
+            conditions.append(compare(column, float(value)))
         elif data_type == "datetime" and operation in _RANGE_OPERATORS:
-            # 只比較日期部分
-            expression = f"{_as_date('item_attribute.value')} {_RANGE_OPERATORS[operation]} DATE(:{value_param})"
-            value = field_value.normalize_date(value) or value
+            # YYYY/MM/DD 的字串比較就是日期先後；舊資料有不是日期的值（例如 "32"），不能算進範圍
+            conditions.append(column.like("____/__/__"))
+            conditions.append(_RANGE_OPERATORS[operation](column, value))
+        elif data_type == "boolean":
+            conditions.append(column.is_(value))
         else:
-            expression = f"item_attribute.value = :{value_param}"
-            value = field_value.stored(value)
-            if data_type == "datetime":
-                value = field_value.normalize_date(value) or value
+            conditions.append(column == value)
 
-        conditions.append(
-            f"item.id IN (SELECT item_id FROM item_attribute"
-            f" WHERE item_attribute.field_id = :{field_param} AND {expression})"
-        )
-        parameters[field_param] = field.id
-        parameters[value_param] = value
-
-    return " AND ".join(conditions), parameters
-
-
-def _as_date(column):
-    # 舊資料的日期欄位有無法解析的值（例如 "32"）：MySQL 的 DATE() 回傳 NULL，PG 會報錯
-    if db.engine.dialect.name == "postgresql":
-        return f"CASE WHEN pg_input_is_valid({column}, 'date') THEN CAST({column} AS date) END"
-    return f"DATE(NULLIF({column}, ''))"
+    return conditions
 
 
 def _build_rows(series, items, fields, can_read_limit):
-    item_ids = [item_id for item_id, _ in items]
-    attributes = {
-        (attr.item_id, attr.field_id): attr.value
-        for attr in db.session.query(ItemAttribute).filter(ItemAttribute.item_id.in_(item_ids))
-    }
+    item_ids = [item_id for item_id, _, _ in items]
+    attributes = {item_id: item_attributes for item_id, _, item_attributes in items}
     archived_ids = {
         item_id
         for (item_id,) in db.session.query(Archive.item_id).filter(Archive.item_id.in_(item_ids))
@@ -181,7 +147,7 @@ def _build_rows(series, items, fields, can_read_limit):
     erp_key_fields = [field for field in ordered_fields if field.search_erp]
 
     def value_of(item_id, field):
-        return field_value.present(field.data_type, attributes.get((item_id, field.id)))
+        return field_value.present(field.data_type, attributes[item_id].get(str(field.id)))
 
     # 沒有料號的產品也會拿到一組空白 ERP 欄位（key 為 None），前端靠它決定 ERP 欄位
     erp_data_map = read_erp(
@@ -190,7 +156,7 @@ def _build_rows(series, items, fields, can_read_limit):
     )
 
     rows = []
-    for item_id, is_deleted in items:
+    for item_id, is_deleted, _ in items:
         erp_data = []
         for field in erp_key_fields:
             erp_data += erp_data_map.get(value_of(item_id, field), [])
