@@ -9,7 +9,7 @@ from models.shared import db
 from models.image import Image
 from sqlalchemy.exc import SQLAlchemyError
 from utils.permissions import check_field_permission, has_permission
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 import base64
 from flask_jwt_extended import get_jwt_identity, get_jwt
 from modules.exception import handle_exceptions
@@ -121,6 +121,8 @@ def create_from_items(data):
         return make_response(
             jsonify({"code": 400, "msg": "itemIds must be a list"}), 400
         )
+    # 前端可能送字串 id（MySQL 會自動轉，PG 不會）
+    item_ids = [int(item_id) for item_id in item_ids]
 
     new_items = []
 
@@ -381,7 +383,8 @@ def delete(data):
     if not data or "itemId" not in data:
         return make_response(jsonify({"code": 400, "msg": "Invalid data"}), 400)
 
-    item_ids = data["itemId"]
+    # 前端可能送字串 id（MySQL 會自動轉，PG 不會）
+    item_ids = [int(item_id) for item_id in data["itemId"]]
 
     items_to_delete = db.session.query(Item).filter(Item.id.in_(item_ids)).all()
 
@@ -624,7 +627,7 @@ def __check_duplicate_required_fields(series_id, attributes, exclude_item_id=Non
         and_(Field.series_id == series_id, Field.name == "DST料號")
     ).first()
 
-    # PG 的 boolean 欄位不能跟整數比較
+    # 料號和 MySQL 的 collation 一樣不分大小寫；PG 的 boolean 欄位不能跟整數比較
     base_filters = [Item.series_id == series_id, Item.is_deleted.is_(False)]
     if exclude_item_id is not None:
         base_filters.append(Item.id != exclude_item_id)
@@ -635,7 +638,7 @@ def __check_duplicate_required_fields(series_id, attributes, exclude_item_id=Non
         )
         if supplier_attr and supplier_attr.get("value"):
             existing_supplier = db.session.query(Item.id).filter(
-                field_value.sql(supplier_field.id, "string") == str(supplier_attr["value"]),
+                func.lower(field_value.sql(supplier_field.id, "string")) == str(supplier_attr["value"]).lower(),
                 *base_filters,
             ).first()
             if existing_supplier:
@@ -647,7 +650,7 @@ def __check_duplicate_required_fields(series_id, attributes, exclude_item_id=Non
         )
         if dst_attr and dst_attr.get("value"):
             existing_dst = db.session.query(Item.id).filter(
-                field_value.sql(dst_field.id, "string") == str(dst_attr["value"]),
+                func.lower(field_value.sql(dst_field.id, "string")) == str(dst_attr["value"]).lower(),
                 *base_filters,
             ).first()
             if existing_dst:

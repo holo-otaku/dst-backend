@@ -150,7 +150,7 @@ def test_read_multi_success(mock_query, app):
         
         # Setup the filter and pagination chain
         mock_filter = mock_user_query.filter.return_value
-        mock_limit = mock_filter.limit.return_value
+        mock_limit = mock_filter.order_by.return_value.limit.return_value
         mock_offset = mock_limit.offset.return_value
         mock_offset.all.return_value = [mock_user_1, mock_user_2]
         mock_filter.count.return_value = 2

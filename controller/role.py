@@ -1,6 +1,7 @@
 from flask import current_app, jsonify, make_response, request
 from models.user import Permission, Role, RolePermission, User
 from models.shared import db
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from modules.exception import handle_exceptions
 from controller.access import can_grant
@@ -36,7 +37,8 @@ def create(data):
     permission_ids = data.get('permissionIds')
 
     # 檢查 roleName 是否重複
-    existing_role = Role.query.filter_by(name=role_name).first()
+    # 和 MySQL 的 collation 一樣不分大小寫
+    existing_role = Role.query.filter(func.lower(Role.name) == str(role_name).lower()).first()
     if existing_role:
         return make_response(jsonify({"code": 400, "msg": f"Role with name '{role_name}' already exists"}), 400)
 
@@ -151,7 +153,8 @@ def read_multi():
     page = int(request.args.get('page', 1))
     limit = int(request.args.get('limit', 10))
 
-    roles = Role.query.limit(limit).offset((page - 1) * limit).all()
+    # MySQL 沒有 ORDER BY 時依 id 回傳；PG 不保證順序，分頁會重複或漏
+    roles = Role.query.order_by(Role.id).limit(limit).offset((page - 1) * limit).all()
 
     total_count = Role.query.count()
 

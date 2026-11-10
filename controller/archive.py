@@ -8,7 +8,8 @@ from modules.exception import handle_exceptions
 
 @handle_exceptions
 def create(data):
-    item_ids = data.get("itemIds", [])  # 多筆封存 item_id 的 list
+    # 前端可能送字串 id（MySQL 會自動轉，PG 不會）
+    item_ids = [int(item_id) for item_id in data.get("itemIds", [])]  # 多筆封存 item_id 的 list
     user_id = int(get_jwt_identity())
 
     if not item_ids:
@@ -45,7 +46,8 @@ def create(data):
 
 @handle_exceptions
 def delete(data):
-    item_ids = data.get("itemIds", [])
+    # 前端可能送字串 id（MySQL 會自動轉，PG 不會）
+    item_ids = [int(item_id) for item_id in data.get("itemIds", [])]
 
     if not item_ids:
         return make_response(jsonify({"code": 400, "msg": "No itemIds provided"}), 400)

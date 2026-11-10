@@ -27,7 +27,7 @@ from models.shared import db
 
 BATCH_SIZE = 5000
 SOURCE_REVISION = "13fdcde5ad3f"
-TARGET_REVISION = "71f1cd61f7d2"
+TARGET_REVISION = "5b8e2d4f9a13"
 # MySQL 沒有、由 item_attribute 轉過來的欄位
 ATTRIBUTES = Item.__table__.c.attributes
 

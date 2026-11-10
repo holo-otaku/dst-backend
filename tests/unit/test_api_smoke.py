@@ -97,11 +97,13 @@ def test_series_product_image_archive_flow(ctx):
     copied = {a["fieldName"]: a["value"] for a in ok(c.get(f"/product/{copy}", headers=h))["data"]["attributes"]}
     assert copied["供應商料號"] == "copy S-1" and copied["pic"] != values["pic"]
 
-    ok(c.post("/archive", json={"itemIds": [copy]}, headers=h))
+    # 商品編輯頁送的是網址上的字串 id；MySQL 會自動轉，PG 不會
+    ok(c.post("/archive", json={"itemIds": [str(copy)]}, headers=h))
     assert ok(c.post("/product/search", json={"seriesId": sid, "isArchived": 1}, headers=h))["totalCount"] == 1
-    ok(c.delete("/archive", json={"itemIds": [copy]}, headers=h))
+    ok(c.delete("/archive", json={"itemIds": [str(copy)]}, headers=h))
+    assert ok(c.post("/product/copy", json={"itemIds": [str(copy)]}, headers=h), 201)
 
-    ok(c.delete("/product/delete", json={"itemId": [copy]}, headers=h))
+    ok(c.delete("/product/delete", json={"itemId": [str(copy)]}, headers=h))
     assert ok(c.post("/product/search", json={"seriesId": sid, "isDeleted": 1}, headers=h))["totalCount"] == 1
 
     update = {"name": "Smoke 2", "create": [{"name": "note", "dataType": "string", "sequence": 9}],
@@ -169,3 +171,28 @@ def test_permission_role_user_and_logs(ctx):
     ok(c.post("/user/force-logout-all", headers=h))
     assert c.get("/log", headers=h).status_code == 401
     assert db.session.get(User, root_id).token_version > 1
+
+
+def test_mysql_behaviour_kept_on_postgres(ctx):
+    """MySQL 時代前端依賴、但 PG 預設不同的行為。"""
+    _, c = ctx
+    user("root", permissions_table)
+    h = login(c, "ROOT")  # MySQL 的 collation 不分大小寫
+    fields = [{"name": "供應商料號", "dataType": "string"}, {"name": "DST料號", "dataType": "string"}]
+    sid = ok(c.post("/series", json={"name": "S", "fields": fields}, headers=h), 201)["data"]["id"]
+    fid = {f["name"]: f["id"] for f in ok(c.get(f"/series/{sid}", headers=h))["data"]["fields"]}
+    body = [{"seriesId": sid, "attributes": [{"fieldId": fid["DST料號"], "value": f"D-{n}"}]} for n in range(3)]
+    ids = [row["id"] for row in ok(c.post("/product", json=body, headers=h), 201)["data"]]
+
+    # 沒指定排序時依 id：PG 更新過的資料列會換位置，沒有 ORDER BY 分頁會重複或漏
+    edit = [{"itemId": ids[0], "attributes": [{"fieldId": fid["供應商料號"], "value": "S-0"}]}]
+    ok(c.patch("/product/edit", json=edit, headers=h))
+    pages = [ok(c.post(f"/product/search?page={p}&limit=1", json={"seriesId": sid}, headers=h))["data"][0]["itemId"]
+             for p in (1, 2, 3)]
+    assert pages == ids
+
+    # 料號只差大小寫也算重複
+    dup = [{"seriesId": sid, "attributes": [{"fieldId": fid["DST料號"], "value": "d-1"}]}]
+    assert c.post("/product", json=dup, headers=h).status_code == 400
+    assert c.post("/role", json={"roleName": "ROOT-role", "permissionIds": []}, headers=h).status_code == 201
+    assert c.post("/role", json={"roleName": "root-ROLE", "permissionIds": []}, headers=h).status_code == 400

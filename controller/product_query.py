@@ -84,6 +84,8 @@ def search(data, page=1, limit=None, sort=None):
     if sort_field_id is not None:
         sort_column = field_value.sql(sort_field_id, fields[sort_field_id].data_type)
         query = query.order_by(sort_column.desc() if sort_order == "desc" else sort_column)
+    # MySQL 沒有 ORDER BY 時依 id 回傳；PG 不保證順序，分頁會重複或漏
+    query = query.order_by(Item.id)
     if limit is not None:
         query = query.limit(limit).offset((page - 1) * limit)
 
