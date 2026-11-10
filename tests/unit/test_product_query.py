@@ -106,3 +106,66 @@ def test_field_value_rules():
     assert field_value.present("picture", "7") == "/image/7"
     assert field_value.image_id("/image/7") == "7"
     assert field_value.image_id("data:image/png;base64,xx") is None
+
+
+def test_blank_values_and_case_insensitive_filter(ctx):
+    _, c = ctx
+    u = user("u", ["product.read"])
+    sid, name, price, day, _ = seed(u)
+    item = Item(series_id=sid)
+    db.session.add(item)
+    db.session.flush()
+    db.session.add_all([ItemAttribute(item_id=item.id, field_id=name, value="Apricot"),
+                        ItemAttribute(item_id=item.id, field_id=price, value=""),
+                        ItemAttribute(item_id=item.id, field_id=day, value="")])
+    legacy = Item(series_id=sid)
+    db.session.add(legacy)
+    db.session.flush()
+    # 舊資料裡無法解析的日期
+    db.session.add(ItemAttribute(item_id=legacy.id, field_id=day, value="32"))
+    db.session.commit()
+    h = auth(u)
+    assert names(search(c, h, {"seriesId": sid, "filters": [{"fieldId": name, "value": "AP"}]})) == ["apple", "Apricot"]
+    # 空字串的數字/日期不能讓排序或範圍查詢報錯
+    assert search(c, h, {"seriesId": sid}, f"?sort={price},asc")["totalCount"] == 5
+    rng = [{"fieldId": price, "value": 10, "operation": "greater"}]
+    assert names(search(c, h, {"seriesId": sid, "filters": rng})) == ["banana", "cherry"]
+    rng = [{"fieldId": day, "value": "2025-02-01", "operation": "greater"}]
+    assert names(search(c, h, {"seriesId": sid, "filters": rng})) == ["banana", "cherry"]
+
+
+def test_boolean_field_create_and_filter(ctx):
+    _, c = ctx
+    u = user("u", ["product.read", "product.create"])
+    sid, name, _, _, _ = seed(u)
+    flag = Field(name="flag", data_type="boolean", series_id=sid, sequence=5)
+    db.session.add(flag)
+    db.session.commit()
+    flag_id, h = flag.id, auth(u)
+    res = c.post("/product", json=[{"seriesId": sid, "attributes": [
+        {"fieldId": name, "value": "durian"}, {"fieldId": flag_id, "value": True}]}], headers=h)
+    assert res.status_code == 201, res.get_json()
+    assert ItemAttribute.query.filter_by(field_id=flag_id).one().value == "1"
+    assert names(search(c, h, {"seriesId": sid, "filters": [{"fieldId": flag_id, "value": True}]})) == ["durian"]
+
+
+def test_duplicate_part_number_check(ctx):
+    _, c = ctx
+    u = user("u", ["product.read", "product.create", "product.edit"])
+    sid, name, _, _, ids = seed(u)
+    dst = Field(name="DST料號", data_type="string", series_id=sid, sequence=5)
+    db.session.add(dst)
+    db.session.flush()
+    db.session.add(ItemAttribute(item_id=ids[0], field_id=dst.id, value="D-1"))
+    db.session.commit()
+    dst_id, h = dst.id, auth(u)
+
+    def create(value):
+        return c.post("/product", json=[{"seriesId": sid, "attributes": [{"fieldId": dst_id, "value": value}]}], headers=h)
+    assert create("D-2").status_code == 201
+    assert create("D-1").status_code == 400
+    # 編輯自己不算重複，改成別人的料號才算
+    edit = c.patch("/product/edit", json=[{"itemId": ids[0], "attributes": [{"fieldId": dst_id, "value": "D-1"}]}], headers=h)
+    assert edit.status_code == 200, edit.get_json()
+    edit = c.patch("/product/edit", json=[{"itemId": ids[1], "attributes": [{"fieldId": dst_id, "value": "D-1"}]}], headers=h)
+    assert edit.status_code == 400

@@ -68,6 +68,16 @@ def check(field, value):
     return []
 
 
+def stored(value):
+    """寫入或比對資料庫前的值：布林存成 "1"/"0"。
+
+    MySQL 會自動把 True 轉成 1，PG 不會（varchar 欄位存成 'true' 或直接報錯）。
+    """
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    return value
+
+
 def present(data_type, value):
     """把資料庫裡的字串轉成 API 回傳的值。"""
     if not value:

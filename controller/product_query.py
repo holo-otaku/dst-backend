@@ -83,7 +83,7 @@ def search(data, page=1, limit=None, sort=None):
     sql_query = f"SELECT item.id, item.is_deleted FROM item WHERE {where}"
     if sort_field_id is not None:
         # 值都存成字串，數字欄位要轉型才不會變成字典序
-        sort_value = "CAST(value AS float)" if fields[sort_field_id].data_type == "number" else "value"
+        sort_value = "CAST(NULLIF(value, '') AS float)" if fields[sort_field_id].data_type == "number" else "value"
         sql_query += (
             f" ORDER BY (SELECT {sort_value} FROM item_attribute"
             " WHERE item_id = item.id AND field_id = :sort_field_id)"
@@ -111,7 +111,8 @@ def _compile_where(series_id, filters, fields, is_deleted, is_archived):
 
     if is_deleted is not None:
         conditions.append("item.is_deleted = :is_deleted")
-        parameters["is_deleted"] = is_deleted
+        # PG 的 boolean 欄位不能跟整數比較
+        parameters["is_deleted"] = bool(is_deleted)
 
     if is_archived is not None:
         conditions.append(
@@ -127,16 +128,19 @@ def _compile_where(series_id, filters, fields, is_deleted, is_archived):
         data_type = field.data_type.lower()
 
         if data_type == "string":
-            expression = f"item_attribute.value LIKE :{value_param}"
+            # MySQL 的 collation 不分大小寫，PG 的 LIKE 會分，統一用 LOWER
+            expression = f"LOWER(item_attribute.value) LIKE LOWER(:{value_param})"
             value = f"%{value}%"
         elif data_type == "number" and operation in ("greater", "less"):
-            expression = f"CAST(item_attribute.value AS float) {_RANGE_OPERATORS[operation]} :{value_param}"
+            # 空字串先轉 NULL：MySQL 會當成 0，PG 會直接報錯
+            expression = f"CAST(NULLIF(item_attribute.value, '') AS float) {_RANGE_OPERATORS[operation]} :{value_param}"
         elif data_type == "datetime" and operation in _RANGE_OPERATORS:
             # 只比較日期部分
-            expression = f"DATE(item_attribute.value) {_RANGE_OPERATORS[operation]} DATE(:{value_param})"
+            expression = f"{_as_date('item_attribute.value')} {_RANGE_OPERATORS[operation]} DATE(:{value_param})"
             value = field_value.normalize_date(value) or value
         else:
             expression = f"item_attribute.value = :{value_param}"
+            value = field_value.stored(value)
             if data_type == "datetime":
                 value = field_value.normalize_date(value) or value
 
@@ -148,6 +152,13 @@ def _compile_where(series_id, filters, fields, is_deleted, is_archived):
         parameters[value_param] = value
 
     return " AND ".join(conditions), parameters
+
+
+def _as_date(column):
+    # 舊資料的日期欄位有無法解析的值（例如 "32"）：MySQL 的 DATE() 回傳 NULL，PG 會報錯
+    if db.engine.dialect.name == "postgresql":
+        return f"CASE WHEN pg_input_is_valid({column}, 'date') THEN CAST({column} AS date) END"
+    return f"DATE(NULLIF({column}, ''))"
 
 
 def _build_rows(series, items, fields, can_read_limit):

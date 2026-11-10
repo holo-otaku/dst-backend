@@ -1,5 +1,6 @@
 """Regression tests for the security-audit fixes, through the real routes and middlewares."""
 import io
+import os
 import zipfile
 from unittest.mock import patch
 
@@ -23,7 +24,8 @@ def ctx(tmp_path):
     app = Flask(__name__)
     app.config.update(
         TESTING=True,
-        SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
+        # 設 TEST_DATABASE_URI 可改跑真的資料庫（例如 PG）
+        SQLALCHEMY_DATABASE_URI=os.environ.get("TEST_DATABASE_URI", "sqlite:///:memory:"),
         JWT_SECRET_KEY="test-secret-key-that-is-long-enough-32b",
         IMG_PATH=str(tmp_path),
     )
@@ -38,6 +40,8 @@ def ctx(tmp_path):
             db.session.add(Permission(name=name))
         db.session.commit()
         yield app, app.test_client()
+        db.session.remove()
+        db.drop_all()
 
 
 def user(name, perms):

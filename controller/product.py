@@ -373,8 +373,7 @@ def update_multi(data):
                 item_attribute = ItemAttribute(item_id=item_id, field_id=field_id)
                 db.session.add(item_attribute)
 
-            if isinstance(value, bool):
-                value = 1 if value else 0
+            value = field_value.stored(value)
 
             if field.data_type.lower() == "picture":
                 if value:
@@ -509,7 +508,7 @@ def __create_item(payload, mode="create"):
             else:
                 value = __save_image(value, item.id, field.id)
 
-        item_attribute = ItemAttribute(item_id=item.id, field_id=field.id, value=value)
+        item_attribute = ItemAttribute(item_id=item.id, field_id=field.id, value=field_value.stored(value))
         db.session.add(item_attribute)
 
     return item, None
@@ -640,7 +639,8 @@ def __check_duplicate_required_fields(series_id, attributes, exclude_item_id=Non
         and_(Field.series_id == series_id, Field.name == "DST料號")
     ).first()
 
-    base_filters = [Item.series_id == series_id, Item.is_deleted == 0]
+    # PG 的 boolean 欄位不能跟整數比較
+    base_filters = [Item.series_id == series_id, Item.is_deleted.is_(False)]
     if exclude_item_id is not None:
         base_filters.append(Item.id != exclude_item_id)
 
