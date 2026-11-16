@@ -1,5 +1,6 @@
 from flask import current_app, jsonify, make_response, request
-from models.series import Series, Field, Item, ItemAttribute
+from controller import field_value
+from models.series import Series, Field, Item
 from models.image import Image
 from models.shared import db
 from models.mapping_table import data_type_map
@@ -279,7 +280,9 @@ def update(series_id, data):
         # Prevent data type change if attributes exist
         if (
             field.data_type != field_data.get("dataType").lower()
-            and db.session.query(ItemAttribute).filter_by(field_id=field.id).first()
+            and db.session.query(Item.id).filter(
+                Item.series_id == series_id, field_value.sql(field.id, "string").is_not(None)
+            ).first()
         ):
             return make_response(
                 jsonify(
@@ -316,16 +319,6 @@ def update(series_id, data):
         )
         db.session.add(new_field)
         db.session.flush()  # Flush to get new_field.id
-
-        # Add a null ItemAttribute for this new field to all existing items in the series
-        items_in_series = (
-            db.session.query(Item.id).filter(Item.series_id == series_id).all()
-        )
-        for item_id in items_in_series:
-            new_item_attribute = ItemAttribute(
-                item_id=item_id[0], field_id=new_field.id, value=None
-            )
-            db.session.add(new_item_attribute)
 
     # Handle field deletion
     delete_ids = data.get("delete", [])
@@ -367,23 +360,19 @@ def update(series_id, data):
         if not field_to_delete or field_to_delete.series_id != series_id:
             continue
 
-        # If field type is "picture", delete associated images
-        if field_to_delete.data_type == "picture":
-            item_attributes = (
-                db.session.query(ItemAttribute).filter_by(field_id=delete_id).all()
-            )
-            for attr in item_attributes:
-                if attr.value:
-                    image_to_delete = db.session.get(Image, attr.value)
-                    if image_to_delete:
-                        if os.path.exists(image_to_delete.path):
-                            os.remove(image_to_delete.path)
-                        db.session.delete(image_to_delete)
-
-        # Delete all item attributes associated with this field
-        db.session.query(ItemAttribute).filter_by(field_id=delete_id).delete(
-            synchronize_session=False
+        # Remove this field's values from every item; delete images of picture fields
+        items_with_value = db.session.query(Item).filter(
+            Item.series_id == series_id,
+            field_value.sql(delete_id, "string").is_not(None),
         )
+        for item in items_with_value:
+            value = item.attributes.pop(str(delete_id))
+            if field_to_delete.data_type == "picture":
+                image_to_delete = db.session.get(Image, value)
+                if image_to_delete:
+                    if os.path.exists(image_to_delete.path):
+                        os.remove(image_to_delete.path)
+                    db.session.delete(image_to_delete)
 
         # Finally, delete the field itself
         db.session.delete(field_to_delete)

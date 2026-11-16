@@ -2,14 +2,14 @@ import os
 from flask import current_app, jsonify, make_response, request
 from controller import field_value, product_query
 from controller.erp import read as read_erp
-from models.series import Series, Field, Item, ItemAttribute
+from models.series import Series, Field, Item
 from models.user import User
 from models.archive import Archive
 from models.shared import db
 from models.image import Image
 from sqlalchemy.exc import SQLAlchemyError
 from utils.permissions import check_field_permission, has_permission
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 import base64
 from flask_jwt_extended import get_jwt_identity, get_jwt
 from modules.exception import handle_exceptions
@@ -45,21 +45,13 @@ def read(product_id):
         Field.series_id == item.series_id
     ).order_by(Field.sequence).all()
 
-    # Get the attributes related to this product
-    attributes_query = db.session.query(ItemAttribute).filter(
-        ItemAttribute.item_id == product_id
-    )
-    
-    # Create a dictionary for quick lookup of existing attributes
-    existing_attributes = {attr.field_id: attr for attr in attributes_query.all()}
-
     attributes = []
     erp_product_nos = set()  # Collect all ERP product numbers
 
-    # Process all fields, including those without values in ItemAttribute
+    # Process all fields, including those without values
     for field in series_fields:
-        attribute = existing_attributes.get(field.id)
-        
+        value = field_value.present(field.data_type, item.attributes.get(str(field.id)))
+
         # Check permission for limited fields
         is_limit_permission_ok = True
         if field.is_limit_field:
@@ -70,14 +62,12 @@ def read(product_id):
                 "fieldId": field.id,
                 "fieldName": field.name,
                 "dataType": field.data_type,
-                "value": field_value.present(field.data_type, attribute.value if attribute else None),
+                "value": value,
             })
 
             # Collect erp product numbers
-            if field.search_erp and attribute:
-                erp_product_no = field_value.present(field.data_type, attribute.value)
-                if erp_product_no:
-                    erp_product_nos.add(erp_product_no)
+            if field.search_erp and value:
+                erp_product_nos.add(value)
 
     # Fetch ERP data in bulk
     erp_data_map = read_erp(erp_product_nos, item.series_id)
@@ -131,6 +121,8 @@ def create_from_items(data):
         return make_response(
             jsonify({"code": 400, "msg": "itemIds must be a list"}), 400
         )
+    # 前端可能送字串 id（MySQL 會自動轉，PG 不會）
+    item_ids = [int(item_id) for item_id in item_ids]
 
     new_items = []
 
@@ -364,26 +356,20 @@ def update_multi(data):
             if len(type_err) != 0:
                 return make_response(jsonify({"code": 400, "msg": type_err}), 400)
 
-            item_attribute = (
-                db.session.query(ItemAttribute)
-                .filter_by(item_id=item_id, field_id=field_id)
-                .first()
-            )
-            if not item_attribute:
-                item_attribute = ItemAttribute(item_id=item_id, field_id=field_id)
-                db.session.add(item_attribute)
-
-            if isinstance(value, bool):
-                value = 1 if value else 0
+            key = str(field.id)
+            old_value = item.attributes.get(key)
 
             if field.data_type.lower() == "picture":
                 if value:
-                    value = __save_image(value, item.id, field.id, item_attribute.value)
-                else:
-                    if item_attribute.value:
-                        __delete_image(item_attribute.value)
+                    value = __save_image(value, item.id, field.id, old_value)
+                elif old_value:
+                    __delete_image(old_value)
 
-            item_attribute.value = value
+            value = field_value.stored(field.data_type, value)
+            if value is None:
+                item.attributes.pop(key, None)
+            else:
+                item.attributes[key] = value
 
     # 儲存變更到資料庫
     db.session.commit()
@@ -397,7 +383,8 @@ def delete(data):
     if not data or "itemId" not in data:
         return make_response(jsonify({"code": 400, "msg": "Invalid data"}), 400)
 
-    item_ids = data["itemId"]
+    # 前端可能送字串 id（MySQL 會自動轉，PG 不會）
+    item_ids = [int(item_id) for item_id in data["itemId"]]
 
     items_to_delete = db.session.query(Item).filter(Item.id.in_(item_ids)).all()
 
@@ -427,15 +414,12 @@ def __normalize_payload_from_request(item_data):
 
 def __normalize_payload_from_item(item):
     fields = __get_fields_by_series(item.series_id)
-    attributes_query = db.session.query(ItemAttribute).filter_by(item_id=item.id)
-    attributes_by_field = {attr.field_id: attr for attr in attributes_query.all()}
 
     normalized_attributes = []
     first_string_field_modified = False
 
     for field in fields:
-        source_attr = attributes_by_field.get(field.id)
-        value = source_attr.value if source_attr else None
+        value = item.attributes.get(str(field.id))
 
         if field.data_type == "picture" and value:
             normalized_attributes.append({"fieldId": field.id, "value": value})
@@ -491,6 +475,7 @@ def __create_item(payload, mode="create"):
     db.session.add(item)
     db.session.flush()
 
+    item_attributes = {}
     for field in fields:
         attribute = next(
             (a for a in attributes if a.get("fieldId") == field.id), None
@@ -509,9 +494,11 @@ def __create_item(payload, mode="create"):
             else:
                 value = __save_image(value, item.id, field.id)
 
-        item_attribute = ItemAttribute(item_id=item.id, field_id=field.id, value=value)
-        db.session.add(item_attribute)
+        value = field_value.stored(field.data_type, value)
+        if value is not None:
+            item_attributes[str(field.id)] = value
 
+    item.attributes = item_attributes
     return item, None
 
 
@@ -640,7 +627,8 @@ def __check_duplicate_required_fields(series_id, attributes, exclude_item_id=Non
         and_(Field.series_id == series_id, Field.name == "DST料號")
     ).first()
 
-    base_filters = [Item.series_id == series_id, Item.is_deleted == 0]
+    # 料號和 MySQL 的 collation 一樣不分大小寫；PG 的 boolean 欄位不能跟整數比較
+    base_filters = [Item.series_id == series_id, Item.is_deleted.is_(False)]
     if exclude_item_id is not None:
         base_filters.append(Item.id != exclude_item_id)
 
@@ -649,12 +637,9 @@ def __check_duplicate_required_fields(series_id, attributes, exclude_item_id=Non
             (a for a in attributes if a.get("fieldId") == supplier_field.id), None
         )
         if supplier_attr and supplier_attr.get("value"):
-            existing_supplier = db.session.query(ItemAttribute).join(Item).filter(
-                and_(
-                    ItemAttribute.field_id == supplier_field.id,
-                    ItemAttribute.value == supplier_attr["value"],
-                    *base_filters,
-                )
+            existing_supplier = db.session.query(Item.id).filter(
+                func.lower(field_value.sql(supplier_field.id, "string")) == str(supplier_attr["value"]).lower(),
+                *base_filters,
             ).first()
             if existing_supplier:
                 duplicate_fields.append(f"供應商料號 '{supplier_attr['value']}' 已存在")
@@ -664,12 +649,9 @@ def __check_duplicate_required_fields(series_id, attributes, exclude_item_id=Non
             (a for a in attributes if a.get("fieldId") == dst_field.id), None
         )
         if dst_attr and dst_attr.get("value"):
-            existing_dst = db.session.query(ItemAttribute).join(Item).filter(
-                and_(
-                    ItemAttribute.field_id == dst_field.id,
-                    ItemAttribute.value == dst_attr["value"],
-                    *base_filters,
-                )
+            existing_dst = db.session.query(Item.id).filter(
+                func.lower(field_value.sql(dst_field.id, "string")) == str(dst_attr["value"]).lower(),
+                *base_filters,
             ).first()
             if existing_dst:
                 duplicate_fields.append(f"DST料號 '{dst_attr['value']}' 已存在")

@@ -1,6 +1,7 @@
-from models.series import ItemAttribute, Field, Item, Series
+from controller import field_value
+from models.series import Field, Item, Series
 from models.archive import Archive
-from sqlalchemy import or_, distinct, func
+from sqlalchemy import or_, func
 from models.shared import db
 from utils.permissions import check_field_permission
 from modules.exception import handle_exceptions
@@ -11,8 +12,8 @@ def search_item_attribute_by_field_id_and_value(
     field_id: int, search_value: str | None = None
 ):
     """
-    透過 field id 模糊搜尋 item_attribute 的 value。
-    如果 search_value 為空，則返回該 field_id 的所有 item_attribute。
+    透過 field id 模糊搜尋商品在該欄位的值。
+    如果 search_value 為空，則返回該欄位的所有值。
     包含 archive 權限檢查，過濾掉已歸檔商品的資料（如果用戶沒有 archive 權限）。
     """
     if not field_id:
@@ -28,9 +29,10 @@ def search_item_attribute_by_field_id_and_value(
     has_archive_permission = check_field_permission("archive.create")
 
     # 構建基本查詢（已刪除的系列不列入）
-    base_query = db.session.query(distinct(ItemAttribute.value)).join(Item).filter(
-        ItemAttribute.field_id == field_id,
-        ItemAttribute.value.is_not(None),
+    value = field_value.sql(field_id, "string")
+    base_query = db.session.query(value).distinct().filter(
+        Item.series_id == field.series_id,
+        value.is_not(None),
         Item.series.has(Series.status == 1),
     )
 
@@ -43,7 +45,7 @@ def search_item_attribute_by_field_id_and_value(
     # 添加搜尋條件
     if search_value:
         search_value = search_value.strip()  # 去除搜索值的首尾空格
-        base_query = base_query.filter(ItemAttribute.value.ilike(f"%{search_value}%"))
+        base_query = base_query.filter(value.ilike(f"%{search_value}%"))
 
     # 執行查詢並限制結果
     results = base_query.limit(100).all()

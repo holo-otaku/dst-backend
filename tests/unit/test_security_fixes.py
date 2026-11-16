@@ -1,5 +1,6 @@
 """Regression tests for the security-audit fixes, through the real routes and middlewares."""
 import io
+import os
 import zipfile
 from unittest.mock import patch
 
@@ -10,7 +11,7 @@ from flask_jwt_extended import JWTManager, create_access_token
 from models.shared import db
 from models import model  # noqa: F401
 from models.user import User, Role, Permission
-from models.series import Series, Field, Item, ItemAttribute
+from models.series import Series, Field, Item
 from models.archive import Archive
 from models.image import Image
 from models.mapping_table import permissions_table
@@ -23,7 +24,8 @@ def ctx(tmp_path):
     app = Flask(__name__)
     app.config.update(
         TESTING=True,
-        SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
+        # 設 TEST_DATABASE_URI 可改跑真的資料庫（例如 PG）
+        SQLALCHEMY_DATABASE_URI=os.environ.get("TEST_DATABASE_URI", "sqlite:///:memory:"),
         JWT_SECRET_KEY="test-secret-key-that-is-long-enough-32b",
         IMG_PATH=str(tmp_path),
     )
@@ -38,6 +40,8 @@ def ctx(tmp_path):
             db.session.add(Permission(name=name))
         db.session.commit()
         yield app, app.test_client()
+        db.session.remove()
+        db.drop_all()
 
 
 def user(name, perms):
@@ -67,11 +71,8 @@ def catalog(owner, limit_picture=False):
     pic = Field(name="pic", data_type="picture", series_id=s.id, is_limit_field=limit_picture)
     db.session.add_all([name, cost, pic])
     db.session.flush()
-    item = Item(series_id=s.id)
+    item = Item(series_id=s.id, attributes={str(name.id): "=1+1", str(cost.id): "123"})
     db.session.add(item)
-    db.session.flush()
-    db.session.add_all([ItemAttribute(item_id=item.id, field_id=name.id, value="=1+1"),
-                        ItemAttribute(item_id=item.id, field_id=cost.id, value="123")])
     db.session.commit()
     return s, name, cost, pic, item
 
@@ -86,15 +87,23 @@ def test_refresh_rejects_revoked_token(ctx):
 
 
 def test_swagger_disabled_unless_enabled(ctx):
-    # middleware 會略過含 /swagger 的路徑，所以只能靠不註冊路由來擋
+    # middleware 會略過含 /api/docs 的路徑，所以只能靠不註冊路由來擋
     _, c = ctx
-    assert c.get("/api/docs/swagger").status_code == 404
+    assert c.get("/api/docs/openapi.json").status_code == 404
 
     app = Flask(__name__)
     app.config.update(ENABLE_SWAGGER=True, JWT_SECRET_KEY="test-secret-key-that-is-long-enough-32b")
     JWTManager(app)
     Routes(app)
-    assert app.test_client().get("/api/docs/swagger").status_code == 200
+    client = app.test_client()
+    assert client.get("/api/docs/").status_code == 200
+    spec = client.get("/api/docs/openapi.json").get_json()
+    # 每個 router 的文件都由 schema 產生
+    assert "/product/search" in spec["paths"] and "/user/{user_id}" in spec["paths"]
+    search = spec["paths"]["/product/search"]["post"]
+    assert {p["name"] for p in search["parameters"]} == {"page", "limit", "sort"}
+    assert spec["paths"]["/login"]["post"]["security"] == []
+    assert "security" not in spec["paths"]["/user"]["get"]  # 沿用全域的 bearerAuth
 
 
 def test_user_logs_need_log_read(ctx):
@@ -175,7 +184,7 @@ def test_image_needs_product_read_and_limit_permission(ctx):
     image = Image(name="x", path=path)
     db.session.add(image)
     db.session.flush()
-    db.session.add(ItemAttribute(item_id=item.id, field_id=pic.id, value=str(image.id)))
+    item.attributes[str(pic.id)] = str(image.id)
     db.session.commit()
     assert c.get(f"/image/{image.id}", headers=auth(nobody)).status_code == 403
     assert c.get(f"/image/{image.id}", headers=auth(reader)).status_code == 403
@@ -256,3 +265,13 @@ def test_bad_picture_is_400_and_errors_do_not_leak(ctx):
     with patch("controller.product.__check_duplicate_required_fields", side_effect=RuntimeError("SELECT secret")):
         res = c.patch("/product/edit", json=[{"itemId": item_id}], headers=h)
     assert res.status_code == 500 and "secret" not in res.get_data(as_text=True)
+
+
+def test_product_body_validated_after_permission(ctx):
+    _, c = ctx
+    root = auth(user("root", permissions_table))
+    res = c.post("/product/search", json={"filters": []}, headers=root)
+    assert res.status_code == 422
+    assert res.get_json()["code"] == 422 and "seriesId" in res.get_json()["msg"]
+    # 沒權限先回 403，不洩漏 body 規格
+    assert c.post("/product/search", json={}, headers=auth(user("nobody", []))).status_code == 403

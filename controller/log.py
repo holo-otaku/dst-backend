@@ -13,8 +13,9 @@ def user_logs(user_id):
     limit = int(request.args.get('limit', 10))
     offset = int(request.args.get('page', 1))-1
 
+    # MySQL 沒有 ORDER BY 時依 id 回傳；PG 不保證順序，分頁會重複或漏
     logs = ActivityLog.query.filter_by(
-        user_id=user_id).offset(offset*limit).limit(limit).all()
+        user_id=user_id).order_by(ActivityLog.id).offset(offset*limit).limit(limit).all()
 
     response_data = []
     for log in logs:

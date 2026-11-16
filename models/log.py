@@ -1,6 +1,5 @@
 from datetime import datetime
-from sqlalchemy import DateTime, Integer, Text
-from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy import JSON, DateTime, Integer, Text
 
 from models.shared import db
 
