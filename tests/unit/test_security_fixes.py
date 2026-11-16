@@ -87,15 +87,23 @@ def test_refresh_rejects_revoked_token(ctx):
 
 
 def test_swagger_disabled_unless_enabled(ctx):
-    # middleware 會略過含 /swagger 的路徑，所以只能靠不註冊路由來擋
+    # middleware 會略過含 /api/docs 的路徑，所以只能靠不註冊路由來擋
     _, c = ctx
-    assert c.get("/api/docs/swagger").status_code == 404
+    assert c.get("/api/docs/openapi.json").status_code == 404
 
     app = Flask(__name__)
     app.config.update(ENABLE_SWAGGER=True, JWT_SECRET_KEY="test-secret-key-that-is-long-enough-32b")
     JWTManager(app)
     Routes(app)
-    assert app.test_client().get("/api/docs/swagger").status_code == 200
+    client = app.test_client()
+    assert client.get("/api/docs/").status_code == 200
+    spec = client.get("/api/docs/openapi.json").get_json()
+    # 每個 router 的文件都由 schema 產生
+    assert "/product/search" in spec["paths"] and "/user/{user_id}" in spec["paths"]
+    search = spec["paths"]["/product/search"]["post"]
+    assert {p["name"] for p in search["parameters"]} == {"page", "limit", "sort"}
+    assert spec["paths"]["/login"]["post"]["security"] == []
+    assert "security" not in spec["paths"]["/user"]["get"]  # 沿用全域的 bearerAuth
 
 
 def test_user_logs_need_log_read(ctx):
@@ -257,3 +265,13 @@ def test_bad_picture_is_400_and_errors_do_not_leak(ctx):
     with patch("controller.product.__check_duplicate_required_fields", side_effect=RuntimeError("SELECT secret")):
         res = c.patch("/product/edit", json=[{"itemId": item_id}], headers=h)
     assert res.status_code == 500 and "secret" not in res.get_data(as_text=True)
+
+
+def test_product_body_validated_after_permission(ctx):
+    _, c = ctx
+    root = auth(user("root", permissions_table))
+    res = c.post("/product/search", json={"filters": []}, headers=root)
+    assert res.status_code == 422
+    assert res.get_json()["code"] == 422 and "seriesId" in res.get_json()["msg"]
+    # 沒權限先回 403，不洩漏 body 規格
+    assert c.post("/product/search", json={}, headers=auth(user("nobody", []))).status_code == 403

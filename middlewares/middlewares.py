@@ -19,7 +19,7 @@ class Middlewares():
             try:
                 # Skip logging for login and refresh endpoints
                 skip_logging_endpoints = [
-                    "login", "refresh", "log", "health", "image"]
+                    "login", "refresh", "log", "health", "image", "/api/docs"]
                 if any(endpoint in request.path for endpoint in skip_logging_endpoints):
                     return response
 

@@ -12,7 +12,7 @@ class TokenVersionMiddleware:
         def check_token_version():
             # 跳過不需要 JWT 的路由
             skip_endpoints = [
-                '/login', '/refresh', '/health', '/swagger', '/static'
+                '/login', '/refresh', '/health', '/api/docs', '/static'
             ]
             
             if any(endpoint in request.path for endpoint in skip_endpoints):
