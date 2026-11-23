@@ -24,6 +24,9 @@ def user_logs(user_id):
             'url': log.url,
             'userId': log.user_id,
             'payload': log.payload,
+            'status': log.status,
+            'ip': log.ip,
+            'userAgent': log.user_agent,
             'createdAt': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
         })
 
@@ -40,7 +43,8 @@ def read_multi():
     total_count = ActivityLog.query.count()
 
     # Query the ActivityLog table with limit, offset, order_by and join with User
-    logs = db.session.query(ActivityLog.url, ActivityLog.method, ActivityLog.payload, User.username, ActivityLog.created_at)\
+    logs = db.session.query(ActivityLog.url, ActivityLog.method, ActivityLog.payload, User.username, ActivityLog.created_at,
+                             ActivityLog.status, ActivityLog.ip, ActivityLog.user_agent)\
         .outerjoin(User, ActivityLog.user_id == User.id)\
         .order_by(ActivityLog.created_at.desc())\
         .offset(offset*limit)\
@@ -53,6 +57,9 @@ def read_multi():
         'payload': (json.dumps(log.payload)[:47] + '...' if log.payload and len(json.dumps(log.payload)) > 50
                     else (json.dumps(log.payload) if log.payload is not None else '')),
         'userName': log.username,
+        'status': log.status,
+        'ip': log.ip,
+        'userAgent': log.user_agent,
         'createdAt': log.created_at.strftime('%Y-%m-%d %H:%M:%S')
     } for log in logs]
 

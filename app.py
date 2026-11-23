@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 from models.shared import db
 from models import model
 from routers.routes import Routes
@@ -12,6 +13,8 @@ from controller.permission import create_default_permissions
 from middlewares.middlewares import Middlewares
 
 app = Flask(__name__)
+# 前面有一層 nginx（X-Forwarded-For），remote_addr 才會是使用者的 IP
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 app.config.from_object('config.Config')
 db.init_app(app)
 migrate = Migrate(app, db)
