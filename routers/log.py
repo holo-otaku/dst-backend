@@ -13,6 +13,9 @@ class LogRow(Schema):
     method = fields.String()
     payload = fields.String(metadata={"description": "超過 50 字會截斷"})
     userName = fields.String(allow_none=True)
+    status = fields.Integer(allow_none=True, metadata={"description": "HTTP 狀態碼，舊紀錄為空"})
+    ip = fields.String(allow_none=True)
+    userAgent = fields.String(allow_none=True)
     createdAt = fields.String(metadata={"example": "2025-01-01 12:00:00"})
 
 
@@ -26,6 +29,9 @@ class UserLogRow(Schema):
     url = fields.String()
     userId = fields.Integer()
     payload = fields.Raw()
+    status = fields.Integer(allow_none=True, metadata={"description": "HTTP 狀態碼，舊紀錄為空"})
+    ip = fields.String(allow_none=True)
+    userAgent = fields.String(allow_none=True)
     createdAt = fields.String(metadata={"example": "2025-01-01 12:00:00"})
 
 
@@ -39,7 +45,7 @@ class UserLogResponse(Message):
 @log.response(200, LogListResponse)
 @errors(log, 403)
 def get_logs(_query):
-    """所有操作紀錄，新的在前"""
+    """所有操作紀錄，新的在前（含登入成功/失敗、被權限擋下的請求）"""
     return read_multi()
 
 
