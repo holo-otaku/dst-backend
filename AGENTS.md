@@ -11,7 +11,7 @@ Python 3.12, managed with **uv**. Run everything from `backend/`.
 | **Install**    | `uv sync` (includes the dev group)                            |
 | **Dev**        | `flask run`, or `python app.py` (also seeds permissions, admin role and `admin`/`admin`) |
 | **Tests**      | `uv run pytest`                                               |
-| **One test**   | `uv run pytest tests/unit/test_product.py::test_create_success` |
+| **One test**   | `uv run pytest tests/unit/test_product.py::test_copy` |
 | **Lint**       | `uv run pycodestyle .`                                        |
 | **Format**     | `uv run autopep8 --in-place --aggressive --aggressive <file>` |
 | **Migration**  | `flask db migrate -m "..."` then `flask db upgrade`           |
@@ -47,7 +47,7 @@ Python 3.12, managed with **uv**. Run everything from `backend/`.
 - PEP 8 via pycodestyle and autopep8; run both on files you touch.
 - Imports: stdlib, then third-party (Flask, SQLAlchemy), then local modules, with a blank line between groups.
 - `snake_case` for functions, variables and files; `PascalCase` for classes and models.
-- Module-private helpers use a `__name` prefix (e.g. `controller.product.__create_item`).
+- Module-private helpers use a `__name` prefix (e.g. `controller.user.__denied`).
 - Wrap DB and file operations in `try/except` and return a proper status code; no bare `except:` and no `print` (use `current_app.logger`, which `modules/logger.py` writes to `logs/app.log`).
 
 ## 4. Tests

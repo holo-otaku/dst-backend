@@ -65,7 +65,7 @@ class DeleteIds(Body):
 
 
 class AttributeOut(Schema):
-    fieldId = fields.Raw(metadata={"description": "search 回字串、單筆回數字"})
+    fieldId = fields.Integer()
     fieldName = fields.String()
     dataType = fields.String()
     value = fields.Raw(metadata={"description": "picture 為 /image/<id>"})

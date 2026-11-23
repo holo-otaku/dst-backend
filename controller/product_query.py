@@ -1,7 +1,7 @@
-"""產品查詢：搜尋與匯出共用。
+"""產品查詢：搜尋、匯出與單筆讀取共用。
 
 負責篩選條件編譯、可見性（已刪除/封存/限制欄位）、分頁與總數、ERP 資料合併。
-可見性規則只在這裡套用一次，資料列與 totalCount 用同一個 WHERE。
+可見性規則只在這裡套用，資料列與 totalCount 用同一個 WHERE；單筆讀取與寫入用 visible_item()。
 """
 import operator
 
@@ -96,6 +96,31 @@ def search(data, page=1, limit=None, sort=None):
     return rows, total_count, fields
 
 
+def visible_item(item_id):
+    """目前使用者看得到的 Item；不存在、series 已刪除、或沒封存權限時的封存品都回傳 None。
+    已刪除（is_deleted）的產品仍然看得到。"""
+    item = db.session.get(Item, item_id) if item_id else None
+    if not item or item.series.status == 0:
+        return None
+    if not check_field_permission("archive.create") and _is_archived(item.id):
+        return None
+    return item
+
+
+def get(item_id):
+    """單筆產品，格式與 search() 的資料列相同；看不到時回傳 None。"""
+    item = visible_item(item_id)
+    if not item:
+        return None
+    fields = {field.id: field for field in item.series.fields}
+    can_read_limit = check_field_permission("limit-field.read")
+    return _build_rows(item.series, [(item.id, item.is_deleted, item.attributes)], fields, can_read_limit)[0]
+
+
+def _is_archived(item_id):
+    return db.session.query(Archive.item_id).filter(Archive.item_id == item_id).first() is not None
+
+
 def _compile_where(series_id, filters, fields, is_deleted, is_archived):
     conditions = [Item.series_id == series_id]
 
@@ -169,7 +194,7 @@ def _build_rows(series, items, fields, can_read_limit):
                 "seriesName": series.name,
                 "attributes": [
                     {
-                        "fieldId": str(field.id),
+                        "fieldId": field.id,
                         "fieldName": field.name,
                         "dataType": field.data_type,
                         "value": value_of(item_id, field),

@@ -33,7 +33,7 @@ def ctx(tmp_path):
     JWTManager(app)
     Routes(app)
     Middlewares(app)
-    with app.app_context(), patch("controller.product.read_erp", return_value={}), \
+    with app.app_context(), \
             patch("controller.product_query.read_erp", return_value={}):
         db.create_all()
         for name in permissions_table:
@@ -262,7 +262,7 @@ def test_bad_picture_is_400_and_errors_do_not_leak(ctx):
     body = [{"itemId": item_id, "attributes": [{"fieldId": pic_id, "value": "not-base64"}]}]
     assert c.patch("/product/edit", json=body, headers=h).status_code == 400
 
-    with patch("controller.product.__check_duplicate_required_fields", side_effect=RuntimeError("SELECT secret")):
+    with patch("controller.product_write._check_unique", side_effect=RuntimeError("SELECT secret")):
         res = c.patch("/product/edit", json=[{"itemId": item_id}], headers=h)
     assert res.status_code == 500 and "secret" not in res.get_data(as_text=True)
 

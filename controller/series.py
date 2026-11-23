@@ -1,13 +1,11 @@
 from flask import current_app, jsonify, make_response, request
-from controller import field_value
+from controller import field_value, image_store
 from models.series import Series, Field, Item
-from models.image import Image
 from models.shared import db
 from models.mapping_table import data_type_map
 from controller.erp import get_erp_fields_metadata
 from sqlalchemy.exc import SQLAlchemyError
 from flask_jwt_extended import get_jwt_identity
-import os
 from modules.exception import handle_exceptions
 
 
@@ -368,11 +366,7 @@ def update(series_id, data):
         for item in items_with_value:
             value = item.attributes.pop(str(delete_id))
             if field_to_delete.data_type == "picture":
-                image_to_delete = db.session.get(Image, value)
-                if image_to_delete:
-                    if os.path.exists(image_to_delete.path):
-                        os.remove(image_to_delete.path)
-                    db.session.delete(image_to_delete)
+                image_store.delete(value)
 
         # Finally, delete the field itself
         db.session.delete(field_to_delete)
