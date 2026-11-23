@@ -34,6 +34,10 @@ def create(series_id, attributes):
 
     fields = _fields(series_id)
     sent = {attribute.get("fieldId") for attribute in attributes}
+    # 不屬於這個 series 的欄位照舊忽略（前端換 series 時可能還帶著舊值）
+    hidden = sent & _hidden_field_ids(fields)
+    if hidden:
+        raise WriteError(404, f"field_id:{min(hidden)} not found")
     missing = [field.name for field in fields if field.is_required and field.id not in sent]
     if missing:
         raise WriteError(400, f"Missing required field: {missing}")
@@ -70,14 +74,12 @@ def copy(source):
 def edit(item, attributes):
     """只改傳進來的欄位；空值刪掉該欄位，picture 換新圖時刪掉舊圖。"""
     fields = {field.id: field for field in _fields(item.series_id)}
-    can_read_limit = check_field_permission("limit-field.read")
+    hidden = _hidden_field_ids(fields.values())
     for attribute in attributes:
         field_id = attribute.get("fieldId")
         if not field_id:
             raise WriteError(400, "Incomplete attribute data")
-        field = fields.get(field_id)
-        # 看不到的限制欄位也不能改
-        if not field or (field.is_limit_field and not can_read_limit):
+        if field_id not in fields or field_id in hidden:
             raise WriteError(404, f"field_id:{field_id} not found")
     values = _values([fields[a["fieldId"]] for a in attributes], attributes)
     _check_unique(item.series_id, values, exclude_item_id=item.id)
@@ -94,6 +96,13 @@ def edit(item, attributes):
 
 def _fields(series_id):
     return db.session.query(Field).filter(Field.series_id == series_id).order_by(Field.sequence).all()
+
+
+def _hidden_field_ids(fields):
+    """沒有 limit-field.read 時看不到、也不能寫的限制欄位。"""
+    if check_field_permission("limit-field.read"):
+        return set()
+    return {field.id for field in fields if field.is_limit_field}
 
 
 def _values(fields, attributes):

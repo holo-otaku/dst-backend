@@ -157,6 +157,19 @@ def test_edit_hidden_items_and_fields(ctx):
     assert c.patch("/product/edit", json=price, headers=h).status_code == 404
 
 
+def test_create_rejects_hidden_limit_fields(ctx):
+    _, c = ctx
+    u = user("u", ALL)
+    creator = user("creator", ["product.read", "product.create"])
+    sid, fid = seed(u)
+    h = auth(creator)
+    res = create(c, h, sid, fid, 供應商料號="A", cost="1")
+    assert res.status_code == 404 and res.get_json()["msg"] == f"field_id:{fid['cost']} not found"
+    # 不屬於這個 series 的欄位照舊忽略
+    body = [{"seriesId": sid, "attributes": [{"fieldId": fid["供應商料號"], "value": "A"}, {"fieldId": 9999, "value": "x"}]}]
+    assert c.post("/product", json=body, headers=h).status_code == 201
+
+
 def test_copy(ctx):
     app, c = ctx
     u = user("u", ALL)
