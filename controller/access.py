@@ -21,10 +21,7 @@ def check_permission(permission):
                 # 有權限，執行原始函數
                 return f(*args, **kwargs)
             else:
-                # 如果 user 不存在，將其設置為 "Unknown user" 以避免 AttributeError
-                username = user.username if user else "Unknown user"
-                current_app.logger.error(
-                    f"{username} try to access {permission}")
+                # has_permission 已經寫過 warning；完整紀錄在 activity_log / audit.log（status 403）
                 return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
 
         return wrapper

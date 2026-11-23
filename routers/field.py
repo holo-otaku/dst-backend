@@ -19,11 +19,11 @@ class FieldValuesResponse(Message):
 
 
 @field.route("/search", methods=["GET"])
-@check_permission("product.create")
+@check_permission("product.read")
 @field.arguments(FieldSearchQuery, location="query")
 @field.response(200, FieldValuesResponse, description="HTTP 一律 200，錯誤看 body 的 code（400/403/404）")
 @errors(field, 403)
 def search_item_attribute(query):
-    """搜尋某欄位已有的值（新增產品時的自動完成）"""
+    """搜尋某欄位已有的值（產品搜尋與新增時的自動完成）"""
     results = search_item_attribute_by_field_id_and_value(query["field_id"], query.get("search_value"))
     return jsonify(results)
