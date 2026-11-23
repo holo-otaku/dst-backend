@@ -185,3 +185,27 @@ def test_delete_is_soft(ctx):
     item_id = create(c, h, sid, fid, 供應商料號="S").get_json()["data"][0]["id"]
     assert c.delete("/product/delete", json={"itemId": [item_id]}, headers=h).status_code == 200
     assert c.get(f"/product/{item_id}", headers=h).get_json()["data"]["isDeleted"] is True
+
+
+def test_unique_part_number_ignores_spaces_in_field_name(ctx):
+    _, c = ctx
+    u = user("u", ALL)
+    h = auth(u)
+    s = Series(name="spaced", created_by=u.id)
+    db.session.add(s)
+    db.session.flush()
+    dst = Field(name="DST 料號", data_type="string", series_id=s.id, sequence=1)
+    old = Field(name="DST 料號（舊）", data_type="string", series_id=s.id, sequence=2)
+    db.session.add_all([dst, old])
+    db.session.commit()
+    sid, fid = s.id, {"DST 料號": dst.id, "old": old.id}
+
+    def make(**values):
+        return c.post("/product", json=[{"seriesId": sid, "attributes": [
+            {"fieldId": fid[name], "value": value} for name, value in values.items()]}], headers=h)
+
+    assert make(**{"DST 料號": "D-1", "old": "O-1"}).status_code == 201
+    res = make(**{"DST 料號": "d-1"})
+    assert res.status_code == 400 and "DST 料號 'd-1' 已存在" in res.get_json()["msg"]
+    # 只有料號欄位本身，"DST 料號（舊）" 不檢查
+    assert make(old="O-1").status_code == 201

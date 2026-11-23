@@ -12,7 +12,8 @@ from models.series import Series, Field, Item
 from models.shared import db
 from utils.permissions import check_field_permission
 
-# 同一個 series 裡不能重複的料號欄位（不分大小寫，忽略已刪除的產品）
+# 同一個 series 裡不能重複的料號欄位（不分大小寫，忽略已刪除的產品）。
+# 欄位名稱比對時忽略空白：線上有系列叫 "DST 料號"
 UNIQUE_FIELD_NAMES = ("供應商料號", "DST料號")
 
 
@@ -114,7 +115,7 @@ def _check_unique(series_id, values, exclude_item_id=None):
         conditions.append(Item.id != exclude_item_id)
     duplicates = []
     for field, value in values:
-        if field.name not in UNIQUE_FIELD_NAMES or not value:
+        if "".join(field.name.split()) not in UNIQUE_FIELD_NAMES or not value:
             continue
         exists = db.session.query(Item.id).filter(
             func.lower(field_value.sql(field.id, "string")) == str(value).lower(),
