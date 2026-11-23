@@ -1,530 +1,224 @@
-from unittest.mock import patch, MagicMock
-from .client import app
-from controller.product import (
-    create,
-    read,
-    read_multi,
-    update_multi,
-    delete,
-    create_from_items,
-)
-from models.series import Field, Series, Item, ItemAttribute
-from models.image import Image
-import pytest
+"""Product create/read/edit/copy/delete through the real routes, DB and image directory."""
+import os
 
-
-@pytest.fixture(autouse=True)
-def full_permissions():
-    # 這些測試沒有 JWT；權限檢查另外測
-    with patch("controller.product.check_field_permission", return_value=True), \
-            patch("controller.product.has_permission", return_value=True):
-        yield
 from models.archive import Archive
-
-
-@patch("controller.product.__create_item")
-@patch("controller.product.__normalize_payload_from_request")
-@patch("models.shared.db.session.commit")
-def test_create_success(mock_commit, mock_normalize, mock_create_item, app):
-    with app.app_context():
-        mock_normalize.return_value = {"series_id": 1, "attributes": []}
-        mock_item = MagicMock(id=1, series_id=1)
-        mock_create_item.return_value = (mock_item, None)
-
-        data = [
-            {
-                "seriesId": 1,
-                "attributes": [
-                    {"fieldId": 1, "value": "Value1"},
-                    {"fieldId": 2, "value": "Value2"},
-                ],
-            }
-        ]
-
-        response = create(data=data)
-
-        assert response.status_code == 201
-        assert response.get_json()["code"] == 201
-        assert response.get_json()["msg"] == "Success"
-
-        mock_normalize.assert_called_once()
-        mock_create_item.assert_called_once()
-        mock_commit.assert_called_once()
-
-
-@patch("controller.product.__create_item")
-@patch("controller.product.__normalize_payload_from_request")
-def test_create_incomplete_data(mock_normalize, mock_create_item, app):
-    with app.app_context():
-        mock_normalize.return_value = {"series_id": None, "attributes": []}
-        error_resp = MagicMock(status_code=400)
-        error_resp.get_json.return_value = {"code": 400, "msg": "Incomplete data"}
-        mock_create_item.return_value = (None, error_resp)
-
-        response = create(data=[{"attributes": [{"fieldId": 1, "value": "Value1"}]}])
-
-        assert response.status_code == 400
-        assert response.get_json()["code"] == 400
-        mock_normalize.assert_called_once()
-        mock_create_item.assert_called_once()
-
-
-@patch("controller.product.__create_item")
-@patch("controller.product.__normalize_payload_from_request")
-def test_create_series_not_found(mock_normalize, mock_create_item, app):
-    with app.app_context():
-        mock_normalize.return_value = {"series_id": 1, "attributes": []}
-        error_resp = MagicMock(status_code=404)
-        error_resp.get_json.return_value = {"code": 404, "msg": "Series not found"}
-        mock_create_item.return_value = (None, error_resp)
-
-        response = create(
-            data=[{"seriesId": 1, "attributes": [{"fieldId": 1, "value": "Value1"}]}]
-        )
-
-        assert response.status_code == 404
-        assert response.get_json() == {"code": 404, "msg": "Series not found"}
-
-        mock_normalize.assert_called_once()
-        mock_create_item.assert_called_once()
-
-
-@patch("models.shared.db.session.get")
-@patch("controller.product.__check_duplicate_required_fields")
-def test_create_duplicate_blocked(mock_dup_check, mock_get, app):
-    with app.app_context():
-        mock_get.return_value = MagicMock(id=1, series_id=1)
-        mock_dup_check.return_value = ["供應商料號 'X' 已存在"]
-
-        response = create(
-            data=[{"seriesId": 1, "attributes": [{"fieldId": 1, "value": "X"}]}]
-        )
-
-        assert response.status_code == 400
-        json_data = response.get_json()
-        assert json_data["code"] == 400
-        assert "Duplicate values" in json_data["msg"]
-        mock_dup_check.assert_called_once()
-        mock_get.assert_called_once()
-
-
-@patch("models.shared.db.session.get")
-@patch("models.shared.db.session.query")
-@patch("controller.product.read_erp")
-@patch("controller.product.has_permission")
-def test_read_success(mock_has_permission, mock_read_erp, mock_query, mock_get, app):
-    with app.app_context():
-        # Prepare mock data
-        mock_item = MagicMock(id=1, series_id=1, is_deleted=False)
-        mock_series = MagicMock()
-        mock_series.name = "Test Series"
-        mock_item.series = mock_series
-
-        # Mock field
-        mock_field = MagicMock()
-        mock_field.id = 1
-        mock_field.name = "Field1"
-        mock_field.data_type = "string"
-        mock_field.search_erp = True
-        mock_field.is_limit_field = False
-        mock_field.series_id = 1
-
-        # Mock attribute
-        mock_attribute = MagicMock()
-        mock_attribute.field_id = 1
-        mock_attribute.field = mock_field
-        mock_attribute.value = "Value1"
-
-        # Configure mocks
-        mock_get.return_value = mock_item
-        mock_has_permission.return_value = True
-
-        # Mock the query calls
-        def mock_query_side_effect(model):
-            if model == Field:
-                field_query = MagicMock()
-                field_query.filter.return_value.order_by.return_value.all.return_value = [mock_field]
-                return field_query
-            elif model == ItemAttribute:
-                attribute_query = MagicMock()
-                attribute_query.filter.return_value.all.return_value = [mock_attribute]
-                return attribute_query
-            elif model == Archive:
-                archive_query = MagicMock()
-                archive_query.filter_by.return_value.first.return_value = None
-                return archive_query
-            return MagicMock()
-
-        mock_query.side_effect = mock_query_side_effect
-
-        mock_read_erp.return_value = {"Value1": [{"fieldName": "ERP_Field_1", "value": "ERP_Value_1"}]}
-
-        # Call the read function
-        response = read(product_id=1)
-
-        # Assert the response
-        assert response.status_code == 200
-        assert response.get_json() == {
-            "code": 200,
-            "msg": "Success",
-            "data": {
-                "itemId": 1,
-                "seriesId": 1,
-                "attributes": [
-                    {
-                        "fieldId": 1,
-                        "fieldName": "Field1",
-                        "dataType": "string",
-                        "value": "Value1",
-                    }
-                ],
-                "seriesName": "Test Series",
-                "erp": [{"fieldName": "ERP_Field_1", "value": "ERP_Value_1"}],
-                "hasArchive": False,
-                "isDeleted": False,
-            },
-        }
-
-
-@patch("models.shared.db.session.get")
-def test_read_product_id_missing(mock_get, app):
-    with app.app_context():
-        # Mock the case where product_id is missing
-        response = read(None)
-
-        # Assert the response
-        assert response.status_code == 400
-        assert response.get_json() == {"code": 400, "msg": "Product ID is required"}
-
-
-@patch("models.shared.db.session.get")
-def test_read_product_not_found(mock_get, app):
-    with app.app_context():
-        # Mock the case where product does not exist
-        mock_get.return_value = None
-
-        # Call the read function with a non-existing product_id
-        response = read(123)
-
-        # Assert the response
-        assert response.status_code == 404
-        assert response.get_json() == {"code": 404, "msg": "Product not found"}
-
-
-@patch("models.shared.db.session.get")
-@patch("models.shared.db.session.query")
-@patch("models.shared.db.session.commit")
-@patch("controller.product.field_value.check")
-@patch("controller.product.__save_image")
-def test_update_multi_success(
-    mock_save_image, mock_check_field_type, mock_commit, mock_query, mock_get, app
-):
-    with app.app_context():
-        # Mock Item object
-        mock_item = MagicMock()
-        mock_item.id = 1
-        mock_item.series_id = 1
-
-        # Mock Field object
-        mock_field = MagicMock()
-        mock_field.id = 1
-        mock_field.series_id = 1
-        mock_field.data_type = "string"
-
-        # Mock the ItemAttribute object and set initial value
-        mock_item_attribute = MagicMock()
-        mock_item_attribute.value = None
-
-        # Configure mock_get to return the mock_item for items and None for fields (to simulate field not found)
-        def get_side_effect(model, id):
-            if model == Item:
-                return mock_item
-            elif model == Field:
-                return mock_field  # Simulating field not found for simplicity
-
-        mock_get.side_effect = get_side_effect
-
-        # Mock the query for ItemAttribute to return our mock_item_attribute
-        mock_query.return_value.filter_by.return_value.first.return_value = (
-            mock_item_attribute
-        )
-
-        # Mock __check_field_type to always return an empty list (no type errors)
-        mock_check_field_type.return_value = []
-
-        # Mock __save_image to simulate image saving
-        mock_save_image.return_value = "path/to/saved/image"
-
-        # Prepare test data
-        data = [
-            {
-                "itemId": 1,
-                "attributes": [
-                    {"fieldId": 1, "value": "NewValue1"},
-                    # Assuming this is a boolean that will be saved as an image path
-                    {"fieldId": 2, "value": True},
-                ],
-            }
-        ]
-
-        # Call the update_multi function
-        response = update_multi(data)
-
-        # Assert response status code and message
-        assert response.status_code == 200
-        assert response.get_json()["code"] == 200
-        assert response.get_json()["msg"] == "ItemAttributes updated"
-
-        # Verify the mock_item_attribute's value was updated
-        assert (
-            mock_item_attribute.value == "NewValue1" or "path/to/saved/image"
-        ), "ItemAttribute value was not updated correctly"
-
-        # Verify __check_field_type and __save_image were called correctly
-        mock_check_field_type.assert_called()
-
-        # Assert that db.session.commit was called
-        mock_commit.assert_called_once()
-
-
-@patch("controller.product.__check_duplicate_required_fields")
-@patch("models.shared.db.session.get")
-def test_update_multi_duplicate_blocked(mock_get, mock_dup_check, app):
-    with app.app_context():
-        mock_item = MagicMock(id=1, series_id=10)
-
-        def get_side_effect(model, id):
-            if model == Item:
-                return mock_item
-            if model == Field:
-                field = MagicMock()
-                field.id = 1
-                field.data_type = "string"
-                return field
-            return None
-
-        mock_get.side_effect = get_side_effect
-        mock_dup_check.return_value = ["DST料號 'X' 已存在"]
-
-        data = [
-            {
-                "itemId": 1,
-                "attributes": [
-                    {"fieldId": 1, "value": "X"},
-                ],
-            }
-        ]
-
-        response = update_multi(data)
-
-        assert response.status_code == 400
-        json_data = response.get_json()
-        assert json_data["code"] == 400
-        assert "Duplicate values" in json_data["msg"]
-        mock_dup_check.assert_called_once()
-
-
-@patch("models.shared.db.session.commit")
-@patch("models.shared.db.session.query")
-@patch("models.shared.db.session.get")
-def test_delete_success(mock_get, mock_query, mock_commit, app):
-    with app.app_context():
-        mock_item = MagicMock()
-        mock_item.id = 123
-        mock_item.attributes = []
-
-        mock_image = MagicMock()
-        mock_image.id = "1"
-        mock_image.path = "/path/to/image"
-
-        mock_attribute = MagicMock()
-        mock_attribute.field.data_type = "picture"
-        mock_attribute.value = mock_image.id
-
-        mock_item.attributes.append(mock_attribute)
-
-        mock_items_query = MagicMock()
-        mock_items_query.filter.return_value.all.return_value = [mock_item]
-        mock_items_query.filter.return_value.delete.return_value = None
-
-        mock_image_query = MagicMock()
-        mock_image_query.get.return_value = mock_image
-
-        mock_archive = MagicMock()
-
-        def query_side_effect(model):
-            if model == Item:
-                return mock_items_query
-            elif model == Image:
-                return mock_image_query
-            elif model == Archive:
-                return mock_archive
-            else:
-                return MagicMock()
-
-        mock_query.side_effect = query_side_effect
-
-        mock_get = MagicMock()
-        mock_get.return_value = mock_image
-
-        data = {"itemId": [123]}
-
-        response = delete(data)
-
-        assert response.status_code == 200
-        assert response.get_json()["code"] == 200
-        assert response.get_json()["msg"] == "Items deleted"
-
-        mock_commit.assert_called_once()
-
-
-def test_delete_with_no_data(app):
-    with app.app_context():
-        data = None
-
-        response = delete(data)
-
-        assert response.status_code == 400
-        assert response.get_json()["code"] == 400
-        assert response.get_json()["msg"] == "Invalid data"
-
-
-def test_delete_with_missing_itemId(app):
-    with app.app_context():
-        data = {"someOtherKey": "someValue"}
-
-        response = delete(data)
-
-        assert response.status_code == 400
-        assert response.get_json()["code"] == 400
-        assert response.get_json()["msg"] == "Invalid data"
-
-
-@patch("controller.product.__create_item")
-@patch("controller.product.__normalize_payload_from_item")
-@patch("models.shared.db.session.commit")
-@patch("models.shared.db.session.query")
-def test_copy_success(mock_query, mock_commit, mock_normalize, mock_create_item, app):
-    with app.app_context():
-        mock_item = MagicMock(spec=Item)
-        mock_item.id = 1
-        mock_item.series_id = 10
-
-        mock_query_obj = MagicMock()
-        mock_query_obj.filter.return_value.all.return_value = [mock_item]
-        mock_query.return_value = mock_query_obj
-
-        mock_normalize.return_value = {"series_id": 10, "attributes": [], "fields": []}
-        mock_new_item = MagicMock(id=999, series_id=10)
-        mock_create_item.return_value = (mock_new_item, None)
-
-        response = create_from_items({"itemIds": [1]})
-
-        assert response.status_code == 201
-        json_data = response.get_json()
-        assert json_data["code"] == 201
-        assert json_data["msg"] == "Success"
-        assert json_data["data"][0]["id"] == 999
-        assert json_data["data"][0]["seriesId"] == 10
-
-        mock_query.assert_called_once_with(Item)
-        mock_normalize.assert_called_once_with(mock_item)
-        mock_create_item.assert_called_once()
-        mock_commit.assert_called_once()
-
-
-@patch("models.shared.db.session.query")
-def test_copy_with_missing_item(mock_query, app):
-    with app.app_context():
-        mock_query_obj = MagicMock()
-        mock_query_obj.filter.return_value.all.return_value = []
-        mock_query.return_value = mock_query_obj
-
-        response = create_from_items({"itemIds": [999]})
-
-        assert response.status_code == 404
-        assert response.get_json() == {"code": 404, "msg": "Item(s) not found: [999]"}
-        mock_query.assert_called_once_with(Item)
-
-
-def test_copy_with_invalid_input(app):
-    with app.app_context():
-        # 測試缺少 itemIds
-        response1 = create_from_items({})
-        assert response1.status_code == 400
-        assert response1.get_json() == {"code": 400, "msg": "itemIds must be a list"}
-
-        # 測試 itemIds 不是 list
-        response2 = create_from_items({"itemIds": "not-a-list"})
-        assert response2.status_code == 400
-        assert response2.get_json() == {"code": 400, "msg": "itemIds must be a list"}
-
-        # 測試 itemIds 是空 list
-        response3 = create_from_items({"itemIds": []})
-        assert response3.status_code == 400
-        assert response3.get_json() == {"code": 400, "msg": "itemIds must be a list"}
-
-
-@patch("models.shared.db.session.get")
-@patch("models.shared.db.session.query")
-@patch("controller.product.read_erp")
-@patch("controller.product.has_permission")
-def test_read_deleted_product(mock_has_permission, mock_read_erp, mock_query, mock_get, app):
-    """
-    Test reading a deleted product returns isDeleted: true
-    """
-    with app.app_context():
-        # Prepare mock data for deleted item
-        mock_item = MagicMock(id=1, series_id=1, is_deleted=True)
-        mock_series = MagicMock()
-        mock_series.name = "Test Series"
-        mock_item.series = mock_series
-
-        # Mock field
-        mock_field = MagicMock()
-        mock_field.id = 1
-        mock_field.name = "Field1"
-        mock_field.data_type = "string"
-        mock_field.search_erp = False
-        mock_field.is_limit_field = False
-        mock_field.series_id = 1
-
-        # Mock attribute
-        mock_attribute = MagicMock()
-        mock_attribute.field_id = 1
-        mock_attribute.field = mock_field
-        mock_attribute.value = "Value1"
-
-        # Configure mocks
-        mock_get.return_value = mock_item
-        mock_has_permission.return_value = True
-
-        # Mock the query calls
-        def mock_query_side_effect(model):
-            if model == Field:
-                field_query = MagicMock()
-                field_query.filter.return_value.order_by.return_value.all.return_value = [mock_field]
-                return field_query
-            elif model == ItemAttribute:
-                attribute_query = MagicMock()
-                attribute_query.filter.return_value.all.return_value = [mock_attribute]
-                return attribute_query
-            elif model == Archive:
-                archive_query = MagicMock()
-                archive_query.filter_by.return_value.first.return_value = None
-                return archive_query
-            return MagicMock()
-
-        mock_query.side_effect = mock_query_side_effect
-        mock_read_erp.return_value = {}
-
-        # Call the read function
-        response = read(product_id=1)
-
-        # Assert the response
-        assert response.status_code == 200
-        response_data = response.get_json()
-        assert response_data["code"] == 200
-        assert response_data["msg"] == "Success"
-        assert response_data["data"]["isDeleted"] == True
-        assert response_data["data"]["itemId"] == 1
+from models.image import Image
+from models.series import Series, Field, Item
+from models.shared import db
+from tests.unit.test_api_smoke import png, png_data_url
+from tests.unit.test_security_fixes import ctx, user, auth  # noqa: F401
+
+ALL = ["product.read", "product.create", "product.edit", "product.delete",
+       "archive.create", "limit-field.read"]
+
+
+def seed(owner):
+    s = Series(name="S", created_by=owner.id)
+    db.session.add(s)
+    db.session.flush()
+    fields = [
+        Field(name="供應商料號", data_type="string", series_id=s.id, sequence=1, is_required=True),
+        Field(name="DST料號", data_type="string", series_id=s.id, sequence=2),
+        Field(name="price", data_type="number", series_id=s.id, sequence=3),
+        Field(name="cost", data_type="number", series_id=s.id, sequence=4, is_limit_field=True),
+        Field(name="pic", data_type="picture", series_id=s.id, sequence=5),
+    ]
+    db.session.add_all(fields)
+    db.session.commit()
+    return s.id, {f.name: f.id for f in fields}
+
+
+def create(c, h, sid, fid, **values):
+    attrs = [{"fieldId": fid[name], "value": value} for name, value in values.items()]
+    return c.post("/product", json=[{"seriesId": sid, "attributes": attrs}], headers=h)
+
+
+def files(app):
+    return sorted(os.listdir(app.config["IMG_PATH"]))
+
+
+def test_create_validates_before_writing(ctx):
+    app, c = ctx
+    u = user("u", ALL)
+    sid, fid = seed(u)
+    h = auth(u)
+    assert create(c, h, sid, fid, price="1").get_json()["msg"] == "Missing required field: ['供應商料號']"
+    assert create(c, h, 999, fid, 供應商料號="S").status_code == 404
+    assert create(c, h, sid, fid, 供應商料號="S", price="abc").status_code == 400
+    assert create(c, h, sid, fid, 供應商料號="S-1", DST料號="D-1").status_code == 201
+    res = create(c, h, sid, fid, 供應商料號="s-1")
+    assert res.status_code == 400 and "供應商料號 's-1' 已存在" in res.get_json()["msg"]
+
+
+def test_failed_batch_create_leaves_no_rows_or_files(ctx):
+    app, c = ctx
+    u = user("u", ALL)
+    sid, fid = seed(u)
+    body = [{"seriesId": sid, "attributes": [{"fieldId": fid["供應商料號"], "value": "A"},
+                                             {"fieldId": fid["pic"], "value": png_data_url()}]},
+            {"seriesId": sid, "attributes": [{"fieldId": fid["供應商料號"], "value": "B"},
+                                             {"fieldId": fid["price"], "value": "abc"}]}]
+    assert c.post("/product", json=body, headers=auth(u)).status_code == 400
+    assert Item.query.count() == 0 and Image.query.count() == 0
+    assert files(app) == []
+
+
+def test_read_matches_search_row(ctx):
+    _, c = ctx
+    u = user("u", ALL)
+    sid, fid = seed(u)
+    h = auth(u)
+    item_id = create(c, h, sid, fid, 供應商料號="S", cost="9").get_json()["data"][0]["id"]
+    read = c.get(f"/product/{item_id}", headers=h).get_json()["data"]
+    row = c.post("/product/search", json={"seriesId": sid}, headers=h).get_json()["data"][0]
+    assert read == row
+    assert read["attributes"][0] == {"fieldId": fid["供應商料號"], "fieldName": "供應商料號",
+                                     "dataType": "string", "value": "S"}
+
+    reader = user("reader", ["product.read"])
+    res = c.get(f"/product/{item_id}", headers=auth(reader))
+    names = [a["fieldName"] for a in res.get_json()["data"]["attributes"]]
+    assert "cost" not in names
+
+
+def test_read_visibility(ctx):
+    _, c = ctx
+    u = user("u", ALL)
+    reader = user("reader", ["product.read"])
+    sid, fid = seed(u)
+    h, reader_h, owner = auth(u), auth(reader), u.id
+    archived, deleted = [create(c, h, sid, fid, 供應商料號=n).get_json()["data"][0]["id"] for n in ("A", "B")]
+    db.session.add(Archive(item_id=archived, archived_by=owner))
+    db.session.get(Item, deleted).is_deleted = True
+    db.session.commit()
+
+    assert c.get(f"/product/{archived}", headers=reader_h).status_code == 404
+    assert c.get(f"/product/{archived}", headers=h).get_json()["data"]["hasArchive"] is True
+    assert c.get(f"/product/{deleted}", headers=h).get_json()["data"]["isDeleted"] is True
+    assert c.get("/product/999", headers=h).status_code == 404
+
+
+def test_edit_replaces_picture_and_removes_old_file(ctx):
+    app, c = ctx
+    u = user("u", ALL)
+    sid, fid = seed(u)
+    h = auth(u)
+    item_id = create(c, h, sid, fid, 供應商料號="S", pic=png_data_url()).get_json()["data"][0]["id"]
+    [old_file] = files(app)
+
+    edit = [{"itemId": item_id, "attributes": [{"fieldId": fid["pic"], "value": png_data_url("blue")},
+                                               {"fieldId": fid["price"], "value": "17.70"}]}]
+    assert c.patch("/product/edit", json=edit, headers=h).status_code == 200
+    values = {a["fieldName"]: a["value"] for a in c.get(f"/product/{item_id}", headers=h).get_json()["data"]["attributes"]}
+    assert values["price"] == "17.70"
+    assert c.get(values["pic"], headers=h).data == png("blue")
+    assert old_file not in files(app) and len(files(app)) == 1
+
+    clear = [{"itemId": item_id, "attributes": [{"fieldId": fid["pic"], "value": ""}]}]
+    assert c.patch("/product/edit", json=clear, headers=h).status_code == 200
+    assert files(app) == [] and Image.query.count() == 0
+
+
+def test_failed_batch_edit_changes_nothing(ctx):
+    """以前換圖會在中途 commit，後面的產品失敗時前面的修改已經寫入。"""
+    app, c = ctx
+    u = user("u", ALL)
+    sid, fid = seed(u)
+    h = auth(u)
+    first = create(c, h, sid, fid, 供應商料號="A", pic=png_data_url()).get_json()["data"][0]["id"]
+    second = create(c, h, sid, fid, 供應商料號="B").get_json()["data"][0]["id"]
+    before = files(app)
+
+    edit = [{"itemId": first, "attributes": [{"fieldId": fid["price"], "value": "5"},
+                                             {"fieldId": fid["pic"], "value": png_data_url("blue")}]},
+            {"itemId": second, "attributes": [{"fieldId": fid["供應商料號"], "value": "a"}]}]
+    res = c.patch("/product/edit", json=edit, headers=h)
+    assert res.status_code == 400 and "Duplicate values" in res.get_json()["msg"]
+
+    db.session.expire_all()
+    assert str(fid["price"]) not in db.session.get(Item, first).attributes
+    assert files(app) == before
+
+
+def test_edit_hidden_items_and_fields(ctx):
+    _, c = ctx
+    u = user("u", ALL)
+    editor = user("editor", ["product.read", "product.edit"])
+    sid, fid = seed(u)
+    h, owner = auth(editor), u.id
+    item_id = create(c, auth(u), sid, fid, 供應商料號="A").get_json()["data"][0]["id"]
+
+    limit = [{"itemId": item_id, "attributes": [{"fieldId": fid["cost"], "value": "1"}]}]
+    assert c.patch("/product/edit", json=limit, headers=h).status_code == 404
+
+    db.session.add(Archive(item_id=item_id, archived_by=owner))
+    db.session.commit()
+    price = [{"itemId": item_id, "attributes": [{"fieldId": fid["price"], "value": "1"}]}]
+    assert c.patch("/product/edit", json=price, headers=h).status_code == 404
+
+
+def test_create_rejects_hidden_limit_fields(ctx):
+    _, c = ctx
+    u = user("u", ALL)
+    creator = user("creator", ["product.read", "product.create"])
+    sid, fid = seed(u)
+    h = auth(creator)
+    res = create(c, h, sid, fid, 供應商料號="A", cost="1")
+    assert res.status_code == 404 and res.get_json()["msg"] == f"field_id:{fid['cost']} not found"
+    # 不屬於這個 series 的欄位照舊忽略
+    body = [{"seriesId": sid, "attributes": [{"fieldId": fid["供應商料號"], "value": "A"}, {"fieldId": 9999, "value": "x"}]}]
+    assert c.post("/product", json=body, headers=h).status_code == 201
+
+
+def test_copy(ctx):
+    app, c = ctx
+    u = user("u", ALL)
+    reader = user("reader", ["product.read", "product.create"])
+    sid, fid = seed(u)
+    h, reader_h, owner = auth(u), auth(reader), u.id
+    item_id = create(c, h, sid, fid, 供應商料號="S", DST料號="D", pic=png_data_url()).get_json()["data"][0]["id"]
+
+    copy_id = c.post("/product/copy", json={"itemIds": [item_id]}, headers=h).get_json()["data"][0]["id"]
+    values = {a["fieldName"]: a["value"] for a in c.get(f"/product/{copy_id}", headers=h).get_json()["data"]["attributes"]}
+    assert values["供應商料號"] == "copy S" and values["DST料號"] == "D"
+    assert c.get(values["pic"], headers=h).data == png() and len(files(app)) == 2
+
+    db.session.add(Archive(item_id=item_id, archived_by=owner))
+    db.session.commit()
+    res = c.post("/product/copy", json={"itemIds": [item_id]}, headers=reader_h)
+    assert res.status_code == 404 and res.get_json()["msg"] == f"Item(s) not found: [{item_id}]"
+    assert c.post("/product/copy", json={"itemIds": []}, headers=h).status_code == 400
+
+
+def test_delete_is_soft(ctx):
+    _, c = ctx
+    u = user("u", ALL)
+    sid, fid = seed(u)
+    h = auth(u)
+    item_id = create(c, h, sid, fid, 供應商料號="S").get_json()["data"][0]["id"]
+    assert c.delete("/product/delete", json={"itemId": [item_id]}, headers=h).status_code == 200
+    assert c.get(f"/product/{item_id}", headers=h).get_json()["data"]["isDeleted"] is True
+
+
+def test_unique_part_number_ignores_spaces_in_field_name(ctx):
+    _, c = ctx
+    u = user("u", ALL)
+    h = auth(u)
+    s = Series(name="spaced", created_by=u.id)
+    db.session.add(s)
+    db.session.flush()
+    dst = Field(name="DST 料號", data_type="string", series_id=s.id, sequence=1)
+    old = Field(name="DST 料號（舊）", data_type="string", series_id=s.id, sequence=2)
+    db.session.add_all([dst, old])
+    db.session.commit()
+    sid, fid = s.id, {"DST 料號": dst.id, "old": old.id}
+
+    def make(**values):
+        return c.post("/product", json=[{"seriesId": sid, "attributes": [
+            {"fieldId": fid[name], "value": value} for name, value in values.items()]}], headers=h)
+
+    assert make(**{"DST 料號": "D-1", "old": "O-1"}).status_code == 201
+    res = make(**{"DST 料號": "d-1"})
+    assert res.status_code == 400 and "DST 料號 'd-1' 已存在" in res.get_json()["msg"]
+    # 只有料號欄位本身，"DST 料號（舊）" 不檢查
+    assert make(old="O-1").status_code == 201

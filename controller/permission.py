@@ -67,7 +67,8 @@ def read_multi():
     page = int(request.args.get('page', 1))
     limit = int(request.args.get('limit', 10))
 
-    permissions = Permission.query.limit(
+    # MySQL 沒有 ORDER BY 時依 id 回傳；PG 不保證順序，分頁會重複或漏
+    permissions = Permission.query.order_by(Permission.id).limit(
         limit).offset((page - 1) * limit).all()
 
     total_count = Permission.query.count()

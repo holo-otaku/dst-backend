@@ -14,6 +14,49 @@ services:
       - TZ=Asia/Taipei
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      retries: 20
+
+  postgres:
+    image: postgres:18.6-alpine
+    container_name: dst-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=dst
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - TZ=Asia/Taipei
+    volumes:
+      # 18 起資料放在 /var/lib/postgresql/<major>/，掛上層目錄
+      - pg_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "admin", "-d", "dst"]
+      interval: 5s
+      retries: 20
+
+  backend:
+    build: .
+    container_name: dst-backend
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env  # JWT_SECRET_KEY 等密鑰；下面 environment 的值優先
+    environment:
+      SQLALCHEMY_DATABASE_URI: postgresql+psycopg://admin:admin@postgres:5432/dst
+      IMG_PATH: ./img
+      GUNICORN_WORKERS: 2
+    volumes:
+      - ./img:/usr/app/img
+    command: >
+      sh -c "flask --app app db upgrade
+      && python -c 'from app import app; from controller.permission import create_default_permissions; from controller.role import create_admin_role; from controller.user import create_admin_user; app.app_context().push(); create_default_permissions(); create_admin_role(); create_admin_user()'
+      && exec gunicorn --config gunicorn.conf.py app:app"
 
   phpmyadmin:
     image: phpmyadmin:latest
@@ -31,3 +74,4 @@ services:
 
 volumes:
   mysql_data:
+  pg_data:

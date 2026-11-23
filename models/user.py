@@ -1,5 +1,5 @@
 from models.shared import db
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Index, func
 from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
@@ -16,6 +16,9 @@ class User(db.Model):
     roles = relationship('Role', secondary='user_role', backref='users')
     created_at = Column(DateTime, default=datetime.now, nullable=False)
     updated_at = Column(DateTime, default=datetime.now, nullable=False)
+
+    # 帳號和 MySQL 的 collation 一樣不分大小寫：Admin 和 admin 不能同時存在
+    __table_args__ = (Index('uq_users_username_lower', func.lower(username), unique=True),)
 
     def set_password(self, password):
         self.password = generate_password_hash(password)  # 將密碼加密
