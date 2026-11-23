@@ -187,3 +187,16 @@ def test_copy_and_field_changes_keep_attributes_in_sync(ctx):
     assert c.patch(f"/series/{sid}", json={"delete": [price]}, headers=h).status_code == 200
     db.session.expire_all()
     assert not Item.query.filter(Item.attributes[str(price)].as_string().is_not(None)).all()
+
+
+def test_sort_puts_empty_values_where_mysql_did(ctx):
+    """PG 預設 DESC 時 NULL 在最前面；MySQL 把 NULL 當最小值，前端依賴這個順序。"""
+    _, c = ctx
+    u = user("u", ["product.read"])
+    sid, name, price, _, ids = seed(u)
+    blank = Item(series_id=sid, attributes={str(name): "blank"})
+    db.session.add(blank)
+    db.session.commit()
+    h = auth(u)
+    assert names(search(c, h, {"seriesId": sid}, f"?sort={price},asc")) == ["blank", "apple", "banana", "cherry"]
+    assert names(search(c, h, {"seriesId": sid}, f"?sort={price},desc")) == ["cherry", "banana", "apple", "blank"]
