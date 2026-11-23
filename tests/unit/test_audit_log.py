@@ -1,6 +1,8 @@
 """操作紀錄要能回答：誰、從哪、做了什麼、有沒有被擋下。"""
+import json
+
 from models.log import ActivityLog
-from tests.unit.test_security_fixes import ctx, user, auth  # noqa: F401
+from tests.unit.test_security_fixes import ctx, user, auth, catalog  # noqa: F401
 
 
 def logs():
@@ -59,3 +61,21 @@ def test_noise_is_not_logged(ctx):
     client.get("/wp-login.php")
     client.options("/series")
     assert logs() == []
+
+
+def test_audit_line_is_also_written_to_file_logger(ctx, caplog):
+    app, client = ctx
+    user("alice", [])
+    with caplog.at_level("INFO", logger="audit"):
+        client.post("/login", json={"username": "alice", "password": "wrong"})
+    (record,) = [r for r in caplog.records if r.name == "audit"]
+    line = json.loads(record.getMessage())
+    assert (line["username"], line["status"], line["payload"]["password"]) == ("alice", 401, "***")
+
+
+def test_product_readers_can_use_filter_autocomplete(ctx):
+    app, client = ctx
+    reader = user("reader", ["product.read"])
+    s, name, _, _, _ = catalog(reader)
+    response = client.get(f"/field/search?field_id={name.id}", headers=auth(reader))
+    assert response.get_json()["data"] == ["=1+1"]

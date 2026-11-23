@@ -25,3 +25,12 @@ class Logger:
         log_handler.setFormatter(log_formatter)
 
         app.logger.addHandler(log_handler)
+
+        # 操作紀錄另存一份檔案（middlewares 寫入），每天一個檔、留 90 天
+        audit_handler = TimedRotatingFileHandler(
+            log_dir + '/audit.log', when='midnight', interval=1, backupCount=90, encoding='utf-8')
+        audit_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+        audit = logging.getLogger('audit')
+        audit.setLevel(logging.INFO)
+        audit.propagate = False
+        audit.addHandler(audit_handler)
