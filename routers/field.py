@@ -1,41 +1,29 @@
-from flask import Blueprint, request, jsonify
+from flask import jsonify
+from flask_smorest import Blueprint
+from marshmallow import Schema, fields
+
 from controller.field import search_item_attribute_by_field_id_and_value
 from controller.access import check_permission
+from routers.schemas import Message, errors
 
-field = Blueprint("field", __name__)
+field = Blueprint("Field", __name__, description="欄位值")
+
+
+class FieldSearchQuery(Schema):
+    field_id = fields.Integer(required=True)
+    search_value = fields.String(metadata={"description": "模糊搜尋，空白時回傳全部（最多 100 筆）"})
+
+
+class FieldValuesResponse(Message):
+    data = fields.List(fields.String(), metadata={"example": ["test_value_1", "test_value_2"]})
+
 
 @field.route("/search", methods=["GET"])
 @check_permission("product.create")
-def search_item_attribute():
-    """
-    @api {get} /field/search 搜尋 ItemAttribute
-    @apiName SearchItemAttribute
-    @apiGroup Field
-    @apiParam {Number} field_id 欄位 ID
-    @apiParam {String} search_value 搜尋值
-    @apiSuccess {Number} code 狀態碼 (200: 成功, 400: 參數錯誤, 500: 伺服器錯誤)
-    @apiSuccess {String} msg 訊息
-    @apiSuccess {Object[]} data 搜尋結果列表
-    @apiSuccessExample {json} Success-Response:
-        HTTP/1.1 200 OK
-        {
-            "code": 200,
-            "msg": "Success",
-            "data": [
-                "test_value_1",
-                "test_value_2"
-            ]
-        }
-    @apiErrorExample {json} Error-Response:
-        HTTP/1.1 400 Bad Request
-        {
-            "code": 400,
-            "msg": "Missing field_id or search_value",
-            "data": []
-        }
-    """
-    field_id = request.args.get("field_id", type=int)
-    search_value = request.args.get("search_value", type=str)
-
-    results = search_item_attribute_by_field_id_and_value(field_id, search_value)
+@field.arguments(FieldSearchQuery, location="query")
+@field.response(200, FieldValuesResponse, description="HTTP 一律 200，錯誤看 body 的 code（400/403/404）")
+@errors(field, 403)
+def search_item_attribute(query):
+    """搜尋某欄位已有的值（新增產品時的自動完成）"""
+    results = search_item_attribute_by_field_id_and_value(query["field_id"], query.get("search_value"))
     return jsonify(results)

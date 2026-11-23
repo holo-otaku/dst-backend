@@ -1,11 +1,10 @@
 from flask import send_from_directory
-from flask import current_app, jsonify, make_response, request, send_file, abort
-from models.image import Image
-from models.series import Field, ItemAttribute
+from flask import jsonify, make_response, request, abort
+from controller import field_value, image_store
+from models.series import Field, Item
 from models.shared import db
 from utils.permissions import check_field_permission
-from sqlalchemy.exc import SQLAlchemyError
-import uuid
+from sqlalchemy import or_
 import os
 from PIL import Image as PILImage
 from modules.exception import handle_exceptions
@@ -27,23 +26,11 @@ def create():
     except (OSError, SyntaxError):
         return make_response(jsonify({"code": 400, "msg": "image_data is not a valid image"}), 400)
 
-    # Save the file under IMG_PATH and store only its path, like product images
-    image_dir = current_app.config["IMG_PATH"]
-    os.makedirs(image_dir, exist_ok=True)
-    image_name = str(uuid.uuid4())[:8]
-    image_path = os.path.join(image_dir, f"{image_name}.png")
     image_file.stream.seek(0)
-    image_file.save(image_path)
-
-    # Create an Image instance and set its properties
-    image = Image(name=image_name, path=image_path)
-
-    # Add the image to the database
-    db.session.add(image)
+    image_id = image_store.save(image_file.stream.read())
     db.session.commit()
 
-    # Return the image ID as the response
-    return make_response(jsonify({"code": 201, "msg": "Image created", "image_id": image.id}), 201)
+    return make_response(jsonify({"code": 201, "msg": "Image created", "image_id": image_id}), 201)
 
 
 @handle_exceptions
@@ -52,27 +39,29 @@ def read(image_id):
         # If the image ID is not found in the database, return a 404 Not Found response
         abort(404)
 
-    image = db.session.get(Image, image_id)
+    image_path = image_store.path(image_id)
 
-    if image is None:
+    if image_path is None:
         return make_response(jsonify({"code": 404, "msg": 'Image not found'}), 404)
 
     # 圖片屬於 limit 欄位時，套用和商品欄位相同的 limit-field.read 檢查
-    limit_ref = db.session.query(Field.id).join(ItemAttribute, ItemAttribute.field_id == Field.id).filter(
+    limit_field_ids = db.session.query(Field.id).filter(
         Field.data_type == 'picture',
         Field.is_limit_field.is_(True),
-        ItemAttribute.value == str(image_id),
-    ).first()
+    ).all()
+    limit_ref = limit_field_ids and db.session.query(Item.id).filter(or_(
+        *(field_value.sql(field_id, 'picture') == str(image_id) for (field_id,) in limit_field_ids)
+    )).first()
     if limit_ref and not check_field_permission("limit-field.read"):
         return make_response(jsonify({"code": 403, "msg": "Permission denied"}), 403)
 
     # Extract the directory and filename from the image path
-    image_directory = os.path.dirname(image.path)
-    image_filename = os.path.basename(image.path)
+    image_directory = os.path.dirname(image_path)
+    image_filename = os.path.basename(image_path)
 
     # Files are always saved as .png, but uploads may be JPEG, so sniff the real format
     try:
-        with PILImage.open(image.path) as img:
+        with PILImage.open(image_path) as img:
             image_format = img.format
     except OSError:
         image_format = None

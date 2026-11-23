@@ -93,7 +93,8 @@ def read_multi():
     total_count = query.count()
 
     # Query for users with pagination
-    users = query.limit(limit).offset((page - 1) * limit).all()
+    # MySQL 沒有 ORDER BY 時依 id 回傳；PG 不保證順序，分頁會重複或漏
+    users = query.order_by(User.id).limit(limit).offset((page - 1) * limit).all()
 
     result = [{'id': user.id, 'userName': user.username,
                'role': user.roles[0].name if user.roles else None,

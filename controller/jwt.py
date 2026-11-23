@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta
 from models.user import User
 from models.shared import db
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from modules.exception import handle_exceptions
 
@@ -23,7 +24,8 @@ def login():
         return make_response(jsonify({"msg": "Invalid credentials"}), 401)
 
     # 在用户数据库中查找匹配的用户
-    user = User.query.filter_by(username=username).first()
+    # 和 MySQL 的 collation 一樣不分大小寫（users 有 lower(username) 唯一索引）
+    user = User.query.filter(func.lower(User.username) == username.lower()).first()
 
     if not user:
         check_password_hash(_DUMMY_HASH, password)
